@@ -1,0 +1,82 @@
+import {
+  LayoutDashboard,
+  Brain,
+  ShoppingBag,
+  User,
+  Calendar,
+  FileText,
+  FolderOpen,
+  CreditCard,
+  Activity
+} from 'lucide-react';
+import { cn } from '../common/ui/utils';
+import type { PatientPage } from '../PatientPortal';
+
+interface PatientSidebarProps {
+  currentPage: PatientPage;
+  onPageChange: (page: PatientPage) => void;
+}
+
+const menuItems = [
+  { id: 'dashboard' as PatientPage, label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'ai-tools' as PatientPage, label: 'AI Health Tools', icon: Brain },
+  { id: 'medicine-store' as PatientPage, label: 'Buy Medicine', icon: ShoppingBag },
+  { id: 'book-appointment' as PatientPage, label: 'Book Appointment', icon: Calendar },
+  { id: 'appointments' as PatientPage, label: 'My Appointments', icon: Calendar },
+  { id: 'profile' as PatientPage, label: 'My Profile', icon: User },
+  { id: 'prescriptions' as PatientPage, label: 'My Prescriptions', icon: FileText },
+  { id: 'reports' as PatientPage, label: 'Medical Reports', icon: FolderOpen },
+  { id: 'billing' as PatientPage, label: 'My Billing', icon: CreditCard },
+];
+
+export function PatientSidebar({ currentPage, onPageChange }: PatientSidebarProps) {
+  return (
+    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <Activity className="size-8 text-pink-600" />
+          <div>
+            <h1 className="font-bold text-gray-900">Elinic</h1>
+            <p className="text-xs text-gray-600">Patient Portal</p>
+          </div>
+        </div>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto p-4">
+        <ul className="space-y-1">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+
+            return (
+              <li key={item.id}>
+                <button
+                  onClick={() => onPageChange(item.id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-gradient-to-r from-pink-50 to-purple-50 text-pink-600 border border-pink-200'
+                      : 'text-gray-700 hover:bg-pink-50'
+                  )}
+                >
+                  <Icon className="size-5" />
+                  {item.label}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="p-4 border-t border-gray-200">
+        <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 border border-pink-200">
+          <p className="text-xs font-medium text-pink-900 mb-1">Need Help?</p>
+          <p className="text-xs text-pink-700 mb-3">Contact our support team</p>
+          <button className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white text-xs py-2 rounded-md hover:from-pink-700 hover:to-purple-700">
+            Get Support
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}

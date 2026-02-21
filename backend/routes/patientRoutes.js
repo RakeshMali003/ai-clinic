@@ -1,0 +1,46 @@
+const express = require('express');
+const { check } = require('express-validator');
+const patientController = require('../controllers/patientController');
+const validate = require('../middleware/validator');
+const { protect, authorize } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Apply auth middleware to all routes
+router.use(protect);
+
+router.get('/profile', patientController.getPatientProfile);
+router.put('/profile', patientController.updatePatientProfile);
+
+router.post(
+    '/',
+    [
+        authorize('admin', 'receptionist', 'doctor'),
+        check('patient_id', 'Patient ID is required').not().isEmpty(),
+        check('full_name', 'Name is required').not().isEmpty(),
+        check('phone', 'Phone number is required').not().isEmpty(),
+        validate
+    ],
+    patientController.createPatient
+);
+
+router.get('/', patientController.getAllPatients);
+
+router.get('/:id', patientController.getPatientById);
+
+router.put(
+    '/:id',
+    [
+        authorize('admin', 'receptionist', 'doctor'),
+        validate
+    ],
+    patientController.updatePatient
+);
+
+router.delete(
+    '/:id',
+    authorize('admin'),
+    patientController.deletePatient
+);
+
+module.exports = router;
