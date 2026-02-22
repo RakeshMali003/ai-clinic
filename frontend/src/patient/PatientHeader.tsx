@@ -1,8 +1,8 @@
 import { Bell, User, LogOut } from 'lucide-react';
 import { Button } from '../common/ui/button';
-import { Avatar, AvatarFallback } from '../common/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../common/ui/avatar';
 import { Badge } from '../common/ui/badge';
-import type { PatientUser } from '../PatientPortal';
+import type { PatientUser } from './PatientPortal';
 
 interface PatientHeaderProps {
   patient: PatientUser;
@@ -28,9 +28,13 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
 
           <div className="flex items-center gap-3 border-l border-pink-200 pl-4">
             <Avatar>
-              <AvatarFallback className="bg-gradient-to-r from-pink-600 to-purple-600 text-white">
-                {patient.avatar || <User className="size-5" />}
-              </AvatarFallback>
+              {patient.avatar ? (
+                <AvatarImage src={patient.avatar} alt={patient.name} />
+              ) : (
+                <AvatarFallback className="bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+                  <User className="size-5" />
+                </AvatarFallback>
+              )}
             </Avatar>
             <div>
               <p className="font-medium text-gray-900">{patient.name}</p>

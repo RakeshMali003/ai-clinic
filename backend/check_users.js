@@ -1,22 +1,35 @@
+require('dotenv').config();
 const { Pool } = require('pg');
-const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    ssl: { rejectUnauthorized: false }
 });
 
 async function checkUsers() {
     try {
-        console.log('Checking users in database...');
-        const result = await pool.query('SELECT user_id, full_name, email, role FROM users');
-        console.log('Users:');
-        result.rows.forEach(user => {
-            console.log(`ID: ${user.user_id}, Name: ${user.full_name}, Email: ${user.email}, Role: ${user.role}`);
-        });
-    } catch (error) {
-        console.error('Error:', error);
+        const res = await pool.query(`
+            SELECT user_id, full_name, email, role, created_at 
+            FROM users 
+            WHERE role = 'patient' 
+            ORDER BY created_at DESC 
+            LIMIT 10
+        `);
+        console.log('Recent patient users:');
+        console.table(res.rows);
+        
+        // Also check patients table
+        const patientRes = await pool.query(`
+            SELECT patient_id, user_id, full_name, email 
+            FROM patients 
+            ORDER BY patient_id DESC 
+            LIMIT 10
+        `);
+        console.log('Recent patients:');
+        console.table(patientRes.rows);
+        
+    } catch (err) {
+        console.error(err);
     } finally {
         await pool.end();
     }

@@ -22,9 +22,13 @@ router.post('/register/clinic', authController.registerClinic);
 // Email/password login
 router.post('/login', authController.login);
 
-// Google OAuth routes
-router.get('/google', authController.googleAuth);
-router.get('/google/callback', authController.googleAuthCallback);
+// Google OAuth routes - use passport.authenticate directly in routes
+const passport = require('passport');
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback', 
+    passport.authenticate('google', { session: false, failureRedirect: '/?error=auth_failed' }),
+    authController.googleAuthCallback
+);
 
 // Get current user
 router.get('/me', protect, authController.getCurrentUser);

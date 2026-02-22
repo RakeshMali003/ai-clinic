@@ -15,7 +15,18 @@ export interface Patient {
     medical_history?: string;
     insurance_id?: string;
     email?: string;
+    profile_photo_url?: string;
+    allergies?: string[];
+    chronicDiseases?: string[];
+    currentMedications?: string[];
 }
+
+// Helper to convert relative path to absolute URL
+const getFullUrl = (path: string | undefined): string | undefined => {
+    if (!path) return undefined;
+    if (path.startsWith('http')) return path; // Already absolute
+    return `${API_BASE_URL}${path}`;
+};
 
 class PatientService {
     private async getAuthHeaders() {
@@ -37,7 +48,12 @@ class PatientService {
             }
 
             const result = await response.json();
-            return result.data?.patients || [];
+            const patients = result.data?.patients || [];
+            
+            return patients.map((p: any) => ({
+                ...p,
+                profile_photo_url: getFullUrl(p.profile_photo_url)
+            }));
         } catch (error) {
             console.error('Error fetching patients:', error);
             throw error;
@@ -56,7 +72,11 @@ class PatientService {
             }
 
             const result = await response.json();
-            return result.data || null;
+            const patient = result.data;
+            if (patient) {
+                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+            }
+            return patient || null;
         } catch (error) {
             console.error('Error fetching patient:', error);
             return null;
@@ -90,7 +110,11 @@ class PatientService {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result = await response.json();
-            return result.data || null;
+            const patient = result.data;
+            if (patient) {
+                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+            }
+            return patient || null;
         } catch (error) {
             console.error('Error fetching patient profile:', error);
             return null;
@@ -106,7 +130,11 @@ class PatientService {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const result = await response.json();
-            return result.data || null;
+            const patient = result.data;
+            if (patient) {
+                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+            }
+            return patient || null;
         } catch (error) {
             console.error('Error updating patient profile:', error);
             return null;
@@ -202,6 +230,36 @@ class PatientService {
         } catch (error) {
             console.error('Error deleting patient:', error);
             return false;
+        }
+    }
+
+    async uploadProfilePhoto(file: File): Promise<Patient | null> {
+        try {
+            const formData = new FormData();
+            formData.append('profile_photo', file);
+
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`${API_BASE_URL}/api/patients/profile/photo`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const patient = result.data;
+            if (patient) {
+                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+            }
+            return patient || null;
+        } catch (error) {
+            console.error('Error uploading profile photo:', error);
+            return null;
         }
     }
 }

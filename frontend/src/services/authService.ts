@@ -4,9 +4,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export async function getUserWithRole(): Promise<User | null> {
     const token = localStorage.getItem('auth_token');
-    if (!token) return null;
+    console.log('getUserWithRole: Checking for token...');
+    console.log('Token in localStorage:', token ? `Found (${token.substring(0, 30)}...)` : 'NOT FOUND');
+    
+    if (!token) {
+        console.log('No token found in localStorage');
+        return null;
+    }
 
     try {
+        console.log('Making /api/auth/me request with token...');
         const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -14,18 +21,26 @@ export async function getUserWithRole(): Promise<User | null> {
             }
         });
 
+        console.log('/api/auth/me response status:', response.status);
+
         if (!response.ok) {
             if (response.status === 401) {
-                // Token expired, try to get from cache
+                console.log('Token validation failed (401) - checking cache...');
+                // Don't clear the token - it might be a server issue, not invalid token
+                // The backend might need restart or have a temporary issue
                 const cachedUser = localStorage.getItem('user');
                 if (cachedUser) {
                     try {
-                        return JSON.parse(cachedUser);
+                        const parsedUser = JSON.parse(cachedUser);
+                        console.log('Found cached user - returning with existing token');
+                        return parsedUser;
                     } catch (parseError) {
                         console.error('Error parsing cached user:', parseError);
                     }
                 }
-                localStorage.removeItem('auth_token');
+                // Only clear token if there's no cached user AND we get 401 consistently
+                // For now, keep the token - user can try again
+                console.log('No cached user - keeping token for retry');
                 return null;
             }
             throw new Error('Failed to fetch user');
@@ -33,14 +48,16 @@ export async function getUserWithRole(): Promise<User | null> {
 
         const data = await response.json();
         console.log("getUserWithRole raw data:", data);
-        const user = {
-            id: data.data.user_id,
-            name: data.data.full_name,
+        const user: User = {
+            id: String(data.data.user_id),
+            full_name: data.data.full_name,
+            name: data.data.full_name, // Also set name for convenience
             email: data.data.email,
             role: data.data.role as UserRole,
         };
         // Cache the user in localStorage
         localStorage.setItem('user', JSON.stringify(user));
+        console.log('User fetched and cached successfully');
         return user;
     } catch (error) {
         console.error('Error fetching user:', error);
@@ -112,7 +129,8 @@ export interface DoctorRegistrationData {
 
 export class AuthService {
     // Sign in with email and password
-    async signInWithEmail(email: string, password: string) {
+    async signInWithEmail(email: string, password: string): Promise<User> {
+        console.log('Attempting login for:', email);
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: {
@@ -121,21 +139,42 @@ export class AuthService {
             body: JSON.stringify({ email, password }),
         });
 
+        console.log('Login response status:', response.status);
+
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('Login error:', errorData);
             throw new Error(errorData.message || 'Login failed');
         }
 
         const data = await response.json();
         console.log("signInWithEmail response data:", data);
-        localStorage.setItem('auth_token', data.token);
+        console.log("Token received:", data.token ? `Yes (${data.token.substring(0, 30)}...)` : 'No');
+        
+        // Store token FIRST before anything else
+        if (data.token) {
+            localStorage.setItem('auth_token', data.token);
+            console.log("✅ Token stored in localStorage");
+            
+            // Verify token was stored
+            const storedToken = localStorage.getItem('auth_token');
+            console.log("Verification - Token in localStorage:", storedToken ? 'YES' : 'NO');
+        } else {
+            console.error("❌ NO TOKEN IN RESPONSE!");
+        }
 
-        return {
-            id: data.user.user_id,
-            name: data.user.full_name,
+        // Create user object with proper format (full_name required)
+        const userData: User = {
+            id: String(data.user.user_id),
+            full_name: data.user.full_name,
+            name: data.user.full_name, // Also set name for convenience
             email: data.user.email,
             role: data.user.role as UserRole,
         };
+        localStorage.setItem('user', JSON.stringify(userData));
+        console.log("User data stored:", userData);
+
+        return userData;
     }
 
     // Sign in with Google
@@ -286,14 +325,10 @@ export class AuthService {
         return await response.json();
     }
 
-
-
     // Sign out
     async signOut() {
         localStorage.removeItem('auth_token');
     }
-
-
 
     // OTP verification
     async verifyOtp(email: string, otp: string) {

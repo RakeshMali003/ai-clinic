@@ -25,43 +25,42 @@ exports.googleAuth = (req, res, next) => {
   })(req, res, next);
 };
 
-exports.googleAuthCallback = (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user, info) => {
-    if (err) {
-      console.error('Google auth error:', err);
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      return res.redirect(`${frontendUrl}?error=auth_failed`);
-    }
+// Note: passport.authenticate is already called in the route before this controller
+// The user is available in req.user after passport middleware runs
+exports.googleAuthCallback = (req, res) => {
+  const user = req.user;
+  
+  if (!user) {
+    console.error('Google auth error: No user in request');
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}?error=no_user`);
+  }
 
-    if (!user) {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      return res.redirect(`${frontendUrl}?error=no_user`);
-    }
+  try {
+    console.log('Google callback for user:', user.email, 'role:', user.role);
+    
+    // Create JWT token
+    const token = jwt.sign(
+      { id: user.user_id, role: user.role },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: process.env.JWT_EXPIRE || '24h' }
+    );
 
-    try {
-      // Create JWT token
-      const token = jwt.sign(
-        { id: user.user_id, role: user.role },
-        process.env.JWT_SECRET || 'fallback-secret',
-        { expiresIn: process.env.JWT_EXPIRE || '24h' }
-      );
+    // Redirect to base URL - frontend will handle role-based navigation
+    const redirectPath = '';
 
-      // Redirect to base URL - frontend will handle role-based navigation
-      const redirectPath = '';
-
-      // Redirect to frontend with token
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      res.redirect(`${frontendUrl}${redirectPath}?token=${token}&user=${encodeURIComponent(JSON.stringify({
-        user_id: user.user_id,
-        full_name: user.full_name,
-        email: user.email,
-        role: user.role
-      }))}`);
-    } catch (error) {
-      console.error('Token generation error:', error);
-      res.redirect('http://localhost:5173?error=token_generation_failed');
-    }
-  })(req, res, next);
+    // Redirect to frontend with token
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    res.redirect(`${frontendUrl}${redirectPath}?token=${token}&user=${encodeURIComponent(JSON.stringify({
+      user_id: user.user_id,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role
+    }))}`);
+  } catch (error) {
+    console.error('Token generation error:', error);
+    res.redirect('http://localhost:5173?error=token_generation_failed');
+  }
 };
 
 exports.getCurrentUser = async (req, res, next) => {

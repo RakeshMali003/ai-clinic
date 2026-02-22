@@ -1,5 +1,5 @@
-const { Pool } = require('pg');
 require('dotenv').config();
+const { Pool } = require('pg');
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -11,10 +11,12 @@ async function listTables() {
         const res = await pool.query(`
             SELECT table_name 
             FROM information_schema.tables 
-            WHERE table_schema = 'public'
+            WHERE table_schema = 'public' 
+            ORDER BY table_name
         `);
-        console.log('Tables in public schema:');
-        console.table(res.rows);
+        console.log('Tables in database:');
+        res.rows.forEach(row => console.log(row.table_name));
+        
     } catch (err) {
         console.error(err);
     } finally {

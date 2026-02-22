@@ -16,7 +16,8 @@ const protect = async (req, res, next) => {
             return ResponseHandler.unauthorized(res, 'Not authorized: No nav beacon found');
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        // Use fallback secret to match authController
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
 
         // Use prisma to find user
         const user = await prisma.users.findUnique({
@@ -36,9 +37,10 @@ const protect = async (req, res, next) => {
         }
 
         // Inject patient_id for data isolation if user is a patient
+        // Use user_id to find patient (patients table links via user_id, not email)
         if (user.role === 'patient') {
             const patient = await prisma.patients.findFirst({
-                where: { email: user.email }
+                where: { user_id: user.user_id }
             });
             if (patient) {
                 user.patient_id = patient.patient_id;

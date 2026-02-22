@@ -1,21 +1,26 @@
-# TODO: Fix Appointment Date Timezone Issue
+# Google Auth Patient Table Fix - TODO List
 
-## Completed Tasks
-- [x] Analyzed the timezone issue in appointment booking
-- [x] Identified root cause: Date parsing in backend treating local timezone instead of UTC
-- [x] Updated appointmentController.js to treat appointment_date as UTC date at midnight
-- [x] Updated appointmentModel.js getBookedSlots to treat date as UTC date at midnight
-- [x] Updated appointmentModel.js findUpcomingByPatient to use UTC date for comparison
-- [x] Updated frontend BookAppointment.tsx to send UTC date at midnight
+## Tasks Completed:
+- [x] 1. Verify `user_id` column exists in patients table (already exists in database)
+- [x] 2. Update passport.js to create patient record when Google user logs in
+- [x] 3. Auth middleware already looks up patients by user_id correctly
+- [x] 4. Fix routes to use passport.authenticate directly (KEY FIX!)
 
-## Summary
-The issue was that when booking an appointment for the 22nd, it was being stored as the 21st due to timezone conversion. The frontend sends date in YYYY-MM-DD format, but the backend was parsing it as local time instead of UTC.
+## Summary of Changes:
+1. **backend/config/passport.js**: 
+   - Added code to create a patient record when a new Google user logs in
+   - The patient record is linked to the user via `user_id` field
+   - Added detailed logging for debugging
 
-**Changes Made:**
-1. In `backend/controllers/appointmentController.js`: Changed date parsing to explicitly create UTC date at midnight using `new Date(Date.UTC(year, month - 1, day))`
-2. In `backend/models/appointmentModel.js`:
-   - Updated `getBookedSlots` to parse date as UTC date at midnight
-   - Updated `findUpcomingByPatient` to use UTC date for comparison
-3. In `components/patient-portal/BookAppointment.tsx`: Changed date formatting to use `Date.UTC()` to create UTC date at midnight
+2. **backend/routes/authRoutes.js**:
+   - Changed to use passport.authenticate directly in routes instead of controller
+   - This ensures the passport strategy actually runs and creates the patient record
 
-These changes ensure dates are consistently treated as UTC midnight, preventing timezone shifts during storage and retrieval.
+## How it works:
+1. User clicks "Sign in with Google" 
+2. passport.authenticate('google') is called directly in the route
+3. Google OAuth callback triggers the passport strategy
+4. passport.js creates user (if new) and patient record (always)
+5. User is redirected to frontend with token
+
+## Status: ✅ Fix Complete!

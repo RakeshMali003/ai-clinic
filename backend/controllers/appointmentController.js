@@ -1,9 +1,37 @@
 const Appointment = require('../models/appointmentModel');
 const ResponseHandler = require('../utils/responseHandler');
 
+exports.getPatientAppointments = async (req, res, next) => {
+    try {
+        const patientId = req.user.patient_id;
+        if (!patientId) {
+            return ResponseHandler.badRequest(res, 'Patient ID not found in session');
+        }
+        const appointments = await Appointment.findByPatient(patientId);
+        ResponseHandler.success(res, appointments, 'Patient appointments retrieved');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.getUpcomingPatientAppointments = async (req, res, next) => {
+    try {
+        const patientId = req.user.patient_id;
+        if (!patientId) {
+            return ResponseHandler.badRequest(res, 'Patient ID not found in session');
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const appointments = await Appointment.findUpcomingByPatient(patientId, today);
+        ResponseHandler.success(res, appointments, 'Upcoming patient appointments retrieved');
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.createAppointment = async (req, res, next) => {
     try {
-        const { patient_id, doctor_id, appointment_date, appointment_time, type, mode, status, consult_duration, earnings } = req.body;
+        const { patient_id, doctor_id, appointment_date } = req.body;
 
         if (!patient_id || !doctor_id || !appointment_date) {
             return ResponseHandler.badRequest(res, 'Missing required parameters for appointment');
@@ -27,26 +55,42 @@ exports.createAppointment = async (req, res, next) => {
         const [year, month, day] = appointment_date.split('-').map(Number);
         const utcDate = new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed in Date constructor
 
-        // Convert types to match Prisma schema
+        // Handle appointment_time - convert to full ISO-8601 datetime string for Prisma
+        let appointmentTime = req.body.appointment_time;
+        console.log('DEBUG: Raw appointment_time:', appointmentTime, 'Type:', typeof appointmentTime);
+        
+        if (appointmentTime) {
+            // If time is like "15:30:00", convert to full datetime string
+            // Force conversion for any time-like string
+            if (appointmentTime.includes(':')) {
+                // Extract hours:minutes:seconds
+                const parts = appointmentTime.split(':');
+                const hours = parts[0]?.padStart(2, '0') || '00';
+                const minutes = parts[1]?.padStart(2, '0') || '00';
+                const seconds = parts[2]?.padStart(2, '0') || '00';
+                
+                appointmentTime = `1970-01-01T${hours}:${minutes}:${seconds}.000Z`;
+                console.log('DEBUG: Converted appointment_time:', appointmentTime);
+            }
+        }
+
         const appointmentData = {
             appointment_id,
-            patient_id: patient_id.toString(),
-            doctor_id: parseInt(doctor_id, 10), // Convert string to integer
+            patient_id: req.body.patient_id,
+            doctor_id: req.body.doctor_id,
             appointment_date: utcDate,
-            appointment_time: appointment_time || null,
-            type: type || 'in-clinic',
-            mode: mode || 'offline',
-            status: status || 'scheduled',
-            consult_duration: consult_duration ? parseInt(consult_duration, 10) : 30,
-            earnings: earnings ? parseFloat(earnings) : 500.00 // Convert to float for Decimal
+            appointment_time: appointmentTime,
+            type: req.body.type,
+            mode: req.body.mode,
+            status: req.body.status || 'scheduled',
+            consult_duration: req.body.consult_duration || 30,
+            earnings: req.body.earnings || 500,
+            reason_for_visit: req.body.reason_for_visit || null
         };
-
-        console.log('Creating appointment with data:', appointmentData);
 
         const newAppointment = await Appointment.create(appointmentData);
         ResponseHandler.created(res, newAppointment, 'Appointment created successfully');
     } catch (error) {
-        console.error('Error creating appointment:', error);
         next(error);
     }
 };
@@ -75,32 +119,13 @@ exports.getAppointmentById = async (req, res, next) => {
 exports.getAppointmentsByPatient = async (req, res, next) => {
     try {
         const { patientId } = req.params;
-        console.log('getAppointmentsByPatient controller called with patientId:', patientId);
-
         if (!patientId) {
             return ResponseHandler.badRequest(res, 'Patient ID is required');
         }
 
         const appointments = await Appointment.findByPatient(patientId);
-        console.log('Controller returning appointments count:', appointments ? appointments.length : 0);
 
         ResponseHandler.success(res, appointments, 'Patient appointments retrieved successfully');
-    } catch (error) {
-        console.error('Error in getAppointmentsByPatient controller:', error);
-        next(error);
-    }
-};
-
-exports.getPatientAppointments = async (req, res, next) => {
-    try {
-        const patientId = req.user.patient_id;
-
-        if (!patientId) {
-            return ResponseHandler.notFound(res, 'Patient record not found for this session');
-        }
-
-        const appointments = await Appointment.findByPatient(patientId);
-        ResponseHandler.success(res, appointments, 'Your appointments retrieved successfully');
     } catch (error) {
         next(error);
     }
@@ -109,8 +134,6 @@ exports.getPatientAppointments = async (req, res, next) => {
 exports.getUpcomingAppointments = async (req, res, next) => {
     try {
         const { patientId } = req.params;
-        console.log('getUpcomingAppointments controller called with patientId:', patientId);
-
         if (!patientId) {
             return ResponseHandler.badRequest(res, 'Patient ID is required');
         }
@@ -120,7 +143,6 @@ exports.getUpcomingAppointments = async (req, res, next) => {
         today.setHours(0, 0, 0, 0);
 
         const appointments = await Appointment.findUpcomingByPatient(patientId, today);
-        console.log('Controller returning upcoming appointments count:', appointments ? appointments.length : 0);
 
         const response = {
             count: appointments.length,
@@ -128,25 +150,6 @@ exports.getUpcomingAppointments = async (req, res, next) => {
         };
 
         ResponseHandler.success(res, response, 'Upcoming appointments retrieved successfully');
-    } catch (error) {
-        console.error('Error in getUpcomingAppointments controller:', error);
-        next(error);
-    }
-};
-
-exports.getUpcomingPatientAppointments = async (req, res, next) => {
-    try {
-        const patientId = req.user.patient_id;
-
-        if (!patientId) {
-            return ResponseHandler.notFound(res, 'Patient record not found for this session');
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const appointments = await Appointment.findUpcomingByPatient(patientId, today);
-        ResponseHandler.success(res, appointments, 'Your upcoming appointments retrieved successfully');
     } catch (error) {
         next(error);
     }

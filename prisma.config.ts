@@ -1,11 +1,9 @@
 import { defineConfig } from 'prisma/config'
+import 'dotenv/config'
 
 export default defineConfig({
-  schema: './prisma/schema.prisma',
-  database: {
-    url: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/eclinic',
-  },
+  schema: './backend/prisma/schema.prisma',
   datasource: {
-    url: process.env.DATABASE_URL || 'postgresql://username:password@localhost:5432/eclinic',
+    url: process.env.DATABASE_URL,
   },
 })

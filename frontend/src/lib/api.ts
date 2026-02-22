@@ -39,8 +39,6 @@ class API {
                 }
                 // Authentication error - clear token and redirect to login
                 localStorage.removeItem('auth_token');
-                // localStorage.removeItem('user'); // Don't clear user immediately
-                // window.location.href = '/'; // Prevent redirect for debugging
                 console.warn('Authentication required (401) - Check API or Token');
                 throw new Error('Authentication required');
             }
@@ -53,7 +51,7 @@ class API {
             // Backend returns { success: true, data: {...}, message: "..." }
             // Return the data field if it exists, otherwise return the full response
             return responseData.data !== undefined ? responseData.data : responseData;
-        } catch (error) {
+        } catch (error: any) {
             console.error('API GET error:', error);
             // Return mock data for development (but not for auth errors)
             if (error.message !== 'Authentication required') {
@@ -81,7 +79,7 @@ class API {
             return await response.json();
         } catch (error: any) {
             console.error('API POST error:', error);
-            throw error; // Re-throw the error instead of masking it
+            throw error;
         }
     }
 
@@ -96,7 +94,7 @@ class API {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return await response.json();
-        } catch (error) {
+        } catch (error: any) {
             console.error('API PUT error:', error);
             return { success: true, data };
         }
@@ -109,7 +107,7 @@ class API {
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return await response.json();
-        } catch (error) {
+        } catch (error: any) {
             console.error('API DELETE error:', error);
             return { success: true };
         }

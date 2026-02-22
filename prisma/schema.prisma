@@ -1,7 +1,7 @@
 datasource db {
   provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -51,27 +51,30 @@ model appointments {
   ai_risk_level    String?   @db.VarChar(20)
   consult_duration Int?
   earnings         Decimal?  @db.Decimal(10, 2)
+  reason_for_visit String?   @db.Text
 
   patient patients? @relation(fields: [patient_id], references: [patient_id])
   doctor doctors? @relation(fields: [doctor_id], references: [id])
 }
 
 model patients {
-  patient_id      String  @id @db.VarChar(20)
-  full_name       String? @db.VarChar(100)
-  email           String? @db.VarChar(150) // Added for session-based lookup
-  age             Int?
-  gender          String? @db.VarChar(10)
-  blood_group     String? @db.VarChar(5)
-  abha_id         String? @db.VarChar(25)
-  phone           String? @db.VarChar(20)
-  address         String?
-  medical_history String?
-  insurance_id    String? @db.VarChar(20)
+  patient_id         String  @id @db.VarChar(20)
+  user_id            Int?    @unique @db.VarChar(20) // Link to users table
+  full_name          String? @db.VarChar(100)
+  email              String? @db.VarChar(150) // Added for session-based lookup
+  age                Int?
+  gender             String? @db.VarChar(10)
+  blood_group        String? @db.VarChar(5)
+  abha_id            String? @db.VarChar(25)
+  phone              String? @db.VarChar(20)
+  address            String?
+  medical_history    String?
+  insurance_id      String? @db.VarChar(20)
+  profile_photo_url String?
 
   appointments          appointments[]
   prescriptions         prescriptions[]
-  patient_documents      patient_documents[]
+  patient_documents     patient_documents[]
   external_prescriptions external_prescriptions[]
   invoices              invoices[]
 }
@@ -105,6 +108,8 @@ model clinics {
   updated_at             DateTime @default(now())
 
   verification_details verification_details[]
+
+  prescriptions prescriptions[] 
 }
 
 model doctors {
@@ -123,6 +128,7 @@ model doctors {
   university_name        String?   @db.VarChar(150)
   graduation_year        Int?
   experience_years       Int?
+  specialization         String?   @db.VarChar(150)
   bio                    String?
   bank_account_name      String?   @db.VarChar(150)
   bank_account_number    String?   @db.VarChar(50)
@@ -137,6 +143,8 @@ model doctors {
 
   appointments         appointments[]
   verification_details verification_details[]
+
+  prescriptions prescriptions[]
 }
 
 model verification_details {
