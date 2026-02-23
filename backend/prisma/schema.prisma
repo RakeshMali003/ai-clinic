@@ -1,32 +1,33 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
+datasource db {
+  provider = "postgresql"
+}
+
 model ai_action_logs {
-  id           Int      @id @default(autoincrement())
-  module_name  String?  @db.VarChar(100)
-  reference_id String?  @db.VarChar(50)
+  id           Int       @id @default(autoincrement())
+  module_name  String?   @db.VarChar
+  reference_id String?   @db.VarChar
   action_taken String?
-  created_at   DateTime @default(now())
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
 }
 
 model ai_modules {
   module_id   Int     @id @default(autoincrement())
-  module_name String? @db.VarChar(100)
-  status      String? @default("ACTIVE") @db.VarChar(20)
+  module_name String? @db.VarChar
+  status      String? @default("ACTIVE") @db.VarChar
   description String?
 }
 
 model ai_predictions {
-  id                 Int      @id @default(autoincrement())
-  appointment_id     String?  @db.VarChar(20)
-  prediction_type    String?  @db.VarChar(50)
+  id                 Int           @id @default(autoincrement())
+  appointment_id     String?       @db.VarChar
+  prediction_type    String?       @db.VarChar
   prediction_details String?
-  created_at         DateTime @default(now())
+  created_at         DateTime?     @default(now()) @db.Timestamp(6)
+  appointments       appointments? @relation(fields: [appointment_id], references: [appointment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_ai_predictions_appointment")
 }
 
 model ai_usage_stats {
@@ -34,666 +35,867 @@ model ai_usage_stats {
   predictions_made Int?
   accuracy_percent Int?
   hours_saved      Int?
-  cost_savings     Decimal? @db.Decimal(12, 2)
+  cost_savings     Decimal? @db.Decimal
 }
 
 model appointments {
-  appointment_id   String    @id @db.VarChar(20)
-  patient_id       String?   @db.VarChar(20)
-  doctor_id        Int?
-  appointment_date DateTime?
-  appointment_time String?
-  type             String?   @db.VarChar(50)
-  mode             String?   @db.VarChar(20)
-  status           String?   @db.VarChar(20)
-  ai_risk_level    String?   @db.VarChar(20)
-  consult_duration Int?
-  earnings         Decimal?  @db.Decimal(10, 2)
+  appointment_id            String                     @id @db.VarChar
+  patient_id                String?                    @db.VarChar
+  doctor_id                 Int?
+  appointment_date          DateTime?                  @db.Date
+  appointment_time          DateTime?                  @db.Time(6)
+  type                      String?                    @db.VarChar
+  mode                      String?                    @db.VarChar
+  status                    String?                    @db.VarChar
+  ai_risk_level             String?                    @db.VarChar
+  consult_duration          Int?
+  earnings                  Decimal?                   @db.Decimal
+  reason_for_visit          String?                    @db.Text
+  ai_predictions            ai_predictions[]
+  appointment_history       appointment_history[]
+  doctor                    doctors?                   @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_appointments_doctor")
+  patient                   patients?                  @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_appointments_patient")
+  appointment_status_master appointment_status_master? @relation(fields: [status], references: [status_code], onDelete: NoAction, onUpdate: NoAction, map: "fk_appointments_status")
+  doctor_earnings           doctor_earnings[]
+  doctor_payouts            doctor_payouts[]
+  prescriptions             prescriptions[]
+  refundTransactions        refund_transactions[]
 
-  patient            patients?             @relation(fields: [patient_id], references: [patient_id])
-  doctor             doctors?              @relation(fields: [doctor_id], references: [id])
-  refundTransactions refund_transactions[]
+  @@index([doctor_id], map: "idx_appointments_doctor")
+  @@index([patient_id], map: "idx_appointments_patient")
 }
 
 model patients {
-  patient_id      String  @id @db.VarChar(20)
-  full_name       String? @db.VarChar(100)
-  email           String? @db.VarChar(150) // Added for session-based lookup
-  age             Int?
-  gender          String? @db.VarChar(10)
-  blood_group     String? @db.VarChar(5)
-  abha_id         String? @db.VarChar(25)
-  phone           String? @db.VarChar(20)
-  address         String?
-  medical_history String?
-  insurance_id    String? @db.VarChar(20)
-
+  patient_id                 String                       @id @db.VarChar
+  full_name                  String?                      @db.VarChar
+  age                        Int?
+  gender                     String?                      @db.VarChar
+  blood_group                String?                      @db.VarChar
+  abha_id                    String?                      @db.VarChar
+  phone                      String?                      @db.VarChar
+  address                    String?
+  medical_history            String?
+  insurance_id               String?                      @db.VarChar
+  profile_photo_url          String?                      @db.VarChar
+  user_id                    Int?                         @unique
   appointments               appointments[]
-  prescriptions              prescriptions[]
-  patient_documents          patient_documents[]
+  doctor_reviews             doctor_reviews[]
   external_prescriptions     external_prescriptions[]
   invoices                   invoices[]
+  iot_alerts                 iot_alerts[]
+  iot_devices                iot_devices[]
   lab_orders                 lab_orders[]
   medical_records            medical_records[]
   patient_addresses          patient_addresses[]
   patient_allergies          patient_allergies[]
   patient_conditions         patient_conditions[]
   patient_consents           patient_consents[]
+  patient_documents          patient_documents[]
   patient_emergency_contacts patient_emergency_contacts[]
-  patient_family_primary     patient_family_members[]     @relation("primary")
   patient_family_member      patient_family_members[]     @relation("member")
+  patient_family_primary     patient_family_members[]     @relation("primary")
   patient_surgeries          patient_surgeries[]
   patient_wallet             patient_wallet?
+  users                      users?                       @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patients_user")
+  prescriptions              prescriptions[]
   refund_transactions        refund_transactions[]
   vitals                     vitals[]
   wallet_transactions        wallet_transactions[]
 }
 
 model clinics {
-  id                     Int      @id @default(autoincrement())
-  clinic_name            String   @db.VarChar(150)
+  id                     Int                     @id @default(autoincrement())
+  clinic_name            String                  @db.VarChar
   establishment_year     Int?
-  tagline                String?  @db.VarChar(200)
+  tagline                String?                 @db.VarChar
   description            String?
   address                String
-  landmark               String?  @db.VarChar(150)
-  pin_code               String   @db.Char(6)
-  city                   String   @db.VarChar(100)
-  state                  String   @db.VarChar(100)
-  mobile                 String   @db.Char(10)
-  email                  String   @db.VarChar(150)
-  website                String?  @db.VarChar(200)
-  mobile_verified        Boolean  @default(false)
-  email_verified         Boolean  @default(false)
-  medical_council_reg_no String   @db.VarChar(100)
-  bank_account_name      String?  @db.VarChar(150)
-  bank_account_number    String?  @db.VarChar(50)
-  ifsc_code              String?  @db.VarChar(20)
-  pan_number             String?  @db.Char(10)
-  gstin                  String?  @db.Char(15)
-  terms_accepted         Boolean  @default(false)
-  declaration_accepted   Boolean  @default(false)
-  verification_status    String   @default("PENDING") @db.VarChar(30)
-  created_at             DateTime @default(now())
-  updated_at             DateTime @default(now())
-
-  verification_details verification_details[]
-  clinic_services      clinic_services[]
-  clinic_facilities    clinic_facilities[]
-  clinic_payment_modes clinic_payment_modes[]
-  clinic_booking_modes clinic_booking_modes[]
-  clinic_staff         clinic_staff[]
-  clinic_documents     clinic_documents[]
-  doctor_earnings      doctor_earnings[]
-  lab_orders           lab_orders[]
-  prescriptions        prescriptions[]
-  purchase_orders      purchase_orders[]
+  landmark               String?                 @db.VarChar
+  pin_code               String?                 @db.VarChar
+  city                   String                  @db.VarChar
+  state                  String                  @db.VarChar
+  mobile                 String?                 @unique @db.VarChar
+  email                  String                  @unique @db.VarChar
+  website                String?                 @db.VarChar
+  mobile_verified        Boolean?                @default(false)
+  email_verified         Boolean?                @default(false)
+  medical_council_reg_no String                  @db.VarChar
+  bank_account_name      String?                 @db.VarChar
+  bank_account_number    String?                 @db.VarChar
+  ifsc_code              String?                 @db.VarChar
+  pan_number             String?                 @db.Char(10)
+  gstin                  String?                 @db.Char(15)
+  terms_accepted         Boolean?                @default(false)
+  declaration_accepted   Boolean?                @default(false)
+  verification_status    String?                 @default("PENDING") @db.VarChar
+  created_at             DateTime?               @default(now()) @db.Timestamp(6)
+  updated_at             DateTime?               @default(now()) @db.Timestamp(6)
+  clinic_booking_modes   clinic_booking_modes[]
+  clinic_facilities      clinic_facilities[]
+  clinic_payment_modes   clinic_payment_modes[]
+  clinic_services        clinic_services[]
+  doctor_clinic_mapping  doctor_clinic_mapping[]
+  doctor_earnings        doctor_earnings[]
+  lab_orders             lab_orders[]
+  prescriptions          prescriptions[]
+  purchase_orders        purchase_orders[]
 }
 
 model doctors {
-  id                     Int       @id @default(autoincrement())
-  full_name              String    @db.VarChar(150)
-  date_of_birth          DateTime? @db.Date
-  profile_photo_url      String?
-  mobile                 String    @db.Char(10)
-  email                  String    @db.VarChar(150)
-  mobile_verified        Boolean   @default(false)
-  email_verified         Boolean   @default(false)
-  medical_council_reg_no String    @db.VarChar(100)
-  medical_council_name   String?   @db.VarChar(150)
-  registration_year      Int?
-  qualifications         String?
-  university_name        String?   @db.VarChar(150)
-  graduation_year        Int?
-  experience_years       Int?
-  bio                    String?
-  bank_account_name      String?   @db.VarChar(150)
-  bank_account_number    String?   @db.VarChar(50)
-  ifsc_code              String?   @db.VarChar(20)
-  pan_number             String?   @db.Char(10)
-  gstin                  String?   @db.Char(15)
-  terms_accepted         Boolean   @default(false)
-  declaration_accepted   Boolean   @default(false)
-  verification_status    String    @default("PENDING") @db.VarChar(30)
-  created_at             DateTime  @default(now())
-  updated_at             DateTime  @default(now())
-
+  id                        Int                         @id @default(autoincrement())
+  full_name                 String                      @db.VarChar
+  email                     String                      @unique @db.VarChar
+  mobile                    String?                     @unique @db.VarChar
+  medical_council_reg_no    String                      @db.VarChar
+  created_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  user_id                   Int?                        @unique
+  date_of_birth             DateTime?                   @db.Date
+  updated_at                DateTime?                   @default(now()) @db.Timestamp(6)
+  profile_photo_url         String?
+  mobile_verified           Boolean?                    @default(false)
+  email_verified            Boolean?                    @default(false)
+  medical_council_name      String?                     @db.VarChar(150)
+  registration_year         Int?
+  qualifications            String?
+  university_name           String?                     @db.VarChar(150)
+  graduation_year           Int?
+  experience_years          Int?
+  bio                       String?
+  bank_account_name         String?                     @db.VarChar(150)
+  bank_account_number       String?                     @db.VarChar(50)
+  ifsc_code                 String?                     @db.VarChar(20)
+  pan_number                String?                     @db.Char(10)
+  gstin                     String?                     @db.Char(15)
+  terms_accepted            Boolean?                    @default(false)
+  declaration_accepted      Boolean?                    @default(false)
+  verification_status       String?                     @default("PENDING") @db.VarChar(30)
+  gender                    String?                     @db.VarChar
+  specialization            String?                     @db.VarChar
+  specializations           String[]
+  languages                 String[]
+  consultation_modes        String[]
   appointments              appointments[]
-  verification_details      verification_details[]
-  doctor_specializations    doctor_specializations[]
-  doctor_languages          doctor_languages[]
+  doctor_clinic_mapping     doctor_clinic_mapping[]
   doctor_consultation_modes doctor_consultation_modes[]
   doctor_documents          doctor_documents[]
-  doctor_practice_locations doctor_practice_locations[]
   doctor_earnings           doctor_earnings[]
-  doctor_payouts            doctor_payouts[]
+  doctor_languages          doctor_languages[]
   doctor_leaves             doctor_leaves[]
+  doctor_payouts            doctor_payouts[]
+  doctor_practice_locations doctor_practice_locations[]
+  doctor_reviews            doctor_reviews[]
+  doctor_services           doctor_services[]
+  doctor_specializations    doctor_specializations[]
+  doctor_time_slots         doctor_time_slots[]
+  doctor_verification       doctor_verification?
+  users                     users?                      @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctors_user")
   lab_orders                lab_orders[]
-  prescriptions             prescriptions[]
   medical_records           medical_records[]
-}
-
-model verification_details {
-  id                Int      @id @default(autoincrement())
-  doctor_id         Int?
-  clinic_id         Int?
-  account_name      String?  @db.VarChar(150)
-  account_number    String?  @db.VarChar(50)
-  ifsc_code         String?  @db.VarChar(20)
-  pan_number        String?  @db.Char(10)
-  gstin             String?  @db.Char(15)
-  verification_type String   @db.VarChar(20) // 'DOCTOR' or 'CLINIC'
-  created_at        DateTime @default(now())
-  updated_at        DateTime @default(now())
-
-  doctor doctors? @relation(fields: [doctor_id], references: [id])
-  clinic clinics? @relation(fields: [clinic_id], references: [id])
+  prescriptions             prescriptions[]
 }
 
 model invoices {
-  invoice_id   String    @id @db.VarChar(20)
-  patient_id   String?   @db.VarChar(20)
-  invoice_date DateTime? @db.Date
-  total_amount Decimal?  @db.Decimal(10, 2)
-  discount     Decimal   @default(0) @db.Decimal(10, 2)
-  status       String?   @db.VarChar(20)
-  created_at   DateTime  @default(now())
+  invoice_id       String             @id @db.VarChar
+  patient_id       String?            @db.VarChar
+  invoice_date     DateTime?          @db.Date
+  total_amount     Decimal?           @db.Decimal
+  discount         Decimal?           @default(0) @db.Decimal
+  status           String?            @db.VarChar
+  invoice_items    invoice_items[]
+  invoice_payments invoice_payments[]
+  patient          patients?          @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_invoices_patient")
 
-  patient patients? @relation(fields: [patient_id], references: [patient_id])
+  @@index([patient_id], map: "idx_invoices_patient")
 }
 
 model invoice_items {
-  id           Int      @id @default(autoincrement())
-  invoice_id   String?  @db.VarChar(20)
-  service_name String?  @db.VarChar(100)
+  id           Int       @id @default(autoincrement())
+  invoice_id   String?   @db.VarChar
+  service_name String?   @db.VarChar
   quantity     Int?
-  rate         Decimal? @db.Decimal(10, 2)
-  amount       Decimal? @db.Decimal(10, 2)
+  rate         Decimal?  @db.Decimal
+  amount       Decimal?  @db.Decimal
+  invoices     invoices? @relation(fields: [invoice_id], references: [invoice_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model invoice_payments {
-  payment_id   Int      @id @default(autoincrement())
-  invoice_id   String?  @db.VarChar(20)
-  payment_mode String?  @db.VarChar(20)
-  paid_amount  Decimal? @db.Decimal(10, 2)
-  payment_date DateTime @default(now()) @db.Date
+  payment_id   Int       @id @default(autoincrement())
+  invoice_id   String?   @db.VarChar
+  payment_mode String?   @db.VarChar
+  paid_amount  Decimal?  @db.Decimal
+  payment_date DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  invoices     invoices? @relation(fields: [invoice_id], references: [invoice_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model users {
   user_id                       Int                            @id @default(autoincrement())
-  full_name                     String?                        @db.VarChar(100)
-  email                         String                         @unique @db.VarChar(100)
-  mobile_number                 String?                        @db.VarChar(20)
-  role                          String?                        @db.VarChar(50)
-  password_hash                 String?
-  two_factor_enabled            Boolean                        @default(false)
+  full_name                     String?                        @db.VarChar
+  email                         String                         @unique @db.VarChar
+  mobile_number                 String?                        @unique @db.VarChar
+  password_hash                 String
+  role                          String?                        @db.VarChar
+  is_active                     Boolean?                       @default(true)
+  two_factor_enabled            Boolean?                       @default(false)
+  created_at                    DateTime?                      @default(now()) @db.Timestamp(6)
+  analytics_events              analytics_events[]
+  clinic_staff                  clinic_staff?
+  doctors                       doctors?
   otp_records                   otp_records[]
+  patients                      patients?
   user_notification_preferences user_notification_preferences?
+
+  @@index([role], map: "idx_users_role")
 }
 
 model prescriptions {
-  prescription_id String    @id @db.VarChar(20)
-  patient_id      String    @db.VarChar(20)
+  prescription_id String                   @id @db.VarChar
+  patient_id      String?                  @db.VarChar
   doctor_id       Int?
-  appointment_id  String?   @db.VarChar(20)
+  appointment_id  String?                  @db.VarChar
   diagnosis       String?
-  follow_up_date  DateTime? @db.Date
+  follow_up_date  DateTime?                @db.Date
   notes           String?
-  created_at      DateTime? @default(now()) @db.Date
+  created_at      DateTime?                @default(dbgenerated("CURRENT_DATE")) @db.Date
   clinic_id       Int?
+  followups       followups[]
+  lab_tests       prescription_lab_tests[]
+  medicines       prescription_medicines[]
+  appointments    appointments?            @relation(fields: [appointment_id], references: [appointment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescriptions_appointment")
+  clinic          clinics?                 @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescriptions_clinic")
+  doctor          doctors?                 @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescriptions_doctor")
+  patient         patients?                @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescriptions_patient")
 
-  patient   patients                 @relation(fields: [patient_id], references: [patient_id])
-  doctor    doctors?                 @relation(fields: [doctor_id], references: [id])
-  clinic    clinics?                 @relation(fields: [clinic_id], references: [id])
-  medicines prescription_medicines[]
-  lab_tests prescription_lab_tests[]
+  @@index([patient_id], map: "idx_prescriptions_patient")
 }
 
 model prescription_medicines {
-  id              Int     @id @default(autoincrement())
-  prescription_id String? @db.VarChar(20)
-  medicine_name   String? @db.VarChar(150)
-  dosage          String? @db.VarChar(100)
-  frequency       String? @db.VarChar(100)
-  duration        String? @db.VarChar(100)
-
-  prescription prescriptions? @relation(fields: [prescription_id], references: [prescription_id])
+  id              Int            @id @default(autoincrement())
+  prescription_id String?        @db.VarChar
+  medicine_name   String?        @db.VarChar
+  dosage          String?        @db.VarChar
+  frequency       String?        @db.VarChar
+  duration        String?        @db.VarChar
+  prescription    prescriptions? @relation(fields: [prescription_id], references: [prescription_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescription_medicines_prescription")
 }
 
 model prescription_lab_tests {
-  id              Int     @id @default(autoincrement())
-  prescription_id String? @db.VarChar(20)
-  test_name       String? @db.VarChar(150)
-
-  prescription prescriptions? @relation(fields: [prescription_id], references: [prescription_id])
+  id              Int            @id @default(autoincrement())
+  prescription_id String?        @db.VarChar
+  test_name       String?        @db.VarChar
+  prescription    prescriptions? @relation(fields: [prescription_id], references: [prescription_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_prescription_lab_tests_prescription")
 }
 
 model patient_documents {
-  id            Int      @id @default(autoincrement())
-  patient_id    String?  @db.VarChar(20)
-  document_type String?  @db.VarChar(50)
+  id            Int       @id @default(autoincrement())
+  patient_id    String?   @db.VarChar
+  document_type String?   @db.VarChar
   file_url      String?
-  uploaded_at   DateTime @default(now())
-
-  patient patients? @relation(fields: [patient_id], references: [patient_id])
+  uploaded_at   DateTime? @default(now()) @db.Timestamp(6)
+  patient       patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_documents_patient")
 }
 
 model external_prescriptions {
-  id          Int      @id @default(autoincrement())
-  patient_id  String?  @db.VarChar(20)
+  id          Int       @id @default(autoincrement())
+  patient_id  String?   @db.VarChar
   file_url    String?
-  file_type   String?  @db.VarChar(20)
+  file_type   String?   @db.VarChar
   notes       String?
-  uploaded_at DateTime @default(now())
-
-  patient patients? @relation(fields: [patient_id], references: [patient_id])
+  uploaded_at DateTime? @default(now()) @db.Timestamp(6)
+  patient     patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_external_prescriptions_patient")
 }
 
 model clinic_services {
-  id        Int    @id @default(autoincrement())
-  clinic_id Int
-  service   String @db.VarChar(150)
-
-  clinic clinics @relation(fields: [clinic_id], references: [id])
+  id        Int      @id @default(autoincrement())
+  clinic_id Int?
+  service   String?  @db.VarChar
+  clinic    clinics? @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model clinic_facilities {
-  id        Int    @id @default(autoincrement())
-  clinic_id Int
-  facility  String @db.VarChar(150)
-
-  clinic clinics @relation(fields: [clinic_id], references: [id])
+  id        Int      @id @default(autoincrement())
+  clinic_id Int?
+  facility  String?  @db.VarChar
+  clinic    clinics? @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model clinic_payment_modes {
-  id           Int    @id @default(autoincrement())
-  clinic_id    Int
-  payment_mode String @db.VarChar(50)
-
-  clinic clinics @relation(fields: [clinic_id], references: [id])
+  id           Int      @id @default(autoincrement())
+  clinic_id    Int?
+  payment_mode String?  @db.VarChar
+  clinic       clinics? @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model clinic_booking_modes {
-  id           Int    @id @default(autoincrement())
-  clinic_id    Int
-  booking_mode String @db.VarChar(50)
-
-  clinic clinics @relation(fields: [clinic_id], references: [id])
+  id           Int      @id @default(autoincrement())
+  clinic_id    Int?
+  booking_mode String?  @db.VarChar
+  clinic       clinics? @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model clinic_staff {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   clinic_id     Int
-  full_name     String   @db.VarChar(150)
-  role          String?  @db.VarChar(50)
-  email         String?  @unique @db.VarChar(150)
-  mobile        String?  @unique @db.VarChar(20)
+  full_name     String    @db.VarChar
+  role          String?   @db.VarChar
+  email         String?   @unique @db.VarChar
+  mobile        String?   @unique @db.VarChar
   password_hash String?
-  is_active     Boolean  @default(true)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @default(now())
-
-  clinic clinics @relation(fields: [clinic_id], references: [id])
-}
-
-model clinic_documents {
-  id            Int      @id @default(autoincrement())
-  clinic_id     Int?
-  document_type String   @db.VarChar(50)
-  file_url      String
-  file_type     String?  @db.VarChar(20)
-  uploaded_at   DateTime @default(now())
-
-  clinic clinics? @relation(fields: [clinic_id], references: [id])
+  is_active     Boolean?  @default(true)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
+  user_id       Int?      @unique
+  users         users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_clinic_staff_user")
 }
 
 model doctor_specializations {
-  id             Int    @id @default(autoincrement())
-  doctor_id      Int
-  specialization String @db.VarChar(150)
-
-  doctor doctors @relation(fields: [doctor_id], references: [id])
+  id                     Int                     @id @default(autoincrement())
+  doctor_id              Int?
+  specialization_id      Int?
+  doctor                 doctors?                @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  specializations_master specializations_master? @relation(fields: [specialization_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model doctor_languages {
-  id        Int    @id @default(autoincrement())
-  doctor_id Int
-  language  String @db.VarChar(100)
-
-  doctor doctors @relation(fields: [doctor_id], references: [id])
+  id               Int               @id @default(autoincrement())
+  doctor_id        Int?
+  language_id      Int?
+  doctor           doctors?          @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  languages_master languages_master? @relation(fields: [language_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model doctor_consultation_modes {
-  id        Int     @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   doctor_id Int?
-  mode      String? @db.VarChar(50)
-
-  doctor doctors? @relation(fields: [doctor_id], references: [id])
+  mode      String?  @db.VarChar
+  doctor    doctors? @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_consult_modes_doctor")
 }
 
 model doctor_documents {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   doctor_id     Int
-  document_type String   @db.VarChar(50)
+  document_type String    @db.VarChar
   file_url      String
-  file_type     String?  @db.VarChar(20)
-  uploaded_at   DateTime @default(now())
-
-  doctor doctors @relation(fields: [doctor_id], references: [id])
+  file_type     String?   @db.VarChar
+  uploaded_at   DateTime? @default(now()) @db.Timestamp(6)
+  doctor        doctors   @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_documents_doctor")
 }
 
 model doctor_practice_locations {
-  id          Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   doctor_id   Int?
-  clinic_name String? @db.VarChar(150)
+  clinic_name String?  @db.VarChar
   address     String?
-  city        String? @db.VarChar(100)
-  state       String? @db.VarChar(100)
-  pin_code    String? @db.Char(6)
-
-  doctor doctors? @relation(fields: [doctor_id], references: [id])
+  city        String?  @db.VarChar
+  state       String?  @db.VarChar
+  pin_code    String?  @db.VarChar
+  doctor      doctors? @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_practice_locations_doctor")
 }
 
 model doctor_earnings {
-  id             Int      @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   doctor_id      Int
-  appointment_id String   @db.VarChar(20)
-  amount         Decimal  @db.Decimal(10, 2)
-  payout_status  String?  @default("Pending") @db.VarChar(20)
-  created_at     DateTime @default(now())
-  updated_at     DateTime @default(now())
+  appointment_id String       @db.VarChar
+  amount         Decimal      @db.Decimal
+  payout_status  String?      @default("Pending") @db.VarChar
+  created_at     DateTime?    @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?    @default(now()) @db.Timestamp(6)
   clinic_id      Int?
-
-  doctor doctors  @relation(fields: [doctor_id], references: [id])
-  clinic clinics? @relation(fields: [clinic_id], references: [id])
+  appointments   appointments @relation(fields: [appointment_id], references: [appointment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_earnings_appointment")
+  clinic         clinics?     @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_earnings_clinic")
+  doctor         doctors      @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_earnings_doctor")
 }
 
 model lab_orders {
-  lab_order_id String    @id @db.VarChar(20)
-  patient_id   String?   @db.VarChar(20)
+  lab_order_id String    @id @db.VarChar
+  patient_id   String?   @db.VarChar
   doctor_id    Int?
-  test_name    String?   @db.VarChar(150)
-  priority     String?   @default("Normal") @db.VarChar(20)
-  order_date   DateTime? @default(now()) @db.Date
-  price        Decimal?  @db.Decimal(10, 2)
-  status       String?   @db.VarChar(20)
+  test_name    String?   @db.VarChar
+  priority     String?   @default("Normal") @db.VarChar
+  order_date   DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  price        Decimal?  @db.Decimal
+  status       String?   @db.VarChar
   notes        String?
   clinic_id    Int?
-
-  patient patients? @relation(fields: [patient_id], references: [patient_id])
-  doctor  doctors?  @relation(fields: [doctor_id], references: [id])
-  clinic  clinics?  @relation(fields: [clinic_id], references: [id])
+  clinic       clinics?  @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_lab_orders_clinic")
+  doctor       doctors?  @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_lab_orders_doctor")
+  patient      patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_lab_orders_patient")
 }
 
 model doctor_payouts {
-  id             Int       @id @default(autoincrement())
+  id             Int           @id @default(autoincrement())
   doctor_id      Int
-  appointment_id String?   @db.VarChar(20)
-  amount         Decimal   @db.Decimal(10, 2)
-  payout_date    DateTime? @db.Date
-  status         String?   @default("Pending") @db.VarChar(20)
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @default(now())
-
-  doctor doctors @relation(fields: [doctor_id], references: [id])
+  appointment_id String?       @db.VarChar
+  amount         Decimal       @db.Decimal
+  payout_date    DateTime?     @db.Date
+  status         String?       @default("Pending") @db.VarChar
+  created_at     DateTime?     @default(now()) @db.Timestamp(6)
+  updated_at     DateTime?     @default(now()) @db.Timestamp(6)
+  appointments   appointments? @relation(fields: [appointment_id], references: [appointment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_payouts_appointment")
+  doctor         doctors       @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_payouts_doctor")
 }
 
 model doctor_leaves {
-  id         Int      @id @default(autoincrement())
+  id         Int       @id @default(autoincrement())
   doctor_id  Int
-  from_date  DateTime @db.Date
-  to_date    DateTime @db.Date
+  from_date  DateTime  @db.Date
+  to_date    DateTime  @db.Date
   reason     String?
-  status     String?  @default("Pending") @db.VarChar(20)
-  created_at DateTime @default(now())
-  updated_at DateTime @default(now())
-
-  doctor doctors @relation(fields: [doctor_id], references: [id])
+  status     String?   @default("Pending") @db.VarChar
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  doctor     doctors   @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_leaves_doctor")
 }
 
 model medical_records {
   id          Int       @id @default(autoincrement())
-  patient_id  String    @db.VarChar(20)
+  patient_id  String    @db.VarChar
   doctor_id   Int?
   diagnosis   String?
   treatment   String?
-  record_date DateTime? @default(now()) @db.Date
-  created_at  DateTime  @default(now())
-  patient     patients  @relation(fields: [patient_id], references: [patient_id])
-  doctor      doctors?  @relation(fields: [doctor_id], references: [id])
+  record_date DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at  DateTime? @default(now()) @db.Timestamp(6)
+  doctor      doctors?  @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_medical_records_doctor")
+  patient     patients  @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_medical_records_patient")
 }
 
 model notification_recipients {
   id                Int            @id @default(autoincrement())
   notification_id   Int?
-  recipient_name    String?        @db.VarChar(255)
-  recipient_contact String?        @db.VarChar(255)
-  notification      notifications? @relation(fields: [notification_id], references: [notification_id])
+  recipient_name    String?        @db.VarChar
+  recipient_contact String?        @db.VarChar
+  notification      notifications? @relation(fields: [notification_id], references: [notification_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_notification_recipients_notification")
 }
 
 model notifications {
   notification_id Int                       @id @default(autoincrement())
-  channel         String?                   @db.VarChar(100)
-  category        String?                   @db.VarChar(100)
-  subject         String?                   @db.VarChar(255)
+  channel         String?                   @db.VarChar
+  category        String?                   @db.VarChar
+  subject         String?                   @db.VarChar
   message         String?
-  status          String?                   @db.VarChar(50)
-  created_at      DateTime                  @default(now())
+  status          String?                   @db.VarChar
+  created_at      DateTime?                 @default(now()) @db.Timestamp(6)
   recipients      notification_recipients[]
   scheduled       scheduled_notifications[]
 }
 
 model otp_records {
   id            String    @id @db.Uuid
-  mobile_number String    @db.VarChar(20)
-  otp_hash      String    @db.VarChar(255)
-  expires_at    DateTime
+  mobile_number String    @db.VarChar
+  otp_hash      String    @db.VarChar
+  expires_at    DateTime  @db.Timestamp(6)
   attempts      Int
   max_attempts  Int
-  status        String    @db.VarChar(20)
-  created_at    DateTime
-  verified_at   DateTime?
-  ip_address    String?   @db.VarChar(45)
+  status        String    @db.VarChar
+  created_at    DateTime  @db.Timestamp(6)
+  verified_at   DateTime? @db.Timestamp(6)
+  ip_address    String?   @db.VarChar
   user_agent    String?
   user_id       Int?
-  user          users?    @relation(fields: [user_id], references: [user_id])
+  user          users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_otp_records_user")
 }
 
 model patient_addresses {
   id         Int       @id @default(autoincrement())
-  patient_id String?   @db.VarChar(20)
+  patient_id String?   @db.VarChar
   address    String?
-  city       String?   @db.VarChar(100)
-  state      String?   @db.VarChar(100)
-  pin_code   String?   @db.VarChar(20)
+  city       String?   @db.VarChar
+  state      String?   @db.VarChar
+  pin_code   String?   @db.VarChar
   is_primary Boolean?  @default(false)
-  patient    patients? @relation(fields: [patient_id], references: [patient_id])
+  patient    patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model patient_allergies {
   id           Int       @id @default(autoincrement())
-  patient_id   String?   @db.VarChar(20)
-  allergy_name String    @db.VarChar(150)
-  severity     String?   @db.VarChar(50)
-  patient      patients? @relation(fields: [patient_id], references: [patient_id])
+  patient_id   String?   @db.VarChar
+  allergy_name String    @db.VarChar
+  severity     String?   @db.VarChar
+  patient      patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_allergies_patient")
 }
 
 model patient_conditions {
   id             Int       @id @default(autoincrement())
-  patient_id     String?   @db.VarChar(20)
-  condition_name String    @db.VarChar(150)
+  patient_id     String?   @db.VarChar
+  condition_name String    @db.VarChar
   diagnosed_date DateTime? @db.Date
   is_chronic     Boolean?  @default(false)
-  patient        patients? @relation(fields: [patient_id], references: [patient_id])
+  patient        patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_conditions_patient")
 }
 
 model patient_consents {
   id           Int       @id @default(autoincrement())
-  patient_id   String?   @db.VarChar(20)
-  consent_type String?   @db.VarChar(100)
+  patient_id   String?   @db.VarChar
+  consent_type String?   @db.VarChar
   given        Boolean?
-  given_at     DateTime? @default(now())
-  patient      patients? @relation(fields: [patient_id], references: [patient_id])
+  given_at     DateTime? @default(now()) @db.Timestamp(6)
+  patient      patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_consents_patient")
 }
 
 model patient_emergency_contacts {
   id         Int       @id @default(autoincrement())
-  patient_id String?   @db.VarChar(20)
-  name       String?   @db.VarChar(150)
-  relation   String?   @db.VarChar(100)
-  phone      String?   @db.VarChar(20)
-  patient    patients? @relation(fields: [patient_id], references: [patient_id])
+  patient_id String?   @db.VarChar
+  name       String?   @db.VarChar
+  relation   String?   @db.VarChar
+  phone      String?   @db.VarChar
+  patient    patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_emergency_contacts_patient")
 }
 
 model patient_family_members {
   id                 Int       @id @default(autoincrement())
-  primary_patient_id String?   @db.VarChar(20)
-  member_patient_id  String?   @db.VarChar(20)
-  relation           String?   @db.VarChar(100)
-  primary_patient    patients? @relation("primary", fields: [primary_patient_id], references: [patient_id])
-  member_patient     patients? @relation("member", fields: [member_patient_id], references: [patient_id])
+  primary_patient_id String?   @db.VarChar
+  member_patient_id  String?   @db.VarChar
+  relation           String?   @db.VarChar
+  member_patient     patients? @relation("member", fields: [member_patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_family_member")
+  primary_patient    patients? @relation("primary", fields: [primary_patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_family_primary")
 }
 
 model patient_surgeries {
   id           Int       @id @default(autoincrement())
-  patient_id   String?   @db.VarChar(20)
-  surgery_name String?   @db.VarChar(150)
+  patient_id   String?   @db.VarChar
+  surgery_name String?   @db.VarChar
   surgery_date DateTime? @db.Date
   notes        String?
-  patient      patients? @relation(fields: [patient_id], references: [patient_id])
+  patient      patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_patient_surgeries_patient")
 }
 
 model patient_visit_analytics {
-  report_month  String @db.VarChar(20)
-  visit_type    String @db.VarChar(50)
+  report_month  String @db.VarChar
+  visit_type    String @db.VarChar
   visit_percent Int?
 
   @@id([report_month, visit_type])
 }
 
 model patient_wallet {
-  patient_id String   @id @db.VarChar(20)
-  balance    Decimal? @default(0) @db.Decimal(10, 2)
-  patient    patients @relation(fields: [patient_id], references: [patient_id])
+  patient_id String   @id @db.VarChar
+  balance    Decimal? @default(0) @db.Decimal
+  patient    patients @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model payment_gateway_config {
-  gateway_name     String    @id @db.VarChar(50)
+  gateway_name     String    @id @db.VarChar
   api_key          String?
   api_secret       String?
   test_mode        Boolean?
-  last_transaction DateTime?
+  last_transaction DateTime? @db.Timestamp(6)
 }
 
 model permissions {
-  permission_id   Int     @id @default(autoincrement())
-  permission_name String? @db.VarChar(100)
+  permission_id    Int                @id @default(autoincrement())
+  permission_name  String?            @db.VarChar
+  role_permissions role_permissions[]
 }
 
 model purchase_orders {
   id            Int       @id @default(autoincrement())
   clinic_id     Int?
-  supplier_name String?   @db.VarChar(255)
-  total_amount  Decimal?  @db.Decimal(10, 2)
-  status        String?   @default("Pending") @db.VarChar(50)
-  order_date    DateTime? @default(now()) @db.Date
-  created_at    DateTime  @default(now())
-  clinic        clinics?  @relation(fields: [clinic_id], references: [id])
+  supplier_name String?   @db.VarChar
+  total_amount  Decimal?   @db.Decimal
+  status        String?   @default("Pending") @db.VarChar
+  order_date    DateTime? @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+  clinic        clinics?  @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_purchase_orders_clinic")
 }
 
 model refund_transactions {
   id             Int           @id @default(autoincrement())
-  appointment_id String?       @db.VarChar(50)
-  patient_id     String?       @db.VarChar(20)
-  amount         Decimal?      @db.Decimal(10, 2)
+  appointment_id String?       @db.VarChar
+  patient_id     String?       @db.VarChar
+  amount         Decimal?      @db.Decimal
   reason         String?
-  status         String?       @default("Pending") @db.VarChar(50)
-  created_at     DateTime      @default(now())
-  appointment    appointments? @relation(fields: [appointment_id], references: [appointment_id])
-  patient        patients?     @relation(fields: [patient_id], references: [patient_id])
+  status         String?       @default("Pending") @db.VarChar
+  created_at     DateTime?     @default(now()) @db.Timestamp(6)
+  appointment    appointments? @relation(fields: [appointment_id], references: [appointment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refund_transactions_appointment")
+  patient        patients?     @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refund_transactions_patient")
 }
 
 model report_snapshots {
-  report_date        DateTime @id @db.Date
+  report_date        DateTime  @id @db.Date
   total_appointments Int?
-  total_revenue      Decimal? @db.Decimal(12, 2)
+  total_revenue      Decimal?  @db.Decimal
   patient_visits     Int?
-  avg_doctor_rating  Decimal? @db.Decimal(3, 2)
-  created_at         DateTime @default(now())
+  avg_doctor_rating  Decimal?  @db.Decimal
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
 }
 
 model report_types_master {
   id   Int     @id @default(autoincrement())
-  name String? @unique @db.VarChar(100)
+  name String? @unique @db.VarChar
 }
 
 model role_permissions {
   role_id       Int
   permission_id Int
+  permissions   permissions @relation(fields: [permission_id], references: [permission_id], onDelete: NoAction, onUpdate: NoAction)
+  roles         roles       @relation(fields: [role_id], references: [role_id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([role_id, permission_id])
 }
 
 model roles {
-  role_id   Int     @id @default(autoincrement())
-  role_name String? @db.VarChar(100)
+  role_id          Int                @id @default(autoincrement())
+  role_name        String?            @db.VarChar
+  role_permissions role_permissions[]
 }
 
 model scheduled_notifications {
   id              Int            @id @default(autoincrement())
   notification_id Int?
-  scheduled_at    DateTime?
+  scheduled_at    DateTime?      @db.Timestamp(6)
   sent            Boolean?       @default(false)
-  notification    notifications? @relation(fields: [notification_id], references: [notification_id])
+  notification    notifications? @relation(fields: [notification_id], references: [notification_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_scheduled_notifications_notification")
 }
 
 model security_alerts {
-  alert_id      Int      @id @default(autoincrement())
+  alert_id      Int       @id @default(autoincrement())
   alert_message String?
-  severity      String?  @db.VarChar(50)
-  created_at    DateTime @default(now())
+  severity      String?   @db.VarChar
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
 }
 
 model specializations_master {
-  id   Int     @id @default(autoincrement())
-  name String? @unique @db.VarChar(150)
+  id                     Int                      @id @default(autoincrement())
+  name                   String?                  @unique @db.VarChar
+  doctor_specializations doctor_specializations[]
 }
 
 model system_settings {
-  id            Int      @id @default(autoincrement())
-  setting_key   String?  @unique @db.VarChar(255)
+  id            Int       @id @default(autoincrement())
+  setting_key   String?   @unique @db.VarChar
   setting_value String?
-  updated_at    DateTime @default(now())
+  updated_at    DateTime? @default(now()) @db.Timestamp(6)
 }
 
 model user_notification_preferences {
   user_id        Int      @id
-  email_enabled  Boolean?
-  sms_enabled    Boolean?
-  in_app_enabled Boolean?
-  user           users    @relation(fields: [user_id], references: [user_id])
+  email_enabled  Boolean? @default(true)
+  sms_enabled    Boolean? @default(true)
+  in_app_enabled Boolean? @default(true)
+  user           users    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_notification_user")
 }
 
 model vitals {
-  patient_id   String   @db.VarChar(20)
-  reading_time DateTime
-  bp           String?  @db.VarChar(20)
+  patient_id   String   @db.VarChar
+  reading_time DateTime @db.Timestamp(6)
+  bp           String?  @db.VarChar
   heart_rate   Int?
-  temperature  Decimal? @db.Decimal(4, 1)
-  weight       Decimal? @db.Decimal(5, 2)
-  height       Decimal? @db.Decimal(5, 2)
-  bmi          Decimal? @db.Decimal(4, 1)
-  patient      patients @relation(fields: [patient_id], references: [patient_id])
+  temperature  Decimal? @db.Decimal
+  weight       Decimal? @db.Decimal
+  height       Decimal? @db.Decimal
+  bmi          Decimal? @db.Decimal
+  patient      patients @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_vitals_patient")
 
   @@id([patient_id, reading_time])
 }
 
 model wallet_transactions {
   id         Int       @id @default(autoincrement())
-  patient_id String?   @db.VarChar(20)
-  amount     Decimal?  @db.Decimal(10, 2)
-  type       String?   @db.VarChar(50)
+  patient_id String?   @db.VarChar
+  amount     Decimal?   @db.Decimal
+  type       String?   @db.VarChar
   reason     String?
-  created_at DateTime  @default(now())
-  patient    patients? @relation(fields: [patient_id], references: [patient_id])
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  patient    patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model analytics_events {
+  id         Int       @id @default(autoincrement())
+  event_name String?   @db.VarChar
+  user_id    Int?
+  metadata   Json?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  users      users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_analytics_events_user")
+}
+
+model appointment_history {
+  id             Int           @id @default(autoincrement())
+  appointment_id String?       @db.VarChar
+  old_status     String        @db.VarChar
+  new_status     String        @db.VarChar
+  changed_by     String?       @db.VarChar
+  changed_at     DateTime?     @default(now()) @db.Timestamp(6)
+  appointments   appointments? @relation(fields: [appointment_id], references: [appointment_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_appointment_history_appointment")
+}
+
+model appointment_status_master {
+  status_code  String         @id @db.VarChar
+  description  String?
+  appointments appointments[]
+}
+
+model audit_logs {
+  log_id     Int       @id @default(autoincrement())
+  user_name  String?   @db.VarChar
+  action     String?
+  resource   String?   @db.VarChar
+  ip_address String?   @db.VarChar
+  status     String?   @db.VarChar
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model dashboard_metrics {
+  metric_date        DateTime  @id @db.Date
+  total_appointments Int?
+  total_revenue      Decimal?  @db.Decimal
+  active_patients    Int?
+  pending_payments   Int?
+  created_at         DateTime? @default(now()) @db.Timestamp(6)
+}
+
+model data_backups {
+  backup_id   Int       @id @default(autoincrement())
+  backup_time DateTime? @db.Timestamp(6)
+  backup_type String?   @db.VarChar
+  status      String?   @db.VarChar
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model delete_audit_log {
+  deleted_at  DateTime? @default(now()) @db.Timestamp(6)
+  table_name  String?
+  deleted_row Json?
+
+  @@ignore
+}
+
+model doctor_clinic_mapping {
+  id         Int       @id @default(autoincrement())
+  doctor_id  Int
+  clinic_id  Int
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  clinics    clinics   @relation(fields: [clinic_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_dcm_clinic")
+  doctors    doctors   @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_dcm_doctor")
+
+  @@unique([doctor_id, clinic_id], map: "uq_doctor_clinic")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model doctor_performance_reports {
+  doctor_id           Int?
+  report_month        String?  @db.VarChar
+  consultations       Int?
+  revenue_generated   Decimal? @db.Decimal
+  avg_rating          Decimal? @db.Decimal
+  performance_percent Int?
+
+  @@ignore
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model doctor_reviews {
+  id         Int       @id @default(autoincrement())
+  patient_id String?   @db.VarChar
+  doctor_id  Int?
+  rating     Int?
+  review     String?
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  doctors    doctors?  @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_reviews_doctor")
+  patients   patients? @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_reviews_patient")
+}
+
+model doctor_services {
+  id           Int      @id @default(autoincrement())
+  doctor_id    Int?
+  service_name String?  @db.VarChar
+  doctors      doctors? @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_services_doctor")
+}
+
+model doctor_time_slots {
+  id           Int       @id @default(autoincrement())
+  doctor_id    Int
+  day_of_week  String    @db.VarChar
+  start_time   DateTime  @db.Time(6)
+  end_time     DateTime  @db.Time(6)
+  max_patients Int?      @default(10)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+  doctors      doctors   @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_time_slots_doctor")
+}
+
+model doctor_verification {
+  doctor_id   Int       @id
+  verified    Boolean?  @default(false)
+  verified_at DateTime? @db.Timestamp(6)
+  remarks     String?
+  doctors     doctors   @relation(fields: [doctor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_doctor_verification_doctor")
+}
+
+model followups {
+  id              Int            @id @default(autoincrement())
+  prescription_id String?        @db.VarChar
+  scheduled_date  DateTime       @db.Date
+  status          String?        @default("Pending") @db.VarChar
+  created_at      DateTime?      @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?      @default(now()) @db.Timestamp(6)
+  prescriptions   prescriptions? @relation(fields: [prescription_id], references: [prescription_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_followups_prescription")
+}
+
+model iot_alerts {
+  alert_id      Int          @id @default(autoincrement())
+  patient_id    String?      @db.VarChar
+  device_id     String?      @db.VarChar
+  alert_message String?
+  created_at    DateTime?    @default(now()) @db.Timestamp(6)
+  iot_devices   iot_devices? @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_iot_alerts_device")
+  patients      patients?    @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_iot_alerts_patient")
+}
+
+model iot_devices {
+  device_id       String         @id @db.VarChar
+  device_type     String?        @db.VarChar
+  device_model    String?        @db.VarChar
+  patient_id      String?        @db.VarChar
+  status          String?        @db.VarChar
+  battery_percent Int?
+  last_sync       DateTime?      @db.Timestamp(6)
+  iot_alerts      iot_alerts[]
+  patients        patients?      @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
+  iot_readings    iot_readings[]
+}
+
+model iot_readings {
+  id            Int          @id @default(autoincrement())
+  device_id     String?      @db.VarChar
+  reading_type  String?      @db.VarChar
+  reading_value String?      @db.VarChar
+  reading_time  DateTime?    @db.Timestamp(6)
+  iot_devices   iot_devices? @relation(fields: [device_id], references: [device_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_iot_readings_device")
+}
+
+model lab_test_types {
+  test_type_id Int      @id @default(autoincrement())
+  test_name    String?  @db.VarChar
+  price        Decimal? @db.Decimal
+  tat_hours    Int?
+}
+
+model languages_master {
+  id               Int                @id @default(autoincrement())
+  name             String?            @unique @db.VarChar
+  doctor_languages doctor_languages[]
+}
+
+model medicine_stock_logs {
+  id          Int        @id @default(autoincrement())
+  medicine_id String?    @db.VarChar
+  change_qty  Int?
+  reason      String?    @db.VarChar
+  created_at  DateTime?  @default(now()) @db.Timestamp(6)
+  medicines   medicines? @relation(fields: [medicine_id], references: [medicine_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_medicine_stock_logs_medicine")
+}
+
+model medicines {
+  medicine_id         String                @id @db.VarChar
+  medicine_name       String?               @db.VarChar
+  category            String?               @db.VarChar
+  manufacturer        String?               @db.VarChar
+  batch_number        String?               @db.VarChar
+  expiry_date         DateTime?             @db.Date
+  stock_quantity      Int?
+  min_stock           Int?
+  purchase_price      Decimal?              @db.Decimal
+  mrp                 Decimal?              @db.Decimal
+  storage_location    String?               @db.VarChar
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  medicine_stock_logs medicine_stock_logs[]
 }

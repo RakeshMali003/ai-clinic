@@ -3,6 +3,7 @@ const { check } = require('express-validator');
 const patientController = require('../controllers/patientController');
 const validate = require('../middleware/validator');
 const { protect, authorize } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -11,6 +12,7 @@ router.use(protect);
 
 router.get('/profile', patientController.getPatientProfile);
 router.put('/profile', patientController.updatePatientProfile);
+router.post('/profile/photo', upload.single('profile_photo'), patientController.uploadProfilePhoto);
 
 router.post(
     '/',

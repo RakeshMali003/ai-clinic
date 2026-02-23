@@ -6,7 +6,7 @@ interface AuthContextType {
     user: User | null;
     loading: boolean;
     setUser: (user: User | null) => void;
-    login: (userData: User) => void;
+    login: (userData: User, token?: string) => void;
     logout: () => Promise<void>;
     isAuthenticated: boolean;
 }
@@ -36,6 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     }
                     const userObj = {
                         id: userData.user_id,
+                        full_name: userData.full_name,
                         name: userData.full_name,
                         email: userData.email,
                         role: userData.role as UserRole,
@@ -69,9 +70,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         initAuth();
     }, []);
 
-    const login = (userData: User) => {
+    const login = (userData: User, token?: string) => {
         console.log("🔑 AuthContext: login called with:", userData);
+        console.log("🔑 AuthContext: token received:", token ? 'YES' : 'NO');
+        
         localStorage.setItem('user', JSON.stringify(userData));
+        
+        // If a token was provided, store it in localStorage
+        if (token) {
+            localStorage.setItem('auth_token', token);
+            console.log("✅ Auth token stored in localStorage");
+        }
+        
         setUser(userData);
         console.log("✅ AuthContext: setUser called, user state should update on next render");
     };

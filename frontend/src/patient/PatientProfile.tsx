@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { patientService } from '../services/patientService';
 import {
   User,
@@ -18,20 +18,22 @@ import {
   Droplet,
   AlertTriangle,
   Pill,
-  Download
+  Download,
+  Camera
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/ui/card';
 import { Button } from '../common/ui/button';
 import { Input } from '../common/ui/input';
 import { Label } from '../common/ui/label';
 import { Textarea } from '../common/ui/textarea';
-import { Avatar, AvatarFallback } from '../common/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../common/ui/avatar';
 import { Badge } from '../common/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../common/ui/tabs';
 import type { PatientUser } from './PatientPortal';
 
 interface PatientProfileProps {
   patient: PatientUser;
+  onProfileUpdate?: (updatedPatient: PatientUser) => void;
 }
 
 const documents = [
@@ -51,7 +53,7 @@ const documents = [
   }
 ];
 
-export function PatientProfile({ patient: initialPatient }: PatientProfileProps) {
+export function PatientProfile({ patient: initialPatient, onProfileUpdate }: PatientProfileProps) {
   const [patient, setPatient] = useState(initialPatient);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -64,13 +66,16 @@ export function PatientProfile({ patient: initialPatient }: PatientProfileProps)
     address: initialPatient.address || '',
     abha_id: initialPatient.abhaId || ''
   });
-  const [allergies, setAllergies] = useState(['Penicillin', 'Peanuts']);
-  const [medications, setMedications] = useState(['Metformin 500mg']);
-  const [chronicDiseases, setChronicDiseases] = useState(['Diabetes Type 2', 'Hypertension']);
+  // Initialize medical data from patient prop or default to empty arrays
+  const [allergies, setAllergies] = useState<string[]>(initialPatient.allergies || []);
+  const [medications, setMedications] = useState<string[]>(initialPatient.currentMedications || []);
+  const [chronicDiseases, setChronicDiseases] = useState<string[]>(initialPatient.chronicDiseases || []);
   const [newAllergy, setNewAllergy] = useState('');
   const [newMedication, setNewMedication] = useState('');
   const [newDisease, setNewDisease] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPatient(initialPatient);
@@ -84,11 +89,16 @@ export function PatientProfile({ patient: initialPatient }: PatientProfileProps)
       address: initialPatient.address || '',
       abha_id: initialPatient.abhaId || ''
     });
+    // Sync medical data from patient prop
+    setAllergies(initialPatient.allergies || []);
+    setMedications(initialPatient.currentMedications || []);
+    setChronicDiseases(initialPatient.chronicDiseases || []);
   }, [initialPatient]);
 
   const handleSave = async () => {
     try {
       setSaving(true);
+      // Include medical data in the update to database
       const updated = await patientService.updatePatientProfile({
         full_name: formData.full_name,
         phone: formData.phone,
@@ -96,10 +106,32 @@ export function PatientProfile({ patient: initialPatient }: PatientProfileProps)
         gender: formData.gender,
         blood_group: formData.blood_group,
         address: formData.address,
-        abha_id: formData.abha_id
+        abha_id: formData.abha_id,
+        allergies: allergies,
+        chronicDiseases: chronicDiseases,
+        currentMedications: medications
       });
       if (updated) {
         setIsEditing(false);
+        // Update local patient state with the returned data from database
+        const updatedPatient: PatientUser = {
+          ...patient,
+          name: updated.full_name || patient.name,
+          phone: updated.phone || patient.phone,
+          age: updated.age || patient.age,
+          gender: updated.gender || patient.gender,
+          bloodGroup: updated.blood_group || patient.bloodGroup,
+          address: updated.address || patient.address,
+          abhaId: updated.abha_id || patient.abhaId,
+          allergies: updated.allergies || allergies,
+          chronicDiseases: updated.chronicDiseases || chronicDiseases,
+          currentMedications: updated.currentMedications || medications
+        };
+        setPatient(updatedPatient);
+        // Notify parent component about the update
+        if (onProfileUpdate) {
+          onProfileUpdate(updatedPatient);
+        }
       }
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -126,6 +158,37 @@ export function PatientProfile({ patient: initialPatient }: PatientProfileProps)
     setItems: (items: string[]) => void
   ) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      const updated = await patientService.uploadProfilePhoto(file);
+      if (updated && updated.profile_photo_url) {
+        const updatedPatient: PatientUser = {
+          ...patient,
+          avatar: updated.profile_photo_url
+        };
+        setPatient(updatedPatient);
+        if (onProfileUpdate) {
+          onProfileUpdate(updatedPatient);
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const triggerFileInput = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -161,9 +224,13 @@ export function PatientProfile({ patient: initialPatient }: PatientProfileProps)
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
               <Avatar className="size-24 mb-4">
-                <AvatarFallback className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-2xl">
-                  {patient.avatar}
-                </AvatarFallback>
+                {patient.avatar ? (
+                  <AvatarImage src={patient.avatar} alt={patient.name} />
+                ) : (
+                  <AvatarFallback className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-2xl">
+                    {patient.name?.charAt(0) || 'P'}
+                  </AvatarFallback>
+                )}
               </Avatar>
               <h2 className="font-semibold text-gray-900">{patient.name}</h2>
               <p className="text-sm text-gray-600 mb-4">{patient.email}</p>
@@ -194,9 +261,33 @@ export function PatientProfile({ patient: initialPatient }: PatientProfileProps)
               </div>
 
               {!isEditing && (
-                <Button className="w-full mt-6" variant="outline">
-                  Upload Photo
-                </Button>
+                <>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Button 
+                    className="w-full mt-6" 
+                    variant="outline"
+                    onClick={triggerFileInput}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <>
+                        <Camera className="size-4 mr-2 animate-pulse" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="size-4 mr-2" />
+                        Upload Photo
+                      </>
+                    )}
+                  </Button>
+                </>
               )}
             </div>
           </CardContent>

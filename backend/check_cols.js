@@ -11,9 +11,9 @@ async function checkCols() {
         const res = await pool.query(`
             SELECT column_name, data_type 
             FROM information_schema.columns 
-            WHERE table_name = 'clinics'
+            WHERE table_name = 'patients'
         `);
-        console.log('Columns in clinics table:');
+        console.log('Columns in patients table:');
         console.table(res.rows);
     } catch (err) {
         console.error(err);

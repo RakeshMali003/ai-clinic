@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../common/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../common/ui/select';
 import { Textarea } from '../common/ui/textarea';
 import api from "../lib/api";
-import type { PatientUser } from '../PatientPortal';
+import type { PatientUser } from './PatientPortal';
 
 interface BookAppointmentProps {
   patient: PatientUser;
@@ -43,6 +43,12 @@ const timeSlots = [
   '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM',
   '02:00 PM', '02:30 PM', '03:00 PM', '03:30 PM', '04:00 PM', '04:30 PM'
 ];
+
+// Helper function to validate date
+const isValidDate = (date: Date | undefined): boolean => {
+  if (!date) return false;
+  return !isNaN(date.getTime()) && isFinite(date.getTime());
+};
 
 export function BookAppointment({ patient }: BookAppointmentProps) {
   const [step, setStep] = useState(1);
@@ -66,7 +72,6 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
         setDoctors(response.doctors || response);
       } catch (error) {
         console.error('Failed to fetch doctors:', error);
-        // Keep empty array on error
       } finally {
         setLoading(false);
       }
@@ -78,20 +83,15 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
   // Fetch booked slots when doctor or date changes
   useEffect(() => {
     const fetchBookedSlots = async () => {
-      if (!selectedDoctor || !selectedDate) return;
+      if (!selectedDoctor || !selectedDate || !isValidDate(selectedDate)) return;
 
       setLoadingSlots(true);
-      setSelectedTime(''); // Reset selected time when doctor/date changes
+      setSelectedTime('');
       try {
-        const dateStr = selectedDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+        const dateStr = selectedDate.toISOString().split('T')[0];
         const response = await api.get(`/appointments/booked-slots/${selectedDoctor.id}/${dateStr}`);
-        console.log('Booked slots API response:', response);
         const bookedSlotsData = Array.isArray(response.bookedSlots) ? response.bookedSlots : (response.data?.bookedSlots || []);
-        console.log('Extracted booked slots:', bookedSlotsData);
-        console.log('Available slots before filter:', timeSlots);
-        console.log('Filtered slots:', timeSlots.filter((time) => !bookedSlotsData.includes(time)));
         setBookedSlots(bookedSlotsData);
-        // Reset selected time if it becomes booked
         if (selectedTime && bookedSlotsData.includes(selectedTime)) {
           setSelectedTime('');
         }
@@ -118,61 +118,79 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
 
   const handleBooking = async () => {
     if (!selectedDoctor || !selectedDate || !selectedTime) return;
+    
+    // Validate that selectedDate is a valid Date
+    if (!isValidDate(selectedDate)) {
+      alert('Please select a valid date from the calendar.');
+      return;
+    }
+
+    // Get date components and validate they are finite numbers
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const day = selectedDate.getDate();
+    
+    // Check if any component is NaN or infinite
+    if (!isFinite(year) || !isFinite(month) || !isFinite(day)) {
+      console.error('Invalid date components:', { year, month, day });
+      alert('Please select a valid date from the calendar.');
+      return;
+    }
+
+    // Additional check for reasonable date range
+    if (year < 2020 || year > 2100 || month < 0 || month > 11 || day < 1 || day > 31) {
+      console.error('Unreasonable date values:', { year, month, day });
+      alert('Please select a valid date from the calendar.');
+      return;
+    }
+
+    // Create UTC date
+    const utcDate = new Date(Date.UTC(year, month, day));
+    
+    // Final validation of UTC date
+    if (!isValidDate(utcDate)) {
+      console.error('Invalid UTC date:', utcDate);
+      alert('Please select a valid date from the calendar.');
+      return;
+    }
 
     setBookingLoading(true);
     try {
-      // Convert time to HH:MM:SS format
       const convertTimeTo24Hour = (timeStr: string) => {
         const [time, modifier] = timeStr.split(' ');
         let [hours, minutes] = time.split(':');
-        if (modifier === 'PM' && hours !== '12') {
-          hours = (parseInt(hours, 10) + 12).toString();
-        }
-        if (modifier === 'AM' && hours === '12') {
-          hours = '00';
-        }
+        if (modifier === 'PM' && hours !== '12') hours = (parseInt(hours, 10) + 12).toString();
+        if (modifier === 'AM' && hours === '12') hours = '00';
         return `${hours.padStart(2, '0')}:${minutes}:00`;
       };
 
       const formattedTime = convertTimeTo24Hour(selectedTime);
 
-      // Prepare appointment data - create date at midnight UTC to avoid timezone issues
-      const utcDate = new Date(Date.UTC(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()));
+      // Format date as YYYY-MM-DD string for backend compatibility
+      // Backend expects string format, not Date object
+      const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
       const appointmentData = {
-        patient_id: patient.id.toString(), // Convert to string as per schema
-        doctor_id: selectedDoctor.id.toString(),
-        appointment_date: utcDate.toISOString().split('T')[0], // YYYY-MM-DD format at UTC midnight
-        appointment_time: formattedTime,
+        patient_id: patient.id.toString(),
+        doctor_id: selectedDoctor.id,
+        appointment_date: dateString,
+        appointment_time: formattedTime, 
         type: appointmentType === 'in-clinic' ? 'in-clinic' : 'video',
         mode: appointmentType === 'video' ? 'online' : 'offline',
         status: 'scheduled',
-        consult_duration: 30, // Default 30 minutes
-        earnings: 500.00 // Consultation fee
+        consult_duration: 30,
+        earnings: 500,
+        reason_for_visit: reasonForVisit || null
       };
 
-      // Call API to create appointment
+      console.log('Sending appointment data:', appointmentData);
+
       const response = await api.post('/appointments', appointmentData);
 
       if (response.success) {
-        // Get the appointment ID from the response (generated by backend)
-        setAppointmentId(response.data?.appointment_id || response.appointment_id);
-
-        // Refetch booked slots to hide the newly booked time slot
-        if (selectedDoctor && selectedDate) {
-          const dateStr = selectedDate.toISOString().split('T')[0];
-          try {
-            const bookedResponse = await api.get(`/appointments/booked-slots/${selectedDoctor.id}/${dateStr}`);
-            const bookedSlotsData = Array.isArray(bookedResponse.bookedSlots) ? bookedResponse.bookedSlots : (bookedResponse.data?.bookedSlots || []);
-            setBookedSlots(bookedSlotsData);
-          } catch (error) {
-            console.error('Failed to refetch booked slots after booking:', error);
-          }
-        }
-
+        setAppointmentId(response.data?.appointment_id);
         setStep(4);
-      } else {
-        throw new Error('Failed to book appointment');
-      }
+      } else throw new Error('Failed to book appointment');
     } catch (error) {
       console.error('Error booking appointment:', error);
       alert('Failed to book appointment. Please try again.');
@@ -417,8 +435,8 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
             <Button variant="outline" onClick={() => setStep(1)}>
               Back
             </Button>
-            <Button
-              className="flex-1"
+            <Button 
+              className="flex-1" 
               onClick={() => setStep(3)}
               disabled={!selectedDate || !selectedTime}
             >
@@ -461,10 +479,10 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
                 <div>
                   <Label className="text-gray-600">Date</Label>
                   <p className="font-medium text-gray-900">
-                    {selectedDate?.toLocaleDateString('en-IN', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
+                    {selectedDate?.toLocaleDateString('en-IN', { 
+                      day: 'numeric', 
+                      month: 'long', 
+                      year: 'numeric' 
                     })}
                   </p>
                 </div>
@@ -499,9 +517,11 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
 
               <div className="space-y-2">
                 <Label>Reason for Visit (Optional)</Label>
-                <Textarea
+                <Textarea 
                   placeholder="Describe your symptoms or reason for consultation..."
                   rows={3}
+                  value={reasonForVisit}
+                  onChange={(e) => setReasonForVisit(e.target.value)}
                 />
               </div>
             </CardContent>
@@ -534,7 +554,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
               <p className="text-sm text-gray-600 mb-6">
                 Your appointment has been confirmed. You will receive a confirmation email and SMS shortly.
               </p>
-
+              
               <div className="bg-white rounded-lg p-6 mb-6 text-left">
                 <div className="grid grid-cols-2 gap-4">
                   <div>

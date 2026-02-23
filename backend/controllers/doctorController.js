@@ -16,6 +16,7 @@ exports.registerDoctor = async (req, res, next) => {
             university_name,
             graduation_year,
             experience_years,
+            specialization,
             specializations,
             languages,
             consultation_modes,
@@ -35,12 +36,13 @@ exports.registerDoctor = async (req, res, next) => {
             date_of_birth,
             gender,
             medical_council_reg_no,
-            medical_council_name,
+            medical_council_name,   
             registration_year,
             qualifications,
             university_name,
             graduation_year,
             experience_years,
+            specialization,
             bank_account_name,
             bank_account_number,
             ifsc_code,
@@ -73,11 +75,30 @@ exports.registerDoctor = async (req, res, next) => {
 exports.createDoctor = async (req, res, next) => {
     try {
         // Basic validation handled by middleware, robust checks here
-        const { full_name, email, mobile, medical_council_reg_no } = req.body;
+        const { 
+            full_name, 
+            email, 
+            mobile, 
+            medical_council_reg_no,
+            specialization,
+            qualifications,
+            experience_years,
+            status
+        } = req.body;
 
-        // Could check duplicates here
+        // Map frontend fields to backend schema
+        const doctorData = {
+            full_name,
+            email,
+            mobile,
+            medical_council_reg_no,
+            specialization: specialization || null,
+            qualifications: qualifications || null,
+            experience_years: experience_years || null,
+            verification_status: status === 'ACTIVE' ? 'VERIFIED' : 'PENDING'
+        };
 
-        const newDoctor = await Doctor.create(req.body);
+        const newDoctor = await Doctor.create(doctorData);
         ResponseHandler.created(res, newDoctor, 'Medical officer commissioned successfully');
     } catch (error) {
         next(error);

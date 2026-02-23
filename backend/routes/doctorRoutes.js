@@ -33,7 +33,8 @@ router.post(
     doctorController.createDoctor
 );
 
-router.get('/', protect, doctorController.getAllDoctors);
+// Public endpoint to get all doctors (no auth required for patients)
+router.get('/', doctorController.getAllDoctors);
 router.get('/:id', protect, doctorController.getDoctorById);
 router.put('/:id', protect, doctorController.updateDoctor);
 router.delete('/:id', protect, doctorController.deleteDoctor);

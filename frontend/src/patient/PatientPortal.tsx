@@ -37,6 +37,9 @@ export interface PatientUser {
   bloodGroup?: string;
   address?: string;
   gender?: string;
+  allergies?: string[];
+  chronicDiseases?: string[];
+  currentMedications?: string[];
 }
 
 interface PatientPortalProps {
@@ -60,7 +63,6 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
     const fetchFullProfile = async () => {
       try {
         setLoading(true);
-        // Fetch full profile from DB using session based lookup
         const fullPatient = await patientService.getPatientProfile();
 
         if (fullPatient) {
@@ -69,12 +71,15 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
             name: fullPatient.full_name,
             email: fullPatient.email || user.email || '',
             phone: fullPatient.phone,
-            avatar: user.avatar, // Keep avatar from user session for now
+            avatar: fullPatient.profile_photo_url || user.avatar || '',
             abhaId: fullPatient.abha_id,
             age: fullPatient.age,
             bloodGroup: fullPatient.blood_group,
             address: fullPatient.address,
-            gender: fullPatient.gender
+            gender: fullPatient.gender,
+            allergies: fullPatient.allergies || [],
+            chronicDiseases: fullPatient.chronicDiseases || [],
+            currentMedications: fullPatient.currentMedications || []
           });
         }
       } catch (error) {
@@ -107,7 +112,10 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
       case 'medicine-store':
         return <MedicineStore />;
       case 'profile':
-        return <PatientProfile patient={patientData} />;
+        return <PatientProfile 
+          patient={patientData} 
+          onProfileUpdate={(updatedPatient) => setPatientData(updatedPatient)} 
+        />;
       case 'book-appointment':
         return <BookAppointment patient={patientData} />;
       case 'appointments':

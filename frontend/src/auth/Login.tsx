@@ -11,12 +11,10 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LoginPageProps {
-  onLogin: (user: User) => void;
+  onLogin: (user: User, token?: string) => void;
   onBack: () => void;
   onRegister: (role: 'patient' | 'doctor' | 'clinic') => void;
 }
-
-
 
 export function LoginPage({ onLogin, onBack, onRegister }: LoginPageProps) {
   const { navigateTo } = useNavigation();
@@ -51,8 +49,14 @@ export function LoginPage({ onLogin, onBack, onRegister }: LoginPageProps) {
       console.log("🔐 Starting email login...");
       const user = await authService.signInWithEmail(email, password);
       console.log("✅ Login successful, user data:", user);
-      onLogin(user);
-      console.log("✅ onLogin called");
+      
+      // Get the token from localStorage (authService stores it there)
+      const token = localStorage.getItem('auth_token');
+      console.log("🔑 Token retrieved from localStorage:", token ? 'EXISTS' : 'MISSING');
+      
+      // Pass both user and token to onLogin
+      onLogin(user, token || undefined);
+      console.log("✅ onLogin called with user and token");
       toast.success('Welcome back!');
       // Set flag to navigate after user state is updated
       setShouldNavigate(true);
@@ -301,8 +305,6 @@ export function LoginPage({ onLogin, onBack, onRegister }: LoginPageProps) {
               </div>
             </TabsContent>
           </Tabs>
-
-
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 mb-3">New to E-Clinic?</p>
