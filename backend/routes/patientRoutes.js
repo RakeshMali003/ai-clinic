@@ -17,7 +17,7 @@ router.post('/profile/photo', upload.single('profile_photo'), patientController.
 router.post(
     '/',
     [
-        authorize('admin', 'receptionist', 'doctor'),
+        authorize('admin', 'clinic', 'receptionist', 'doctor'),
         check('patient_id', 'Patient ID is required').not().isEmpty(),
         check('full_name', 'Name is required').not().isEmpty(),
         check('phone', 'Phone number is required').not().isEmpty(),

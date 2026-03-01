@@ -13,30 +13,84 @@ class Doctor {
     }
 
     static async insertSpecializations(doctorId, specializations) {
-        // Note: The schema doesn't have doctor_specializations table
-        // This might need to be handled differently or the table needs to be added
-        console.log('insertSpecializations not implemented - table missing');
+        try {
+            let specs = specializations;
+            if (typeof specializations === 'string') {
+                specs = specializations.split(',').map(s => s.trim()).filter(s => s !== '');
+            }
+            if (!Array.isArray(specs) || specs.length === 0) return;
+
+            await prisma.doctor_specializations.createMany({
+                data: specs.map(s => ({
+                    doctor_id: doctorId,
+                    specialization: s
+                }))
+            });
+        } catch (error) {
+            console.error('Error inserting specializations:', error);
+            throw error;
+        }
     }
 
     static async insertLanguages(doctorId, languages) {
-        // Note: The schema doesn't have doctor_languages table
-        // This might need to be handled differently or the table needs to be added
-        console.log('insertLanguages not implemented - table missing');
+        try {
+            let langs = languages;
+            if (typeof languages === 'string') {
+                langs = languages.split(',').map(l => l.trim()).filter(l => l !== '');
+            }
+            if (!Array.isArray(langs) || langs.length === 0) return;
+
+            await prisma.doctor_languages.createMany({
+                data: langs.map(l => ({
+                    doctor_id: doctorId,
+                    language: l
+                }))
+            });
+        } catch (error) {
+            console.error('Error inserting languages:', error);
+            throw error;
+        }
     }
 
     static async insertConsultationModes(doctorId, modes) {
-        // Note: The schema doesn't have doctor_consultation_modes table
-        // This might need to be handled differently or the table needs to be added
-        console.log('insertConsultationModes not implemented - table missing');
+        try {
+            let mds = modes;
+            if (typeof modes === 'string') {
+                mds = modes.split(',').map(m => m.trim()).filter(m => m !== '');
+            }
+            if (!Array.isArray(mds) || mds.length === 0) return;
+
+            await prisma.doctor_consultation_modes.createMany({
+                data: mds.map(m => ({
+                    doctor_id: doctorId,
+                    mode: m
+                }))
+            });
+        } catch (error) {
+            console.error('Error inserting consultation modes:', error);
+            throw error;
+        }
     }
 
     static async findAll(limit = 10, offset = 0) {
         try {
-            const data = await prisma.doctors.findMany({
+            const doctors = await prisma.doctors.findMany({
                 take: limit,
-                skip: offset
+                skip: offset,
+                include: {
+                    doctor_specializations: true,
+                    doctor_languages: true,
+                    doctor_consultation_modes: true
+                }
             });
-            return data;
+
+            // Map back to the expected format for backward compatibility
+            return doctors.map(doctor => ({
+                ...doctor,
+                specializations: doctor.doctor_specializations.map(s => s.specialization),
+                languages: doctor.doctor_languages.map(l => l.language),
+                consultation_modes: doctor.doctor_consultation_modes.map(m => m.mode)
+            }));
         } catch (error) {
             throw error;
         }
@@ -44,10 +98,27 @@ class Doctor {
 
     static async findById(id) {
         try {
-            const data = await prisma.doctors.findUnique({
-                where: { id: id }
+            const doctor = await prisma.doctors.findUnique({
+                where: { id: id },
+                include: {
+                    doctor_specializations: true,
+                    doctor_languages: true,
+                    doctor_consultation_modes: true,
+                    doctor_practice_locations: true,
+                    doctor_time_slots: true,
+                    doctor_verification: true
+                }
             });
-            return data;
+
+            if (!doctor) return null;
+
+            // Map back to the expected format
+            return {
+                ...doctor,
+                specializations: doctor.doctor_specializations.map(s => s.specialization),
+                languages: doctor.doctor_languages.map(l => l.language),
+                consultation_modes: doctor.doctor_consultation_modes.map(m => m.mode)
+            };
         } catch (error) {
             throw error;
         }

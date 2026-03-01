@@ -8,6 +8,14 @@ const router = express.Router();
 
 router.use(protect);
 
+// User's specific API requirements
+router.get('/', appointmentController.getDoctorAppointments);
+router.post('/start', authorize('doctor'), appointmentController.startAppointment);
+router.put('/status', authorize('doctor', 'admin', 'receptionist'), appointmentController.updateStatusFromPost);
+router.put('/reschedule', authorize('doctor', 'admin', 'receptionist'), appointmentController.rescheduleAppointment);
+router.delete('/:id', authorize('doctor', 'admin'), appointmentController.deleteAppointment);
+
+// Existing/Other routes
 router.get('/my-appointments', appointmentController.getPatientAppointments);
 router.get('/my-upcoming-appointments', appointmentController.getUpcomingPatientAppointments);
 
@@ -22,7 +30,6 @@ router.post(
     appointmentController.createAppointment
 );
 
-router.get('/', appointmentController.getAllAppointments);
 router.get('/patient/:patientId', appointmentController.getAppointmentsByPatient);
 router.get('/upcoming/:patientId', appointmentController.getUpcomingAppointments);
 router.get('/booked-slots/:doctorId/:date', appointmentController.getBookedSlots);
@@ -32,7 +39,7 @@ router.patch(
     '/:id/status',
     [
         authorize('admin', 'doctor', 'receptionist'),
-        check('status', 'Status is required').isIn(['scheduled', 'completed', 'cancelled', 'no-show']),
+        check('status', 'Status is required').isIn(['scheduled', 'completed', 'cancelled', 'no-show', 'in_progress']),
         validate
     ],
     appointmentController.updateStatus

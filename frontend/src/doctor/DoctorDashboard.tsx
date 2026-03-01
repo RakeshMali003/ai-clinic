@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { User } from '../common/types';
 import {
   LayoutDashboard,
-  Users,
   Calendar,
   FileText,
   TestTube,
@@ -14,8 +13,8 @@ import {
   LogOut
 } from 'lucide-react';
 import { Dashboard } from './Dashboard';
-import { PatientManagement } from './PatientManagement';
 import { AppointmentManagement } from './AppointmentManagement';
+import { Prescription } from './Prescription';
 import { PrescriptionRecords } from './PrescriptionRecords';
 import { LabDiagnostics } from './LabDiagnostics';
 import { ReportsAnalytics } from './ReportsAnalytics';
@@ -31,9 +30,9 @@ interface DoctorDashboardProps {
 
 type DoctorView =
   | 'dashboard'
-  | 'patients'
   | 'appointments'
-  | 'prescriptions'
+  | 'prescription'
+  | 'prescription_records'
   | 'lab'
   | 'reports'
   | 'ai'
@@ -43,9 +42,8 @@ type DoctorView =
 
 const menuItems = [
   { id: 'dashboard' as DoctorView, label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'patients' as DoctorView, label: 'Patients', icon: Users },
-  { id: 'appointments' as DoctorView, label: 'Appointments', icon: Calendar },
-  { id: 'prescriptions' as DoctorView, label: 'Prescriptions', icon: FileText },
+  { id: 'appointments' as DoctorView, label: 'Appointment Management', icon: Calendar },
+  { id: 'prescription_records' as DoctorView, label: 'Prescription Records', icon: FileText },
   { id: 'lab' as DoctorView, label: 'Lab Diagnostics', icon: TestTube },
   { id: 'reports' as DoctorView, label: 'Reports & Analytics', icon: BarChart3 },
   { id: 'ai' as DoctorView, label: 'AI Modules', icon: Brain },
@@ -56,32 +54,38 @@ const menuItems = [
 
 export function DoctorDashboard({ user }: DoctorDashboardProps) {
   const [currentView, setCurrentView] = useState<DoctorView>('dashboard');
+  const [activeAppointment, setActiveAppointment] = useState<any>(null);
   const { logout } = useAuth();
+
+  const handleStartAppointment = (appointment: any) => {
+    setActiveAppointment(appointment);
+    setCurrentView('prescription');
+  };
 
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard userRole={user.role} />;
-      case 'patients':
-        return <PatientManagement userRole={user.role} />;
+        return <Dashboard userRole={user.role as any} />;
       case 'appointments':
-        return <AppointmentManagement userRole={user.role} />;
-      case 'prescriptions':
-        return <PrescriptionRecords userRole={user.role} />;
+        return <AppointmentManagement userRole={user.role as any} onStartAppointment={handleStartAppointment} />;
+      case 'prescription':
+        return <Prescription appointment={activeAppointment} onBack={() => setCurrentView('appointments')} />;
+      case 'prescription_records':
+        return <PrescriptionRecords />;
       case 'lab':
-        return <LabDiagnostics userRole={user.role} />;
+        return <LabDiagnostics userRole={user.role as any} />;
       case 'reports':
-        return <ReportsAnalytics userRole={user.role} />;
+        return <ReportsAnalytics userRole={user.role as any} />;
       case 'ai':
-        return <AIModules userRole={user.role} />;
+        return <AIModules userRole={user.role as any} />;
       case 'iot':
-        return <IoTIntegration userRole={user.role} />;
+        return <IoTIntegration userRole={user.role as any} />;
       case 'notifications':
-        return <Notifications userRole={user.role} />;
+        return <Notifications userRole={user.role as any} />;
       case 'settings':
-        return <Settings userRole={user.role} />;
+        return <Settings userRole={user.role as any} />;
       default:
-        return <Dashboard userRole={user.role} />;
+        return <Dashboard userRole={user.role as any} />;
     }
   };
 

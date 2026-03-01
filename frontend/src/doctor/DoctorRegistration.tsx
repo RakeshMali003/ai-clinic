@@ -29,6 +29,7 @@ import { toast } from 'sonner';
 
 interface DoctorRegistrationProps {
   onBack: () => void;
+  onSuccess?: () => void;
 }
 
 const steps = [
@@ -63,7 +64,7 @@ const servicesOffered = [
 
 const consultationModes = ['Walk-in', 'Video Call', 'Chat', 'Home Visit'];
 
-export function DoctorRegistration({ onBack }: DoctorRegistrationProps) {
+export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProps) {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedSpecializations, setSelectedSpecializations] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
@@ -279,11 +280,16 @@ export function DoctorRegistration({ onBack }: DoctorRegistrationProps) {
 
       await authService.signUpDoctor(registrationData, formData.password, files);
 
-      toast.success("Registration successful! Please login to continue.");
-      // Redirect to login or verification pending page
-      setTimeout(() => {
-        window.location.href = '/login';
-      }, 2000);
+      toast.success("Registration successful!");
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 2000);
+      }
     } catch (error: any) {
       console.error("Registration failed:", error);
       toast.error(error.message || "Registration failed. Please try again.");

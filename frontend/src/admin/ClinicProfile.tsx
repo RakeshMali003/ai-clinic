@@ -24,17 +24,25 @@ export function ClinicProfile({ userRole }: ClinicProfileProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [clinic, setClinic] = useState<Clinic | null>(null);
+    const [stats, setStats] = useState<any>(null);
 
     useEffect(() => {
         const fetchClinic = async () => {
             try {
                 setLoading(true);
-                // Try to get all clinics and take the first one (for demo/single clinic per user)
-                const clinics = await clinicService.getClinics();
-                if (clinics && clinics.length > 0) {
-                    setClinic(clinics[0]);
+                const data = await clinicService.getProfile();
+                if (data) {
+                    setClinic(data);
                 } else {
                     setError('No clinic data found.');
+                }
+
+                // Fetch real stats
+                try {
+                    const reportsData = await clinicService.getReports();
+                    setStats(reportsData);
+                } catch (reportErr) {
+                    console.error('Error fetching clinic reports:', reportErr);
                 }
             } catch (err) {
                 console.error('Error fetching clinic:', err);
@@ -51,7 +59,7 @@ export function ClinicProfile({ userRole }: ClinicProfileProps) {
         if (!clinic) return;
         try {
             setLoading(true);
-            const updatedClinic = await clinicService.updateClinic(clinic.id, clinic);
+            const updatedClinic = await clinicService.updateProfile(clinic);
             if (updatedClinic) {
                 setClinic(updatedClinic);
                 setIsEditing(false);
@@ -356,29 +364,29 @@ export function ClinicProfile({ userRole }: ClinicProfileProps) {
                     <div className="flex items-center justify-between mb-4">
                         <Users className="w-8 h-8 text-blue-600" />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">4</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.total_doctors || 0}</p>
                     <p className="text-sm text-gray-600">Active Doctors</p>
                 </div>
                 <div className="bg-white rounded-xl p-6 border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <Users className="w-8 h-8 text-green-600" />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">7</p>
-                    <p className="text-sm text-gray-600">Support Staff</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.total_patients || 0}</p>
+                    <p className="text-sm text-gray-600">Total Patients</p>
                 </div>
                 <div className="bg-white rounded-xl p-6 border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <Stethoscope className="w-8 h-8 text-purple-600" />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">9</p>
-                    <p className="text-sm text-gray-600">Specializations</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats?.total_appointments || 0}</p>
+                    <p className="text-sm text-gray-600">Total Appointments</p>
                 </div>
                 <div className="bg-white rounded-xl p-6 border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <Building2 className="w-8 h-8 text-orange-600" />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">2,500+</p>
-                    <p className="text-sm text-gray-600">Patients Served</p>
+                    <p className="text-2xl font-bold text-gray-900">₹{stats?.total_revenue || 0}</p>
+                    <p className="text-sm text-gray-600">Total Revenue</p>
                 </div>
             </div>
         </div>

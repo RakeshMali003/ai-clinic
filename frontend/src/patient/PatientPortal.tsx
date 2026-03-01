@@ -6,8 +6,10 @@ import { MedicineStore } from './MedicineStore';
 import { PatientProfile } from './PatientProfile';
 import { BookAppointment } from './BookAppointment';
 import { MyPrescriptions } from './MyPrescriptions';
-import { MyReports } from './MyReports';
 import { MyBilling } from './MyBilling';
+import { CartPage } from './CartPage';
+import { OrderHistory } from './OrderHistory';
+import { MedicineReminders } from './MedicineReminders';
 import { PatientHeader } from './PatientHeader';
 import { PatientSidebar } from './PatientSidebar';
 import { MyAppointments } from './MyAppointments';
@@ -23,7 +25,9 @@ export type PatientPage =
   | 'appointments'
   | 'video-consultation'
   | 'prescriptions'
-  | 'reports'
+  | 'cart'
+  | 'orders'
+  | 'reminders'
   | 'billing';
 
 export interface PatientUser {
@@ -40,6 +44,7 @@ export interface PatientUser {
   allergies?: string[];
   chronicDiseases?: string[];
   currentMedications?: string[];
+  prescriptions?: any[];
 }
 
 interface PatientPortalProps {
@@ -79,7 +84,8 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
             gender: fullPatient.gender,
             allergies: fullPatient.allergies || [],
             chronicDiseases: fullPatient.chronicDiseases || [],
-            currentMedications: fullPatient.currentMedications || []
+            currentMedications: fullPatient.currentMedications || [],
+            prescriptions: fullPatient.prescriptions || []
           });
         }
       } catch (error) {
@@ -112,9 +118,9 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
       case 'medicine-store':
         return <MedicineStore />;
       case 'profile':
-        return <PatientProfile 
-          patient={patientData} 
-          onProfileUpdate={(updatedPatient) => setPatientData(updatedPatient)} 
+        return <PatientProfile
+          patient={patientData}
+          onProfileUpdate={(updatedPatient) => setPatientData(updatedPatient)}
         />;
       case 'book-appointment':
         return <BookAppointment patient={patientData} />;
@@ -124,8 +130,12 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
         return <VideoConsultation patient={patientData} />;
       case 'prescriptions':
         return <MyPrescriptions patient={patientData} />;
-      case 'reports':
-        return <MyReports patient={patientData} />;
+      case 'cart':
+        return <CartPage patient={patientData} onNavigate={setCurrentPage} />;
+      case 'orders':
+        return <OrderHistory patient={patientData} />;
+      case 'reminders':
+        return <MedicineReminders patient={patientData} />;
       case 'billing':
         return <MyBilling patient={patientData} />;
       default:

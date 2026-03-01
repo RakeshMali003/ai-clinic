@@ -1,24 +1,37 @@
 const prisma = require('../config/database');
 const ResponseHandler = require('../utils/responseHandler');
-const path = require('path');
-const fs = require('fs');
+const Patient = require('../models/patientModel');
+
+async function getPatientId(req) {
+    if (req.user.patient_id) return req.user.patient_id;
+
+    const userId = req.user.user_id;
+    let patient = await prisma.patients.findFirst({ where: { user_id: userId } });
+    if (!patient && req.user.email) {
+        patient = await prisma.patients.findFirst({ where: { email: req.user.email } });
+    }
+    return patient ? patient.patient_id : null;
+}
 
 exports.uploadDocument = async (req, res, next) => {
     try {
-        const { document_type } = req.body;
-        const patient_id = req.user.patient_id; // Need to ensure patient_id is available in req.user
+        const patient_id = await getPatientId(req);
+        if (!patient_id) return ResponseHandler.notFound(res, 'Patient not found');
 
         if (!req.file) {
-            return ResponseHandler.badRequest(res, 'No file provided for upload');
+            return ResponseHandler.badRequest(res, 'No file uploaded');
         }
 
-        const fileUrl = `/uploads/${req.file.filename}`;
+        const { document_type } = req.body;
+        const file_url = `/uploads/${req.file.filename}`;
+        const file_name = req.file.originalname;
 
         const document = await prisma.patient_documents.create({
             data: {
-                patient_id: patient_id,
-                document_type: document_type || 'General',
-                file_url: fileUrl
+                patient_id,
+                document_type: document_type || 'Other',
+                file_url,
+                file_name
             }
         });
 
@@ -28,44 +41,35 @@ exports.uploadDocument = async (req, res, next) => {
     }
 };
 
-exports.getPatientDocuments = async (req, res, next) => {
+exports.getMyDocuments = async (req, res, next) => {
     try {
-        const patient_id = req.user.patient_id;
+        const patient_id = await getPatientId(req);
+        if (!patient_id) return ResponseHandler.notFound(res, 'Patient not found');
 
         const documents = await prisma.patient_documents.findMany({
-            where: { patient_id: patient_id },
+            where: { patient_id },
             orderBy: { uploaded_at: 'desc' }
         });
 
-        ResponseHandler.success(res, documents, 'Patient documents retrieved');
+        ResponseHandler.success(res, documents, 'Documents retrieved successfully');
     } catch (error) {
         next(error);
     }
 };
 
-exports.downloadDocument = async (req, res, next) => {
+exports.deleteDocument = async (req, res, next) => {
     try {
         const { id } = req.params;
-        const document = await prisma.patient_documents.findUnique({
-            where: { id: parseInt(id) }
-        });
+        const patient_id = await getPatientId(req);
 
-        if (!document) {
+        const doc = await prisma.patient_documents.findUnique({ where: { id: parseInt(id) } });
+        if (!doc || doc.patient_id !== patient_id) {
             return ResponseHandler.notFound(res, 'Document not found');
         }
 
-        // Check if patient owns this document
-        if (document.patient_id !== req.user.patient_id) {
-            return ResponseHandler.forbidden(res, 'Access denied to this document');
-        }
+        await prisma.patient_documents.delete({ where: { id: parseInt(id) } });
 
-        const filePath = path.join(__dirname, '..', document.file_url);
-
-        if (!fs.existsSync(filePath)) {
-            return ResponseHandler.notFound(res, 'Physical file not found on disk');
-        }
-
-        res.download(filePath);
+        ResponseHandler.success(res, null, 'Document deleted');
     } catch (error) {
         next(error);
     }

@@ -29,7 +29,7 @@ exports.googleAuth = (req, res, next) => {
 // The user is available in req.user after passport middleware runs
 exports.googleAuthCallback = (req, res) => {
   const user = req.user;
-  
+
   if (!user) {
     console.error('Google auth error: No user in request');
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -38,7 +38,7 @@ exports.googleAuthCallback = (req, res) => {
 
   try {
     console.log('Google callback for user:', user.email, 'role:', user.role);
-    
+
     // Create JWT token
     const token = jwt.sign(
       { id: user.user_id, role: user.role },
@@ -116,6 +116,24 @@ exports.register = async (req, res, next) => {
       email: newUser.email,
       role: newUser.role.toLowerCase()
     };
+
+    // If it's a patient, create a record in the patients table
+    if (newUser.role === 'patient') {
+      try {
+        await prisma.patients.create({
+          data: {
+            patient_id: `PAT-${Date.now()}`,
+            full_name: newUser.full_name,
+            email: newUser.email,
+            phone: newUser.mobile_number,
+            user_id: newUser.user_id
+          }
+        });
+      } catch (patientError) {
+        console.error('Error creating patient profile:', patientError);
+        // We continue as the user is still created, but logging this is important
+      }
+    }
 
     res.status(200).json({ token, user: userResponse });
   } catch (error) {
@@ -232,7 +250,8 @@ exports.registerDoctor = async (req, res, next) => {
       pan_number: bankDetails?.pan || '',
       gstin: bankDetails?.gstin || '',
       terms_accepted: true,
-      declaration_accepted: true
+      declaration_accepted: true,
+      user_id: newUser.user_id
     };
 
     // Validate bank details if provided
@@ -249,6 +268,17 @@ exports.registerDoctor = async (req, res, next) => {
     }
 
     const newDoctor = await Doctor.create(doctorData);
+
+    // Insert multi-value normalized data
+    if (specializations) {
+      await Doctor.insertSpecializations(newDoctor.id, specializations);
+    }
+    if (languages) {
+      await Doctor.insertLanguages(newDoctor.id, languages);
+    }
+    if (consultationModes) {
+      await Doctor.insertConsultationModes(newDoctor.id, consultationModes);
+    }
 
     // Mirror financial data to verification_details
     await prisma.verification_details.create({
@@ -351,7 +381,8 @@ exports.registerClinic = async (req, res, next) => {
       gstin: bankDetails?.gstin || null,
       terms_accepted: true,
       declaration_accepted: true,
-      verification_status: 'pending'
+      verification_status: 'pending',
+      user_id: newUser.user_id
     };
 
     // Validate bank details if provided
@@ -370,6 +401,12 @@ exports.registerClinic = async (req, res, next) => {
     console.log('Creating clinic with data:', JSON.stringify(clinicData, null, 2));
 
     const newClinic = await Clinic.create(clinicData);
+
+    // Insert multi-value data
+    if (services) await Clinic.insertServices(newClinic.id, services);
+    if (facilities) await Clinic.insertFacilities(newClinic.id, facilities);
+    if (paymentModes) await Clinic.insertPaymentModes(newClinic.id, paymentModes);
+    if (bookingModes) await Clinic.insertBookingModes(newClinic.id, bookingModes);
 
     // Mirror financial data to verification_details
     await prisma.verification_details.create({

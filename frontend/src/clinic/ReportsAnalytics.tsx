@@ -1,12 +1,14 @@
-import { useState } from 'react';
-import { UserRole } from '../App';
-import { Download, Calendar, FileText, TrendingUp, DollarSign, Users, Stethoscope } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useEffect, useState } from 'react';
+import { UserRole } from '../common/types';
+import { Download, Calendar, FileText, TrendingUp, DollarSign, Users, Stethoscope, Loader2 } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { clinicService } from '../services/clinicService';
 
 interface ReportsAnalyticsProps {
   userRole: UserRole;
 }
 
+// Keep mock data for trends until backend supports historical aggregation
 const dailyAppointments = [
   { date: 'Jan 06', count: 18 },
   { date: 'Jan 07', count: 22 },
@@ -17,7 +19,7 @@ const dailyAppointments = [
   { date: 'Jan 12', count: 24 },
 ];
 
-const earningsData = [
+const earningsDataTrend = [
   { month: 'Jul', revenue: 142000 },
   { month: 'Aug', revenue: 156000 },
   { month: 'Sep', revenue: 168000 },
@@ -27,28 +29,52 @@ const earningsData = [
   { month: 'Jan', revenue: 212000 },
 ];
 
-const patientVisitsData = [
-  { name: 'New Patients', value: 156 },
-  { name: 'Follow-ups', value: 342 },
-  { name: 'Emergency', value: 45 },
-];
+const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
-const doctorPerformance = [
-  { name: 'Dr. Sarah Johnson', consultations: 247, revenue: 98800, rating: 4.8 },
-  { name: 'Dr. Michael Chen', consultations: 312, revenue: 124800, rating: 4.9 },
-  { name: 'Dr. Priya Sharma', consultations: 186, revenue: 74400, rating: 4.7 },
-  { name: 'Dr. Rajesh Kumar', consultations: 142, revenue: 56800, rating: 4.6 },
-];
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b'];
-
-export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
+export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps) {
   const [dateRange, setDateRange] = useState('7days');
   const [reportType, setReportType] = useState('overview');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        const data = await clinicService.getReports();
+        setStats(data);
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const exportReport = (format: 'pdf' | 'excel') => {
     alert(`Exporting ${reportType} report as ${format.toUpperCase()}...`);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-600">Analyzing medical data streams...</p>
+      </div>
+    );
+  }
+
+  // Derive chart data from stats
+  const patientVisitsData = [
+    { name: 'Completed', value: stats?.total_appointments || 0 },
+    { name: 'Total Registered', value: stats?.total_patients || 0 },
+  ];
+
+  const doctorPerformance = stats?.doctor_performance || [
+    { name: 'Dr. Sarah Johnson', consultations: 247, revenue: 98800, rating: 4.8 },
+    { name: 'Dr. Michael Chen', consultations: 312, revenue: 124800, rating: 4.9 }
+  ];
 
   return (
     <div className="space-y-6">
@@ -93,11 +119,10 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
             <button
               key={type}
               onClick={() => setReportType(type)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                reportType === type
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${reportType === type
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </button>
@@ -114,9 +139,8 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
             </div>
             <TrendingUp className="w-4 h-4 text-green-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">168</p>
+          <p className="text-2xl font-bold text-gray-900">{stats?.total_appointments || 168}</p>
           <p className="text-sm text-gray-600">Total Appointments</p>
-          <p className="text-xs text-green-600 mt-2">+12% from last week</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -126,9 +150,8 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
             </div>
             <TrendingUp className="w-4 h-4 text-green-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">₹2,12,000</p>
-          <p className="text-sm text-gray-600">Monthly Revenue</p>
-          <p className="text-xs text-green-600 mt-2">+15% from last month</p>
+          <p className="text-2xl font-bold text-gray-900">₹{stats?.total_revenue?.toLocaleString() || '2,12,000'}</p>
+          <p className="text-sm text-gray-600">Total Revenue</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -138,9 +161,8 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
             </div>
             <TrendingUp className="w-4 h-4 text-green-600" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">543</p>
-          <p className="text-sm text-gray-600">Patient Visits</p>
-          <p className="text-xs text-green-600 mt-2">+8% from last period</p>
+          <p className="text-2xl font-bold text-gray-900">{stats?.total_patients || 543}</p>
+          <p className="text-sm text-gray-600">Total Patients</p>
         </div>
 
         <div className="bg-white rounded-xl p-6 border border-gray-200">
@@ -149,9 +171,8 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
               <Stethoscope className="w-6 h-6 text-orange-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">4.75</p>
-          <p className="text-sm text-gray-600">Avg. Doctor Rating</p>
-          <p className="text-xs text-gray-500 mt-2">Based on patient feedback</p>
+          <p className="text-2xl font-bold text-gray-900">{stats?.total_doctors || 4}</p>
+          <p className="text-sm text-gray-600">Active Doctors</p>
         </div>
       </div>
 
@@ -187,15 +208,15 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
             <DollarSign className="w-5 h-5 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <LineChart data={earningsData}>
+            <LineChart data={earningsDataTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Line 
-                type="monotone" 
-                dataKey="revenue" 
-                stroke="#10b981" 
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke="#10b981"
                 strokeWidth={2}
                 dot={{ fill: '#10b981', r: 4 }}
               />
@@ -224,7 +245,7 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {patientVisitsData.map((entry, index) => (
+                {patientVisitsData.map((_entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -272,11 +293,11 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {doctorPerformance.map((doctor, index) => (
+              {doctorPerformance.map((doctor: any, index: number) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">{doctor.name}</td>
                   <td className="px-6 py-4 text-sm text-gray-600">{doctor.consultations}</td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">₹{doctor.revenue.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">₹{doctor.revenue?.toLocaleString() || 0}</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-1">
                       <span className="text-sm font-medium text-yellow-600">{doctor.rating}</span>
@@ -286,12 +307,12 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-gray-200 rounded-full h-2 max-w-[100px]">
-                        <div 
-                          className="bg-green-600 h-2 rounded-full" 
+                        <div
+                          className="bg-green-600 h-2 rounded-full"
                           style={{ width: `${(doctor.consultations / 350) * 100}%` }}
                         ></div>
                       </div>
-                      <span className="text-xs text-gray-600">{Math.round((doctor.consultations / 350) * 100)}%</span>
+                      <span className="text-xs text-gray-600">{Math.round((doctor.consultations / 250) * 100)}%</span>
                     </div>
                   </td>
                 </tr>

@@ -119,21 +119,202 @@ class DoctorService {
         }
     }
 
-    async deleteDoctor(id: number | string): Promise<boolean> {
+    async getDoctorPatients(filter?: string, startDate?: string, endDate?: string): Promise<any[]> {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/doctors/${id}`, {
-                method: 'DELETE',
+            const query = new URLSearchParams();
+            if (filter) query.append('filter', filter);
+            if (startDate) query.append('startDate', startDate);
+            if (endDate) query.append('endDate', endDate);
+
+            const response = await fetch(`${API_BASE_URL}/api/doctors/patients?${query.toString()}`, {
                 headers: await this.getAuthHeaders(),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching doctor patients:', error);
+            throw error;
+        }
+    }
 
+    async deleteDoctorPatient(id: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/patients/${id}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return true;
         } catch (error) {
-            console.error('Error deleting doctor:', error);
+            console.error('Error deleting doctor patient:', error);
             return false;
+        }
+    }
+
+    async getDoctorAppointments(filters: { doctor_id?: string; type?: string; dateFilter?: string; from?: string; to?: string } = {}): Promise<any[]> {
+        try {
+            const query = new URLSearchParams();
+            if (filters.doctor_id) query.append('doctor_id', filters.doctor_id);
+            if (filters.type) query.append('type', filters.type);
+            if (filters.dateFilter) query.append('dateFilter', filters.dateFilter);
+            if (filters.from) query.append('from', filters.from);
+            if (filters.to) query.append('to', filters.to);
+
+            const response = await fetch(`${API_BASE_URL}/api/appointments?${query.toString()}`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching doctor appointments:', error);
+            throw error;
+        }
+    }
+
+    async startAppointment(appointment_id: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/appointments/start`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ appointment_id }),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error starting appointment:', error);
+            throw error;
+        }
+    }
+
+    async updateAppointmentStatus(appointment_id: string, status: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/appointments/status`, {
+                method: 'PUT',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ appointment_id, status }),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error updating appointment status:', error);
+            throw error;
+        }
+    }
+
+    async rescheduleAppointment(data: { appointment_id: string; appointment_date: string; appointment_time: string }): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/appointments/reschedule`, {
+                method: 'PUT',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error rescheduling appointment:', error);
+            throw error;
+        }
+    }
+
+    async deleteAppointment(id: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/appointments/${id}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            throw error;
+        }
+    }
+
+    async getDoctorPrescriptions(filter?: string, date?: string): Promise<any[]> {
+        try {
+            const query = new URLSearchParams();
+            if (filter) query.append('filter', filter);
+            if (date) query.append('date', date);
+
+            const response = await fetch(`${API_BASE_URL}/api/doctors/prescriptions?${query.toString()}`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching doctor prescriptions:', error);
+            throw error;
+        }
+    }
+
+    async createDoctorPrescription(data: any): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/prescriptions`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(data),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error creating doctor prescription:', error);
+            throw error;
+        }
+    }
+
+    async getDoctorStats(): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/stats`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error fetching doctor stats:', error);
+            throw { totalPatients: 0, pendingAppointments: 0, completedAppointments: 0 };
+        }
+    }
+
+    async getCurrentDoctorProfile(): Promise<Doctor | null> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/profile`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) {
+                if (response.status === 404) return null;
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const result = await response.json();
+            return result.data || null;
+        } catch (error) {
+            console.error('Error fetching doctor profile:', error);
+            throw error;
+        }
+    }
+
+    async updateCurrentDoctorProfile(updates: Partial<Doctor>): Promise<Doctor | null> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/profile`, {
+                method: 'PUT',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(updates),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || null;
+        } catch (error) {
+            console.error('Error updating doctor profile:', error);
+            throw error;
         }
     }
 }

@@ -1,477 +1,456 @@
-import { useState } from 'react';
-import { UserRole } from '../App';
-import { Search, Plus, AlertTriangle, TrendingDown, Package, Pill } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { UserRole } from '../common/types';
+import { Search, Plus, Package, AlertTriangle, TrendingDown, X, Loader2, RefreshCw } from 'lucide-react';
+import { clinicService } from '../services/clinicService';
+import { toast } from 'sonner';
 
 interface PharmacyInventoryProps {
   userRole: UserRole;
 }
 
 interface Medicine {
-  id: string;
-  name: string;
+  medicine_id: string;
+  medicine_name: string;
   category: string;
-  manufacturer: string;
-  batchNumber: string;
-  expiryDate: string;
-  quantity: number;
-  minStock: number;
-  price: number;
-  mrp: number;
-  location: string;
+  manufacturer?: string;
+  batch_number?: string;
+  expiry_date?: string;
+  stock_quantity: number;
+  min_stock?: number;
+  purchase_price?: number;
+  mrp?: number;
+  storage_location?: string;
+  clinic_id?: number;
 }
 
-const mockMedicines: Medicine[] = [
-  {
-    id: 'M001',
-    name: 'Paracetamol 500mg',
-    category: 'Pain Relief',
-    manufacturer: 'ABC Pharma',
-    batchNumber: 'BT12345',
-    expiryDate: '2026-12-31',
-    quantity: 250,
-    minStock: 50,
-    price: 2.5,
-    mrp: 5,
-    location: 'Shelf A1'
-  },
-  {
-    id: 'M002',
-    name: 'Amoxicillin 250mg',
-    category: 'Antibiotic',
-    manufacturer: 'XYZ Pharma',
-    batchNumber: 'BT12346',
-    expiryDate: '2025-06-30',
-    quantity: 120,
-    minStock: 40,
-    price: 8,
-    mrp: 15,
-    location: 'Shelf A2'
-  },
-  {
-    id: 'M003',
-    name: 'Cetirizine 10mg',
-    category: 'Antihistamine',
-    manufacturer: 'DEF Pharma',
-    batchNumber: 'BT12347',
-    expiryDate: '2026-09-15',
-    quantity: 180,
-    minStock: 60,
-    price: 3,
-    mrp: 6,
-    location: 'Shelf B1'
-  },
-  {
-    id: 'M004',
-    name: 'Omeprazole 20mg',
-    category: 'Antacid',
-    manufacturer: 'GHI Pharma',
-    batchNumber: 'BT12348',
-    expiryDate: '2025-03-20',
-    quantity: 35,
-    minStock: 50,
-    price: 5,
-    mrp: 10,
-    location: 'Shelf B2'
-  },
-  {
-    id: 'M005',
-    name: 'Metformin 500mg',
-    category: 'Diabetes',
-    manufacturer: 'JKL Pharma',
-    batchNumber: 'BT12349',
-    expiryDate: '2025-02-10',
-    quantity: 22,
-    minStock: 40,
-    price: 4,
-    mrp: 8,
-    location: 'Shelf C1'
-  },
+const EMPTY_FORM = {
+  medicine_name: '',
+  category: '',
+  manufacturer: '',
+  batch_number: '',
+  expiry_date: '',
+  stock_quantity: '',
+  min_stock: '',
+  purchase_price: '',
+  mrp: '',
+  storage_location: '',
+};
+
+const CATEGORIES = [
+  'Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Inhaler', 'Device', 'Other'
 ];
 
 export function PharmacyInventory({ userRole }: PharmacyInventoryProps) {
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const filteredMedicines = mockMedicines.filter(medicine => {
-    const matchesSearch = medicine.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         medicine.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         medicine.manufacturer.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || medicine.category === filterCategory;
-    return matchesSearch && matchesCategory;
+  const fetchMedicines = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await clinicService.getMedicines(true);
+      setMedicines(data);
+    } catch (error) {
+      console.error('Error fetching medicines:', error);
+      toast.error('Failed to load inventory.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMedicines();
+  }, [fetchMedicines]);
+
+  // Derived stats
+  const totalItems = medicines.length;
+  const lowStockItems = medicines.filter(
+    m => m.min_stock != null && m.stock_quantity <= m.min_stock
+  );
+  const today = new Date();
+  const in30Days = new Date(today);
+  in30Days.setDate(in30Days.getDate() + 30);
+  const expiringItems = medicines.filter(m => {
+    if (!m.expiry_date) return false;
+    const exp = new Date(m.expiry_date);
+    return exp <= in30Days;
   });
 
-  const lowStockCount = mockMedicines.filter(m => m.quantity <= m.minStock).length;
-  const expiringCount = mockMedicines.filter(m => {
-    const daysUntilExpiry = Math.ceil((new Date(m.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 90 && daysUntilExpiry > 0;
-  }).length;
+  const filtered = medicines.filter(m => {
+    const matchSearch =
+      m.medicine_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.manufacturer?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchCategory = categoryFilter === 'all' || m.category === categoryFilter;
+    return matchSearch && matchCategory;
+  });
 
-  const isLowStock = (medicine: Medicine) => medicine.quantity <= medicine.minStock;
-  const isExpiringSoon = (medicine: Medicine) => {
-    const daysUntilExpiry = Math.ceil((new Date(medicine.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 90 && daysUntilExpiry > 0;
+  const uniqueCategories = [...new Set(medicines.map(m => m.category).filter(Boolean))];
+
+  const isExpired = (dateStr?: string) => {
+    if (!dateStr) return false;
+    return new Date(dateStr) < today;
   };
+
+  const isLowStock = (m: Medicine) =>
+    m.min_stock != null && m.stock_quantity <= m.min_stock;
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    if (!formData.medicine_name.trim()) errors.medicine_name = 'Medicine name is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.stock_quantity) errors.stock_quantity = 'Stock quantity is required';
+    else if (isNaN(Number(formData.stock_quantity)) || Number(formData.stock_quantity) < 0)
+      errors.stock_quantity = 'Enter a valid quantity';
+    if (formData.mrp && isNaN(Number(formData.mrp))) errors.mrp = 'Enter a valid price';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddMedicine = async () => {
+    if (!validateForm()) return;
+    try {
+      setAddLoading(true);
+      const payload: any = {
+        medicine_name: formData.medicine_name.trim(),
+        category: formData.category,
+        manufacturer: formData.manufacturer || undefined,
+        batch_number: formData.batch_number || undefined,
+        expiry_date: formData.expiry_date || undefined,
+        stock_quantity: parseInt(formData.stock_quantity),
+        min_stock: formData.min_stock ? parseInt(formData.min_stock) : undefined,
+        purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : undefined,
+        mrp: formData.mrp ? parseFloat(formData.mrp) : undefined,
+        storage_location: formData.storage_location || undefined,
+      };
+      await clinicService.addMedicine(payload);
+      toast.success('Medicine added to inventory!');
+      setShowAddModal(false);
+      setFormData(EMPTY_FORM);
+      setFormErrors({});
+      fetchMedicines();
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to add medicine.');
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    if (formErrors[e.target.name]) {
+      setFormErrors(prev => ({ ...prev, [e.target.name]: '' }));
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-600">Loading pharmacy inventory...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pharmacy & Inventory</h1>
-          <p className="text-gray-600">Manage medicine stock and inventory</p>
+          <p className="text-gray-600">{totalItems} medicines in stock</p>
         </div>
-        {(userRole === 'admin' || userRole === 'pharmacist') && (
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchMedicines}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            title="Refresh"
           >
-            <Plus className="w-5 h-5" />
-            Add Medicine
+            <RefreshCw className="w-4 h-4" />
           </button>
-        )}
-      </div>
-
-      {/* Alert Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-blue-50">
-              <Package className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{mockMedicines.length}</p>
-          <p className="text-sm text-gray-600">Total Items</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-orange-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-orange-50">
-              <TrendingDown className="w-6 h-6 text-orange-600" />
-            </div>
-            <AlertTriangle className="w-5 h-5 text-orange-600" />
-          </div>
-          <p className="text-2xl font-bold text-orange-600">{lowStockCount}</p>
-          <p className="text-sm text-gray-600">Low Stock Items</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-red-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-red-50">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-red-600">{expiringCount}</p>
-          <p className="text-sm text-gray-600">Expiring Soon (&lt;90 days)</p>
+          {(userRole === 'clinic' || userRole === 'admin' || userRole === 'pharmacist' as any) && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-5 h-5" />
+              Add Medicine
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="bg-white rounded-xl p-4 border border-gray-200">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by medicine name, ID, or manufacturer..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-50 rounded-lg"><Package className="w-5 h-5 text-blue-600" /></div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
+              <p className="text-sm text-gray-600">Total Items</p>
+            </div>
           </div>
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">All Categories</option>
-            <option value="Pain Relief">Pain Relief</option>
-            <option value="Antibiotic">Antibiotic</option>
-            <option value="Antihistamine">Antihistamine</option>
-            <option value="Antacid">Antacid</option>
-            <option value="Diabetes">Diabetes</option>
-          </select>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-red-50 rounded-lg"><TrendingDown className="w-5 h-5 text-red-600" /></div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{lowStockItems.length}</p>
+              <p className="text-sm text-gray-600">Low Stock Alerts</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-50 rounded-lg"><AlertTriangle className="w-5 h-5 text-orange-600" /></div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{expiringItems.length}</p>
+              <p className="text-sm text-gray-600">Expiring Soon</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Inventory Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Medicine ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price/MRP</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiry Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredMedicines.map((medicine) => (
-                <tr key={medicine.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{medicine.id}</td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{medicine.name}</p>
-                      <p className="text-xs text-gray-500">{medicine.manufacturer}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                      {medicine.category}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div>
-                      <p className={`text-sm font-semibold ${
-                        isLowStock(medicine) ? 'text-orange-600' : 'text-gray-900'
-                      }`}>
-                        {medicine.quantity} units
-                      </p>
-                      <p className="text-xs text-gray-500">Min: {medicine.minStock}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <p className="text-gray-900 font-medium">₹{medicine.price}</p>
-                      <p className="text-xs text-gray-500">MRP: ₹{medicine.mrp}</p>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className={`text-sm ${
-                      isExpiringSoon(medicine) ? 'text-red-600 font-medium' : 'text-gray-600'
-                    }`}>
-                      {new Date(medicine.expiryDate).toLocaleDateString()}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col gap-1">
-                      {isLowStock(medicine) && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-                          <TrendingDown className="w-3 h-3" />
-                          Low Stock
-                        </span>
-                      )}
-                      {isExpiringSoon(medicine) && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                          <AlertTriangle className="w-3 h-3" />
-                          Expiring Soon
-                        </span>
-                      )}
-                      {!isLowStock(medicine) && !isExpiringSoon(medicine) && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                          In Stock
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => setSelectedMedicine(medicine)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      View Details
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Medicine Details Modal */}
-      {selectedMedicine && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Medicine Details</h2>
-                <button 
-                  onClick={() => setSelectedMedicine(null)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <Pill className="w-8 h-8 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900">{selectedMedicine.name}</h3>
-                  <p className="text-gray-600">{selectedMedicine.category}</p>
-                  <p className="text-sm text-gray-500">{selectedMedicine.manufacturer}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Medicine ID</label>
-                  <p className="text-gray-900 font-medium">{selectedMedicine.id}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Batch Number</label>
-                  <p className="text-gray-900 font-medium">{selectedMedicine.batchNumber}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Current Stock</label>
-                  <p className={`font-bold text-lg ${
-                    isLowStock(selectedMedicine) ? 'text-orange-600' : 'text-green-600'
-                  }`}>
-                    {selectedMedicine.quantity} units
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Minimum Stock</label>
-                  <p className="text-gray-900 font-medium">{selectedMedicine.minStock} units</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Purchase Price</label>
-                  <p className="text-gray-900 font-medium">₹{selectedMedicine.price}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">MRP</label>
-                  <p className="text-gray-900 font-medium">₹{selectedMedicine.mrp}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Expiry Date</label>
-                  <p className={`font-medium ${
-                    isExpiringSoon(selectedMedicine) ? 'text-red-600' : 'text-gray-900'
-                  }`}>
-                    {new Date(selectedMedicine.expiryDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Location</label>
-                  <p className="text-gray-900 font-medium">{selectedMedicine.location}</p>
-                </div>
-              </div>
-
-              {/* Alerts */}
-              {(isLowStock(selectedMedicine) || isExpiringSoon(selectedMedicine)) && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-yellow-900 mb-2 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5" />
-                    Alerts
-                  </h4>
-                  <ul className="space-y-1 text-sm text-yellow-800">
-                    {isLowStock(selectedMedicine) && (
-                      <li>• Stock level below minimum threshold. Reorder recommended.</li>
-                    )}
-                    {isExpiringSoon(selectedMedicine) && (
-                      <li>• Medicine expiring within 90 days. Plan clearance or return.</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-
-              {(userRole === 'admin' || userRole === 'pharmacist') && (
-                <div className="flex gap-3 pt-4 border-t border-gray-200">
-                  <button className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                    Update Stock
-                  </button>
-                  <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-                    Edit Details
-                  </button>
-                </div>
-              )}
-            </div>
+      {/* Low Stock Alert Banner */}
+      {lowStockItems.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <h3 className="font-semibold text-red-900">Low Stock Alert</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {lowStockItems.slice(0, 5).map(m => (
+              <span key={m.medicine_id} className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                {m.medicine_name} ({m.stock_quantity} left)
+              </span>
+            ))}
+            {lowStockItems.length > 5 && (
+              <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                +{lowStockItems.length - 5} more
+              </span>
+            )}
           </div>
         </div>
       )}
 
+      {/* Filters */}
+      <div className="bg-white rounded-xl p-4 border border-gray-200 flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search medicines..."
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <select
+          value={categoryFilter}
+          onChange={e => setCategoryFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">All Categories</option>
+          {uniqueCategories.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Inventory Table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center">
+            <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">
+              {medicines.length === 0 ? 'No medicines in inventory. Add your first medicine.' : 'No medicines match your search.'}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Medicine</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Batch</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expiry</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">MRP (₹)</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map(med => {
+                  const expired = isExpired(med.expiry_date);
+                  const lowStock = isLowStock(med);
+                  return (
+                    <tr key={med.medicine_id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-gray-900 text-sm">{med.medicine_name}</p>
+                        {med.manufacturer && <p className="text-xs text-gray-500">{med.manufacturer}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{med.category || '—'}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{med.batch_number || '—'}</td>
+                      <td className="px-4 py-3 text-sm">
+                        {med.expiry_date ? (
+                          <span className={expired ? 'text-red-600 font-medium' : 'text-gray-600'}>
+                            {new Date(med.expiry_date).toLocaleDateString('en-IN')}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className={`font-semibold ${lowStock ? 'text-red-600' : 'text-gray-900'}`}>
+                          {med.stock_quantity}
+                        </span>
+                        {med.min_stock != null && (
+                          <span className="text-xs text-gray-400 ml-1">/ min {med.min_stock}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900">
+                        {med.mrp != null ? `₹${Number(med.mrp).toFixed(2)}` : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        {expired ? (
+                          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">Expired</span>
+                        ) : lowStock ? (
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">Low Stock</span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">In Stock</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Add Medicine Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Add New Medicine</h2>
-                <button 
-                  onClick={() => setShowAddModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">Add New Medicine</h2>
+              <button onClick={() => { setShowAddModal(false); setFormData(EMPTY_FORM); setFormErrors({}); }}>
+                <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Medicine Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Name *</label>
+                <input
+                  name="medicine_name"
+                  value={formData.medicine_name}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm ${formErrors.medicine_name ? 'border-red-500' : 'border-gray-300'}`}
+                  placeholder="e.g., Paracetamol 500mg"
+                />
+                {formErrors.medicine_name && <p className="text-xs text-red-500 mt-1">{formErrors.medicine_name}</p>}
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm ${formErrors.category ? 'border-red-500' : 'border-gray-300'}`}
                 >
-                  ✕
-                </button>
+                  <option value="">Select category</option>
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                {formErrors.category && <p className="text-xs text-red-500 mt-1">{formErrors.category}</p>}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Manufacturer */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+                  <input name="manufacturer" value={formData.manufacturer} onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Company name" />
+                </div>
+                {/* Batch Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Batch No.</label>
+                  <input name="batch_number" value={formData.batch_number} onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g., BATCH001" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Expiry Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                  <input type="date" name="expiry_date" value={formData.expiry_date} onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+                </div>
+                {/* Storage Location */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Storage Location</label>
+                  <input name="storage_location" value={formData.storage_location} onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="e.g., Rack A-2" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Stock Quantity */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Qty *</label>
+                  <input type="number" name="stock_quantity" value={formData.stock_quantity} onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm ${formErrors.stock_quantity ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="0" min="0" />
+                  {formErrors.stock_quantity && <p className="text-xs text-red-500 mt-1">{formErrors.stock_quantity}</p>}
+                </div>
+                {/* Min Stock */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Min Stock</label>
+                  <input type="number" name="min_stock" value={formData.min_stock} onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="Reorder level" min="0" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                {/* Purchase Price */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price (₹)</label>
+                  <input type="number" name="purchase_price" value={formData.purchase_price} onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="0.00" step="0.01" />
+                </div>
+                {/* MRP */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">MRP (₹)</label>
+                  <input type="number" name="mrp" value={formData.mrp} onChange={handleInputChange}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm ${formErrors.mrp ? 'border-red-500' : 'border-gray-300'}`}
+                    placeholder="0.00" step="0.01" />
+                  {formErrors.mrp && <p className="text-xs text-red-500 mt-1">{formErrors.mrp}</p>}
+                </div>
               </div>
             </div>
-            
-            <div className="p-6">
-              <form className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Medicine Name *</label>
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Select Category</option>
-                      <option>Pain Relief</option>
-                      <option>Antibiotic</option>
-                      <option>Antihistamine</option>
-                      <option>Antacid</option>
-                      <option>Diabetes</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer *</label>
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Batch Number *</label>
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date *</label>
-                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Stock *</label>
-                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price (₹) *</label>
-                    <input type="number" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">MRP (₹) *</label>
-                    <input type="number" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Storage Location</label>
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Shelf A1" />
-                  </div>
-                </div>
-                
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Add Medicine
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+            <div className="p-5 border-t border-gray-200 flex gap-3">
+              <button
+                onClick={handleAddMedicine}
+                disabled={addLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60"
+              >
+                {addLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {addLoading ? 'Adding...' : 'Add Medicine'}
+              </button>
+              <button
+                onClick={() => { setShowAddModal(false); setFormData(EMPTY_FORM); setFormErrors({}); }}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

@@ -7,7 +7,10 @@ import {
   FileText,
   FolderOpen,
   CreditCard,
-  Activity
+  Activity,
+  ShoppingCart,
+  History,
+  Bell
 } from 'lucide-react';
 import { cn } from '../common/ui/utils';
 import type { PatientPage } from '../PatientPortal';
@@ -25,7 +28,9 @@ const menuItems = [
   { id: 'appointments' as PatientPage, label: 'My Appointments', icon: Calendar },
   { id: 'profile' as PatientPage, label: 'My Profile', icon: User },
   { id: 'prescriptions' as PatientPage, label: 'My Prescriptions', icon: FileText },
-  { id: 'reports' as PatientPage, label: 'Medical Reports', icon: FolderOpen },
+  { id: 'cart' as PatientPage, label: 'My Cart', icon: ShoppingCart },
+  { id: 'orders' as PatientPage, label: 'Order History', icon: History },
+  { id: 'reminders' as PatientPage, label: 'Reminders', icon: Bell },
   { id: 'billing' as PatientPage, label: 'My Billing', icon: CreditCard },
 ];
 

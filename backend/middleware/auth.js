@@ -36,14 +36,27 @@ const protect = async (req, res, next) => {
             return ResponseHandler.unauthorized(res, 'User signature not found in registry');
         }
 
-        // Inject patient_id for data isolation if user is a patient
-        // Use user_id to find patient (patients table links via user_id, not email)
+        // Inject ID for data isolation based on role
         if (user.role === 'patient') {
             const patient = await prisma.patients.findFirst({
                 where: { user_id: user.user_id }
             });
             if (patient) {
                 user.patient_id = patient.patient_id;
+            }
+        } else if (user.role === 'clinic') {
+            const clinic = await prisma.clinics.findFirst({
+                where: { user_id: user.user_id }
+            });
+            if (clinic) {
+                user.clinic_id = clinic.id;
+            }
+        } else if (user.role === 'doctor') {
+            const doctor = await prisma.doctors.findFirst({
+                where: { user_id: user.user_id }
+            });
+            if (doctor) {
+                user.doctor_id = doctor.id;
             }
         }
 

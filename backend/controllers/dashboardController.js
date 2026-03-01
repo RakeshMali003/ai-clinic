@@ -5,6 +5,7 @@ exports.getDashboardStats = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
         const userRole = req.user.role;
+        const doctorId = req.user.doctor_id;
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -22,8 +23,9 @@ exports.getDashboardStats = async (req, res, next) => {
             }
         };
 
-        if (userRole === 'doctor') {
-            todaysAppointmentsWhere.doctor_id = userId;
+        if (userRole === 'doctor' && doctorId) {
+            // Scope today's appointments to the logged-in doctor
+            todaysAppointmentsWhere.doctor_id = doctorId;
         }
 
         const todaysAppointments = await prisma.appointments.count({
@@ -53,44 +55,43 @@ exports.getDashboardStats = async (req, res, next) => {
         };
 
         // Revenue and Pending Payments (Admin/Receptionist/Doctor)
-        if (userRole === 'admin' || userRole === 'receptionist' || userRole === 'doctor') {
-            let revenueWhere = {
-                created_at: {
-                    gte: last7Days
-                }
-            };
-
-            let pendingWhere = {
-                status: 'Pending'
-            };
-
-            if (userRole === 'doctor') {
-                // Get appointment IDs for the doctor
-                const doctorAppts = await prisma.appointments.findMany({
-                    where: {
-                        doctor_id: userId
-                    },
-                    select: {
-                        appointment_id: true
+        if (userRole === 'doctor' && doctorId) {
+            // Doctor-specific earnings using doctor_earnings table (see data.sql)
+            const doctorRevenue = await prisma.doctor_earnings.findMany({
+                where: {
+                    doctor_id: doctorId,
+                    created_at: {
+                        gte: last7Days
                     }
-                });
-                const apptIds = doctorAppts.map(a => a.appointment_id);
-                // Note: Since invoices table doesn't have appointment_id in schema, we'll skip doctor-specific revenue for now
-                // revenueWhere.appointment_id = { in: apptIds };
-            }
-
-            const revenueData = await prisma.invoices.findMany({
-                where: revenueWhere,
+                },
                 select: {
-                    total_amount: true
+                    amount: true,
+                    payout_status: true
                 }
             });
 
-            const pendingCount = await prisma.invoices.count({
-                where: pendingWhere
+            const totalRev = doctorRevenue.reduce((sum, row) => sum + (row.amount || 0), 0);
+            const pendingCount = doctorRevenue.filter(row => row.payout_status === 'Pending').length;
+
+            stats.totalRevenue = `₹${totalRev.toLocaleString()}`;
+            stats.pendingPayments = pendingCount || 0;
+        } else if (userRole === 'admin' || userRole === 'receptionist') {
+            // Global revenue stats for non-doctor roles using invoices
+            const revenueData = await prisma.invoices.findMany({
+                where: {
+                    invoice_date: {
+                        gte: last7Days
+                    }
+                },
+                select: {
+                    total_amount: true,
+                    status: true
+                }
             });
 
             const totalRev = revenueData.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+            const pendingCount = revenueData.filter(inv => inv.status === 'Pending').length;
+
             stats.totalRevenue = `₹${totalRev.toLocaleString()}`;
             stats.pendingPayments = pendingCount || 0;
         }
@@ -105,6 +106,7 @@ exports.getAppointmentData = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
         const userRole = req.user.role;
+        const doctorId = req.user.doctor_id;
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -118,8 +120,9 @@ exports.getAppointmentData = async (req, res, next) => {
             }
         };
 
-        if (userRole === 'doctor') {
-            whereClause.doctor_id = userId;
+        if (userRole === 'doctor' && doctorId) {
+            // Restrict appointment distribution to the logged-in doctor
+            whereClause.doctor_id = doctorId;
         }
 
         const appointmentData = await prisma.appointments.findMany({
@@ -153,27 +156,55 @@ exports.getAppointmentData = async (req, res, next) => {
 
 exports.getRevenueData = async (req, res, next) => {
     try {
+        const userRole = req.user.role;
+        const doctorId = req.user.doctor_id;
         const last6Days = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
 
-        const revenueData = await prisma.invoices.findMany({
-            where: {
-                created_at: {
-                    gte: last6Days
+        let revenueRows;
+
+        if (userRole === 'doctor' && doctorId) {
+            // Doctor-specific weekly earnings using doctor_earnings table
+            revenueRows = await prisma.doctor_earnings.findMany({
+                where: {
+                    doctor_id: doctorId,
+                    created_at: {
+                        gte: last6Days
+                    }
+                },
+                select: {
+                    amount: true,
+                    created_at: true
                 }
-            },
-            select: {
-                total_amount: true,
-                created_at: true
-            }
-        });
+            });
+        } else {
+            // Global revenue for other roles using invoices table
+            revenueRows = await prisma.invoices.findMany({
+                where: {
+                    invoice_date: {
+                        gte: last6Days
+                    }
+                },
+                select: {
+                    total_amount: true,
+                    invoice_date: true
+                }
+            }).then(rows =>
+                rows.map(row => ({
+                    amount: row.total_amount,
+                    created_at: row.invoice_date
+                }))
+            );
+        }
 
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         const filledData = days.map(day => {
-            const dayRevenue = revenueData.filter(inv => {
-                const date = new Date(inv.created_at);
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
-                return dayName === day;
-            }).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+            const dayRevenue = revenueRows
+                .filter(row => {
+                    const date = new Date(row.created_at);
+                    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+                    return dayName === day;
+                })
+                .reduce((sum, row) => sum + (row.amount || 0), 0);
 
             return { day, revenue: dayRevenue };
         });
@@ -188,11 +219,13 @@ exports.getRecentAppointments = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
         const userRole = req.user.role;
+        const doctorId = req.user.doctor_id;
 
         let whereClause = {};
 
-        if (userRole === 'doctor') {
-            whereClause.doctor_id = userId;
+        if (userRole === 'doctor' && doctorId) {
+            // Only fetch recent appointments for the logged-in doctor
+            whereClause.doctor_id = doctorId;
         }
 
         const appointments = await prisma.appointments.findMany({

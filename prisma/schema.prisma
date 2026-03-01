@@ -72,11 +72,18 @@ model patients {
   insurance_id      String? @db.VarChar(20)
   profile_photo_url String?
 
+  doctor_id          Int?
+  doctor             doctors? @relation(fields: [doctor_id], references: [id])
+
   appointments          appointments[]
   prescriptions         prescriptions[]
   patient_documents     patient_documents[]
   external_prescriptions external_prescriptions[]
   invoices              invoices[]
+  devices               devices[]
+
+  created_at         DateTime? @default(now())
+  updated_at         DateTime? @default(now()) @updatedAt
 }
 
 model clinics {
@@ -145,6 +152,8 @@ model doctors {
   verification_details verification_details[]
 
   prescriptions prescriptions[]
+  patients     patients[]
+  devices      devices[]
 }
 
 model verification_details {
@@ -289,4 +298,31 @@ model external_prescriptions {
   uploaded_at DateTime @default(now())
 
   patient patients? @relation(fields: [patient_id], references: [patient_id])
+}
+
+model devices {
+  id              Int      @id @default(autoincrement())
+  device_name     String   @db.VarChar(100)
+  device_type     String   @db.VarChar(50)
+  connection_type String?  @db.VarChar(30)
+  port_or_ip      String?  @db.VarChar(100)
+  patient_id      String?  @db.VarChar(20)
+  doctor_id       Int?
+  status          String   @default("offline") @db.VarChar(20)
+  battery_level   Int?     @default(100)
+  created_at      DateTime @default(now())
+
+  patient  patients?         @relation(fields: [patient_id], references: [patient_id])
+  doctor   doctors?          @relation(fields: [doctor_id], references: [id])
+  readings device_readings[]
+}
+
+model device_readings {
+  id            Int      @id @default(autoincrement())
+  device_id     Int
+  reading_type  String?  @db.VarChar(50)
+  reading_value String?  @db.VarChar(100)
+  recorded_at   DateTime @default(now())
+
+  device devices @relation(fields: [device_id], references: [id], onDelete: Cascade)
 }

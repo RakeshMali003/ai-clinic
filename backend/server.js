@@ -21,6 +21,13 @@ const patientRoutes = require('./routes/patientRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const userRoutes = require('./routes/userRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const medicineRoutes = require('./routes/medicineRoutes');
+const cartRoutes = require('./routes/cartRoutes');
+const bookmarkRoutes = require('./routes/bookmarkRoutes');
+const reminderRoutes = require('./routes/reminderRoutes');
+const documentRoutes = require('./routes/documentRoutes');
+const deviceRoutes = require('./routes/deviceRoutes');
 
 const app = express();
 
@@ -65,6 +72,13 @@ app.use('/api/patients', patientRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/medicines', medicineRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
+app.use('/api/reminders', reminderRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/devices', deviceRoutes);
 
 // Error handling
 app.use(errorHandler);

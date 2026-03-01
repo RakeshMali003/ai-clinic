@@ -1,381 +1,314 @@
-import { useState } from 'react';
-import { UserRole } from '../common/types';
+import { useState, useEffect } from 'react';
 import {
-    Calendar,
-    Clock,
-    Plus,
-    Filter,
-    Search,
-    User,
-    Phone,
-    CheckCircle,
-    XCircle,
-    AlertCircle,
-    Video,
-    MapPin,
-    X,
-    ChevronLeft,
-    ChevronRight
+    Calendar, Clock, Search, Phone, Video, MapPin,
+    Trash2, Play, Eye, Edit2
 } from 'lucide-react';
+import { doctorService } from '../services/doctorService';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'react-hot-toast';
 
 interface AppointmentManagementProps {
-    userRole: UserRole;
+    userRole: string;
+    onStartAppointment: (appointment: any) => void;
 }
 
-interface Appointment {
-    id: number;
-    patientName: string;
-    patientPhone: string;
-    doctor: string;
-    date: string;
-    time: string;
-    type: 'in-person' | 'video';
-    status: 'scheduled' | 'completed' | 'cancelled' | 'no-show';
-    reason: string;
-}
-
-const mockAppointments: Appointment[] = [
-    {
-        id: 1,
-        patientName: 'John Smith',
-        patientPhone: '+91 98765 43210',
-        doctor: 'Dr. Sarah Johnson',
-        date: '2024-02-20',
-        time: '09:30 AM',
-        type: 'in-person',
-        status: 'scheduled',
-        reason: 'Regular checkup'
-    },
-    {
-        id: 2,
-        patientName: 'Emily Davis',
-        patientPhone: '+91 98765 43211',
-        doctor: 'Dr. Michael Chen',
-        date: '2024-02-20',
-        time: '10:00 AM',
-        type: 'video',
-        status: 'scheduled',
-        reason: 'Follow-up consultation'
-    },
-    {
-        id: 3,
-        patientName: 'Robert Brown',
-        patientPhone: '+91 98765 43212',
-        doctor: 'Dr. Sarah Johnson',
-        date: '2024-02-19',
-        time: '11:30 AM',
-        type: 'in-person',
-        status: 'completed',
-        reason: 'Blood pressure check'
-    },
-    {
-        id: 4,
-        patientName: 'Lisa Anderson',
-        patientPhone: '+91 98765 43213',
-        doctor: 'Dr. Michael Chen',
-        date: '2024-02-19',
-        time: '02:00 PM',
-        type: 'video',
-        status: 'cancelled',
-        reason: 'Diabetes consultation'
-    },
-];
-
-export function AppointmentManagement({ userRole }: AppointmentManagementProps) {
-    const [view, setView] = useState<'list' | 'calendar'>('list');
+export function AppointmentManagement({ onStartAppointment }: AppointmentManagementProps) {
+    const { user } = useAuth();
+    const [appointments, setAppointments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
-    const [showBookModal, setShowBookModal] = useState(false);
-    const [currentDate, setCurrentDate] = useState(new Date());
+    const [patientType, setPatientType] = useState('all');
+    const [dateFilter, setDateFilter] = useState('today');
+    const [customRange, setCustomRange] = useState({ from: '', to: '' });
+    const [sortBy, setSortBy] = useState('time');
 
-    const filteredAppointments = mockAppointments.filter(apt => {
-        const matchesSearch = apt.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            apt.patientPhone.includes(searchTerm);
-        const matchesStatus = statusFilter === 'all' || apt.status === statusFilter;
-        return matchesSearch && matchesStatus;
-    });
+    useEffect(() => {
+        fetchAppointments();
+    }, [patientType, dateFilter, customRange]);
 
-    const canBook = userRole === 'doctor' || userRole === 'admin' || userRole === 'receptionist';
+    const fetchAppointments = async () => {
+        if (!user?.doctor_id) return;
+        setLoading(true);
+        try {
+            const filters: any = {
+                doctor_id: user.doctor_id,
+                type: patientType,
+                dateFilter: dateFilter
+            };
+            if (dateFilter === 'custom') {
+                filters.from = customRange.from;
+                filters.to = customRange.to;
+            }
+            const data = await doctorService.getDoctorAppointments(filters);
+            setAppointments(data);
+        } catch (error) {
+            console.error('Error fetching appointments:', error);
+            toast.error('Failed to load appointments');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAction = async (action: string, appointment: any) => {
+        try {
+            switch (action) {
+                case 'start':
+                    await doctorService.startAppointment(appointment.appointment_id);
+                    onStartAppointment(appointment);
+                    break;
+                case 'called':
+                    await doctorService.updateAppointmentStatus(appointment.appointment_id, 'in_progress');
+                    toast.success('Patient called');
+                    fetchAppointments();
+                    break;
+                case 'delete':
+                    if (window.confirm('Are you sure you want to delete this appointment?')) {
+                        await doctorService.deleteAppointment(appointment.appointment_id);
+                        toast.success('Appointment deleted');
+                        fetchAppointments();
+                    }
+                    break;
+                case 'reschedule':
+                    // In a real app, this would open a modal
+                    toast('Reschedule feature coming soon in modal', { icon: '📅' });
+                    break;
+                case 'view':
+                    toast('Viewing patient details');
+                    break;
+            }
+        } catch (error) {
+            toast.error(`Failed to ${action} appointment`);
+        }
+    };
+
+    const sortedAppointments = [...appointments].sort((a, b) => {
+        if (sortBy === 'time') return a.appointment_time.localeCompare(b.appointment_time);
+        if (sortBy === 'date') return new Date(a.appointment_date).getTime() - new Date(b.appointment_date).getTime();
+        // Day sorting could be complex, simple Lexicographical for now or based on date
+        return 0;
+    }).filter(apt =>
+        apt.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.appointment_id.toString().includes(searchTerm)
+    );
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6 animate-in fade-in duration-500">
+            {/* Header section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Appointment Management</h1>
-                    <p className="text-gray-600">Schedule and manage patient appointments</p>
+                    <h1 className="text-3xl font-bold text-white tracking-tight">Appointments</h1>
+                    <p className="text-gray-400 mt-1">Manage your consultations and patient flow</p>
                 </div>
-                {canBook && (
-                    <button
-                        onClick={() => setShowBookModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Book Appointment
-                    </button>
-                )}
+
+                <div className="flex items-center gap-2">
+                    <div className="relative group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                        <input
+                            type="text"
+                            placeholder="Search patients..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-gray-800/50 border border-gray-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-64 transition-all backdrop-blur-sm"
+                        />
+                    </div>
+                </div>
             </div>
 
-            {/* View Toggle and Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
-                    <button
-                        onClick={() => setView('list')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${view === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
-                            }`}
-                    >
-                        List View
-                    </button>
-                    <button
-                        onClick={() => setView('calendar')}
-                        className={`px-4 py-2 rounded-lg transition-colors ${view === 'calendar' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'
-                            }`}
-                    >
-                        Calendar View
-                    </button>
+            {/* Selection/Filters Bar */}
+            <div className="bg-gray-800/40 border border-gray-700/50 rounded-2xl p-2 backdrop-blur-md shadow-xl flex flex-wrap items-center gap-4">
+                <div className="flex p-1 bg-gray-900/50 rounded-xl border border-gray-700/50">
+                    {['all', 'in-clinic', 'online'].map((type) => (
+                        <button
+                            key={type}
+                            onClick={() => setPatientType(type)}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${patientType === type
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                                : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                }`}
+                        >
+                            {type.charAt(0).toUpperCase() + type.slice(1).replace('-', ' ')}
+                        </button>
+                    ))}
                 </div>
 
-                <div className="flex-1 relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search by patient name or phone..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
+                <div className="h-8 w-px bg-gray-700/50 mx-2 hidden md:block" />
+
+                <div className="flex flex-wrap items-center gap-2">
+                    {['today', 'yesterday', 'tomorrow', 'custom'].map((d) => (
+                        <button
+                            key={d}
+                            onClick={() => setDateFilter(d)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all border ${dateFilter === d
+                                ? 'bg-blue-600/10 border-blue-500/50 text-blue-400'
+                                : 'bg-transparent border-transparent text-gray-500 hover:text-gray-300'
+                                }`}
+                        >
+                            {d}
+                        </button>
+                    ))}
+
+                    {dateFilter === 'custom' && (
+                        <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300">
+                            <input
+                                type="date"
+                                value={customRange.from}
+                                onChange={(e) => setCustomRange({ ...customRange, from: e.target.value })}
+                                className="bg-gray-900/50 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white"
+                            />
+                            <span className="text-gray-600">to</span>
+                            <input
+                                type="date"
+                                value={customRange.to}
+                                onChange={(e) => setCustomRange({ ...customRange, to: e.target.value })}
+                                className="bg-gray-900/50 border border-gray-700 rounded-lg px-2 py-1 text-xs text-white"
+                            />
+                        </div>
+                    )}
                 </div>
 
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                    <option value="all">All Status</option>
-                    <option value="scheduled">Scheduled</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="no-show">No Show</option>
-                </select>
+                <div className="ml-auto flex items-center gap-4 pr-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span className="hidden sm:inline">Sort by:</span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="bg-transparent border-none text-blue-400 font-medium focus:ring-0 cursor-pointer"
+                        >
+                            <option value="time">Time</option>
+                            <option value="date">Date</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            {/* List View */}
-            {view === 'list' && (
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50">
+            {/* List Section */}
+            <div className="bg-gray-800/30 border border-gray-700/50 rounded-2xl backdrop-blur-md overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto text-sm">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-white/5 border-b border-gray-700/50">
+                                <th className="px-6 py-4 font-semibold text-gray-400 uppercase tracking-wider text-xs">Patient info</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400 uppercase tracking-wider text-xs">Apt Details</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400 uppercase tracking-wider text-xs">Mode</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400 uppercase tracking-wider text-xs">Status</th>
+                                <th className="px-6 py-4 font-semibold text-gray-400 uppercase tracking-wider text-xs text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-700/30">
+                            {loading ? (
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Doctor</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date & Time</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                    <td colSpan={5} className="px-6 py-20 text-center">
+                                        <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4" />
+                                        <p className="text-gray-500 font-medium">Scanning time-space for appointments...</p>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {filteredAppointments.map((apt) => (
-                                    <tr key={apt.id} className="hover:bg-gray-50">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                                    <User className="w-5 h-5 text-blue-600" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-gray-900">{apt.patientName}</p>
-                                                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                                                        <Phone className="w-3 h-3" />
-                                                        {apt.patientPhone}
-                                                    </div>
-                                                </div>
+                            ) : sortedAppointments.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-20 text-center">
+                                        <Calendar className="w-12 h-12 text-gray-700 mx-auto mb-4" />
+                                        <p className="text-gray-400 text-lg">No appointments found for this selection</p>
+                                    </td>
+                                </tr>
+                            ) : sortedAppointments.map((apt) => (
+                                <tr key={apt.appointment_id} className="group hover:bg-white/5 transition-colors">
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-purple-600/20 flex items-center justify-center text-blue-400 font-bold border border-blue-500/20 shadow-inner">
+                                                {apt.patient?.full_name?.charAt(0) || 'P'}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{apt.doctor}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2 text-sm text-gray-900">
-                                                    <Calendar className="w-4 h-4" />
-                                                    {apt.date}
-                                                </div>
-                                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                                    <Clock className="w-4 h-4" />
-                                                    {apt.time}
-                                                </div>
+                                            <div>
+                                                <p className="font-semibold text-white group-hover:text-blue-400 transition-colors">{apt.patient?.full_name || 'Anonymous'}</p>
+                                                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                                                    <Phone className="w-3 h-3" />
+                                                    {apt.patient?.phone || 'N/A'}
+                                                </p>
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${apt.type === 'video' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                                                }`}>
-                                                {apt.type === 'video' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
-                                                {apt.type === 'video' ? 'Video' : 'In-Person'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{apt.reason}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                    apt.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
-                                                        apt.status === 'cancelled' ? 'bg-red-100 text-red-700' :
-                                                            'bg-orange-100 text-orange-700'
-                                                }`}>
-                                                {apt.status === 'completed' && <CheckCircle className="w-3 h-3" />}
-                                                {apt.status === 'cancelled' && <XCircle className="w-3 h-3" />}
-                                                {apt.status === 'no-show' && <AlertCircle className="w-3 h-3" />}
-                                                {apt.status.charAt(0).toUpperCase() + apt.status.slice(1)}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                {apt.status === 'scheduled' && (
-                                                    <>
-                                                        <button className="px-3 py-1 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                                                            Start
-                                                        </button>
-                                                        <button className="px-3 py-1 text-sm border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors">
-                                                            Cancel
-                                                        </button>
-                                                    </>
-                                                )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-2 text-gray-300">
+                                                <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                                                <span className="font-medium">{new Date(apt.appointment_date).toLocaleDateString()}</span>
                                             </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* Calendar View */}
-            {view === 'calendar' && (
-                <div className="bg-white rounded-xl border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                        </h3>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() - 1)))}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <ChevronLeft className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => setCurrentDate(new Date())}
-                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                Today
-                            </button>
-                            <button
-                                onClick={() => setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)))}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <ChevronRight className="w-5 h-5" />
-                            </button>
-                        </div>
-                    </div>
-                    <div className="text-center text-gray-500 py-12">
-                        <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                        <p>Calendar view coming soon</p>
-                    </div>
-                </div>
-            )}
-
-            {/* AI Smart Slot Suggestion */}
-            <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
-                <div className="flex items-start gap-4">
-                    <div className="p-3 bg-purple-600 rounded-lg">
-                        <AlertCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-2">AI Smart Slot Suggestions</h3>
-                        <p className="text-sm text-gray-700 mb-3">
-                            Based on historical data and current schedule, here are optimal time slots:
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                            <span className="px-3 py-1 bg-white rounded-lg text-sm font-medium text-gray-700 border border-purple-200">
-                                10:00 AM - Low wait time
-                            </span>
-                            <span className="px-3 py-1 bg-white rounded-lg text-sm font-medium text-gray-700 border border-purple-200">
-                                2:30 PM - Available
-                            </span>
-                            <span className="px-3 py-1 bg-white rounded-lg text-sm font-medium text-gray-700 border border-purple-200">
-                                4:00 PM - Recommended
-                            </span>
-                        </div>
-                    </div>
+                                            <div className="flex items-center gap-2 text-gray-500 text-xs">
+                                                <Clock className="w-3.5 h-3.5" />
+                                                {apt.appointment_time}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ring-1 ${apt.mode === 'video'
+                                            ? 'bg-purple-500/10 text-purple-400 ring-purple-500/30'
+                                            : 'bg-blue-500/10 text-blue-400 ring-blue-500/30'
+                                            }`}>
+                                            {apt.mode === 'video' ? <Video className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
+                                            {apt.mode === 'video' ? 'Online' : 'In-Clinic'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${apt.status === 'completed' ? 'bg-green-500/10 text-green-400' :
+                                            apt.status === 'in_progress' ? 'bg-orange-500/10 text-orange-400 animate-pulse' :
+                                                apt.status === 'scheduled' ? 'bg-blue-500/10 text-blue-400' :
+                                                    'bg-red-500/10 text-red-400'
+                                            }`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${apt.status === 'completed' ? 'bg-green-400' :
+                                                apt.status === 'in_progress' ? 'bg-orange-400' :
+                                                    apt.status === 'scheduled' ? 'bg-blue-400' :
+                                                        'bg-red-400'
+                                                }`} />
+                                            {apt.status.charAt(0).toUpperCase() + apt.status.slice(1).replace('_', ' ')}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            {apt.status === 'scheduled' && (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleAction('start', apt)}
+                                                        title="Start Appointment"
+                                                        className="p-2 bg-green-500/10 text-green-400 hover:bg-green-500 hover:text-white rounded-lg transition-all"
+                                                    >
+                                                        <Play className="w-4 h-4 fill-current" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleAction('called', apt)}
+                                                        title="Called Patient"
+                                                        className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg transition-all"
+                                                    >
+                                                        <Phone className="w-4 h-4" />
+                                                    </button>
+                                                </>
+                                            )}
+                                            <button
+                                                onClick={() => handleAction('view', apt)}
+                                                title="View Details"
+                                                className="p-2 bg-gray-700/50 text-gray-300 hover:bg-blue-500 hover:text-white rounded-lg transition-all"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleAction('reschedule', apt)}
+                                                title="Reschedule"
+                                                className="p-2 bg-gray-700/50 text-gray-300 hover:bg-yellow-500 hover:text-white rounded-lg transition-all"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleAction('delete', apt)}
+                                                title="Delete"
+                                                className="p-2 bg-gray-700/50 text-gray-300 hover:bg-red-500 hover:text-white rounded-lg transition-all"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
-
-            {/* Book Appointment Modal */}
-            {showBookModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-gray-900">Book New Appointment</h2>
-                            <button
-                                onClick={() => setShowBookModal(false)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="p-6">
-                            <form className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Patient Name</label>
-                                        <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                                        <input type="tel" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Doctor</label>
-                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                            <option>Dr. Sarah Johnson</option>
-                                            <option>Dr. Michael Chen</option>
-                                            <option>Dr. Emily Brown</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Appointment Type</label>
-                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                            <option>In-Person</option>
-                                            <option>Video Consultation</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                                        <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Time</label>
-                                        <input type="time" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Visit</label>
-                                        <textarea rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
-                                    </div>
-                                </div>
-                                <div className="flex gap-3 pt-4">
-                                    <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                        Book Appointment
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowBookModal(false)}
-                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

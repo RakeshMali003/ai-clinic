@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { UserRole } from '../common/types';
-import { Search, Plus, Star, Calendar, TrendingUp, Award, Clock, Loader2, AlertCircle } from 'lucide-react';
-import { doctorService, Doctor as BackendDoctor } from '../services/doctorService';
+import { Search, Star, Calendar, TrendingUp, Award, Clock, Loader2, AlertCircle, Plus, X } from 'lucide-react';
+import { clinicService } from '../services/clinicService';
+import { Toaster, toast } from 'sonner';
+import { DoctorRegistration } from '../doctor/DoctorRegistration';
 
 interface DoctorManagementProps {
     userRole: UserRole;
 }
 
-// Map BackendDoctor to UI needs if necessary, or just use BackendDoctor
-interface Doctor extends BackendDoctor {
-    // Adding fields that might be missing or differently named in backend for UI compatibility
+interface Doctor {
+    id: number;
     name: string;
     specialization: string;
     qualification: string;
@@ -19,47 +20,35 @@ interface Doctor extends BackendDoctor {
     availableDays: string[];
     availableTime: string;
     phone: string;
+    email: string;
+    status: 'active' | 'on-leave' | 'inactive';
 }
 
-export function DoctorManagement({ userRole }: DoctorManagementProps) {
+export function DoctorManagement({ userRole: _userRole }: DoctorManagementProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
-    const [showAddModal, setShowAddModal] = useState(false);
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [formLoading, setFormLoading] = useState(false);
-
-    const [newDoctor, setNewDoctor] = useState({
-        full_name: '',
-        specialization: '',
-        qualifications: '',
-        experience_years: 0,
-        mobile: '',
-        email: '',
-        availableTime: '9:00 AM - 5:00 PM',
-        medical_council_reg_no: '',
-        status: 'ACTIVE'
-    });
+    const [showAddModal, setShowAddModal] = useState(false);
 
     const fetchDoctors = async () => {
         try {
             setLoading(true);
-            const data = await doctorService.getDoctors();
-            // Map backend fields to UI fields
-            const mappedDoctors: Doctor[] = data.map((d: BackendDoctor) => ({
-                ...d,
-                id: d.id as any,
-                name: d.full_name,
-                specialization: d.specialization || 'General Physician',
-                qualification: d.qualifications || 'MBBS',
-                experience: d.experience_years || 0,
-                totalConsultations: d.totalConsultations || 0,
-                rating: d.rating || 4.5,
-                availableDays: d.availableDays || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-                availableTime: d.availableTime || '9:00 AM - 5:00 PM',
-                status: (d.status?.toLowerCase() || 'active') as any,
-                phone: d.mobile
+            const data = await clinicService.getDoctors();
+            const mappedDoctors: Doctor[] = data.map((d: any) => ({
+                id: d.doctor?.user_id || d.doctor_id,
+                name: d.doctor?.full_name || 'Unknown Doctor',
+                specialization: d.doctor?.specialization || 'General Physician',
+                qualification: d.doctor?.qualifications || 'MBBS',
+                experience: d.doctor?.experience_years || 0,
+                totalConsultations: 0,
+                rating: 4.5,
+                availableDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+                availableTime: '9:00 AM - 5:00 PM',
+                status: 'active',
+                phone: d.doctor?.mobile || '',
+                email: d.doctor?.email || ''
             }));
             setDoctors(mappedDoctors);
         } catch (err) {
@@ -74,41 +63,19 @@ export function DoctorManagement({ userRole }: DoctorManagementProps) {
         fetchDoctors();
     }, []);
 
-    const handleAddDoctor = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            setFormLoading(true);
-            await doctorService.createDoctor(newDoctor);
-            setShowAddModal(false);
-            setNewDoctor({
-                full_name: '',
-                specialization: '',
-                qualifications: '',
-                experience_years: 0,
-                mobile: '',
-                email: '',
-                availableTime: '9:00 AM - 5:00 PM',
-                medical_council_reg_no: '',
-                status: 'ACTIVE'
-            });
-            await fetchDoctors();
-        } catch (err) {
-            console.error('Error adding doctor:', err);
-            alert('Failed to add doctor');
-        } finally {
-            setFormLoading(false);
-        }
-    };
+
+    // Remove old handleRegisterDoctor — the full DoctorRegistration form handles its own submission
 
     const handleDeleteDoctor = async (id: number | string) => {
-        if (!window.confirm('Are you sure you want to remove this doctor?')) return;
+        if (!window.confirm('Are you sure you want to remove this doctor from your clinic?')) return;
         try {
             setLoading(true);
-            await doctorService.deleteDoctor(id);
+            await clinicService.removeDoctor(id);
+            toast.success('Doctor removed from clinic roster');
             await fetchDoctors();
         } catch (err) {
-            console.error('Error deleting doctor:', err);
-            alert('Failed to delete doctor');
+            console.error('Error removing doctor:', err);
+            toast.error('Failed to remove doctor');
         } finally {
             setLoading(false);
         }
@@ -125,18 +92,17 @@ export function DoctorManagement({ userRole }: DoctorManagementProps) {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Doctor Management</h1>
-                    <p className="text-gray-600">Manage doctors and their schedules</p>
+                    <p className="text-gray-600">Manage doctors associated with your clinic</p>
                 </div>
-                {userRole === 'admin' && (
-                    <button
-                        onClick={() => setShowAddModal(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Add Doctor
-                    </button>
-                )}
+                <button
+                    onClick={() => setShowAddModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                    <Plus className="w-5 h-5" />
+                    Register New Doctor
+                </button>
             </div>
+            <Toaster />
 
             {/* Search Bar */}
             <div className="bg-white rounded-xl p-4 border border-gray-200">
@@ -378,130 +344,26 @@ export function DoctorManagement({ userRole }: DoctorManagementProps) {
                 </div>
             )}
 
-            {/* Add Doctor Modal */}
+            {/* Add Doctor — Full DoctorRegistration form in a full-screen overlay */}
             {showAddModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6 border-b border-gray-200">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-xl font-bold text-gray-900">Add New Doctor</h2>
-                                <button
-                                    onClick={() => setShowAddModal(false)}
-                                    className="text-gray-400 hover:text-gray-600"
-                                >
-                                    ✕
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="p-6">
-                            <form className="space-y-4" onSubmit={handleAddDoctor}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            placeholder="Dr. John Doe"
-                                            required
-                                            value={newDoctor.full_name}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, full_name: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Specialization *</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            placeholder="General Physician"
-                                            required
-                                            value={newDoctor.specialization}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, specialization: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Qualification *</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            placeholder="MBBS, MD"
-                                            required
-                                            value={newDoctor.qualifications}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, qualifications: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Experience (Years) *</label>
-                                        <input
-                                            type="number"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            required
-                                            value={newDoctor.experience_years}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, experience_years: parseInt(e.target.value) || 0 })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-                                        <input
-                                            type="tel"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            required
-                                            value={newDoctor.mobile}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, mobile: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                                        <input
-                                            type="email"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            required
-                                            value={newDoctor.email}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, email: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Medical Council Reg. No *</label>
-                                        <input
-                                            type="text"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            required
-                                            value={newDoctor.medical_council_reg_no}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, medical_council_reg_no: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                        <select
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                            value={newDoctor.status}
-                                            onChange={(e) => setNewDoctor({ ...newDoctor, status: e.target.value })}
-                                        >
-                                            <option value="ACTIVE">Active</option>
-                                            <option value="ON-LEAVE">On Leave</option>
-                                            <option value="INACTIVE">Inactive</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        type="submit"
-                                        disabled={formLoading}
-                                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
-                                    >
-                                        {formLoading ? 'Adding...' : 'Add Doctor'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAddModal(false)}
-                                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
+                <div className="fixed inset-0 bg-black bg-opacity-60 z-50 overflow-y-auto">
+                    <div className="relative">
+                        {/* Close button floating top-right */}
+                        <button
+                            onClick={() => setShowAddModal(false)}
+                            className="fixed top-4 right-4 z-[60] p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+                            title="Close registration form"
+                        >
+                            <X className="w-5 h-5 text-gray-600" />
+                        </button>
+                        <DoctorRegistration
+                            onBack={() => setShowAddModal(false)}
+                            onSuccess={() => {
+                                setShowAddModal(false);
+                                toast.success('Doctor registered successfully! Refreshing list...');
+                                fetchDoctors();
+                            }}
+                        />
                     </div>
                 </div>
             )}

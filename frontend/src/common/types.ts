@@ -7,6 +7,9 @@ export interface User {
     email: string;
     role: UserRole;
     avatar?: string;
+    doctor_id?: number | string;
+    clinic_id?: number | string;
+    patient_id?: string;
 }
 
 export type PageView =

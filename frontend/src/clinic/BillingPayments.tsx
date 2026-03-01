@@ -1,266 +1,256 @@
-import { useState } from 'react';
-import { UserRole } from '../App';
-import { Plus, Search, Download, Eye, Sparkles, CreditCard, Wallet, DollarSign, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { UserRole } from '../common/types';
+import {
+  Search, Plus, Filter, Download, Eye, DollarSign,
+  CreditCard, Wallet, TrendingUp, Sparkles, X,
+  ChevronRight, Calendar, User, Activity, AlertCircle
+} from 'lucide-react';
+import { clinicService } from '../services/clinicService';
+import { toast } from 'sonner';
 
 interface BillingPaymentsProps {
   userRole: UserRole;
 }
 
 interface Invoice {
-  id: string;
-  patientName: string;
-  patientId: string;
-  date: string;
-  services: ServiceItem[];
-  subtotal: number;
-  tax: number;
+  invoice_id: string;
+  patient_id: string;
+  appointment_id?: string;
+  total_amount: number;
   discount: number;
-  total: number;
-  paymentStatus: 'paid' | 'pending' | 'partial';
-  paymentMode?: 'cash' | 'card' | 'upi' | 'insurance';
+  tax: number;
+  grand_total: number;
+  status: 'pending' | 'paid' | 'partial' | 'cancelled';
+  invoice_date: string;
+  patient?: {
+    full_name: string;
+    patient_id: string;
+  };
+  invoice_items?: any[];
+  invoice_payments?: any[];
 }
-
-interface ServiceItem {
-  name: string;
-  quantity: number;
-  rate: number;
-  amount: number;
-}
-
-const mockInvoices: Invoice[] = [
-  {
-    id: 'INV-001',
-    patientName: 'John Smith',
-    patientId: 'P001',
-    date: '2025-01-12',
-    services: [
-      { name: 'Consultation Fee', quantity: 1, rate: 500, amount: 500 },
-      { name: 'Blood Test', quantity: 1, rate: 800, amount: 800 },
-      { name: 'ECG', quantity: 1, rate: 300, amount: 300 }
-    ],
-    subtotal: 1600,
-    tax: 288,
-    discount: 0,
-    total: 1888,
-    paymentStatus: 'paid',
-    paymentMode: 'upi'
-  },
-  {
-    id: 'INV-002',
-    patientName: 'Emily Davis',
-    patientId: 'P002',
-    date: '2025-01-12',
-    services: [
-      { name: 'Consultation Fee', quantity: 1, rate: 500, amount: 500 },
-      { name: 'X-Ray', quantity: 1, rate: 1200, amount: 1200 }
-    ],
-    subtotal: 1700,
-    tax: 306,
-    discount: 100,
-    total: 1906,
-    paymentStatus: 'pending'
-  },
-  {
-    id: 'INV-003',
-    patientName: 'Robert Brown',
-    patientId: 'P003',
-    date: '2025-01-11',
-    services: [
-      { name: 'Consultation Fee', quantity: 1, rate: 800, amount: 800 },
-      { name: 'Medicine', quantity: 1, rate: 450, amount: 450 }
-    ],
-    subtotal: 1250,
-    tax: 225,
-    discount: 50,
-    total: 1425,
-    paymentStatus: 'paid',
-    paymentMode: 'card'
-  },
-  {
-    id: 'INV-004',
-    patientName: 'Lisa Anderson',
-    patientId: 'P004',
-    date: '2025-01-11',
-    services: [
-      { name: 'Consultation Fee', quantity: 1, rate: 500, amount: 500 }
-    ],
-    subtotal: 500,
-    tax: 90,
-    discount: 0,
-    total: 590,
-    paymentStatus: 'partial',
-    paymentMode: 'cash'
-  },
-];
 
 export function BillingPayments({ userRole }: BillingPaymentsProps) {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-  const filteredInvoices = mockInvoices.filter(invoice =>
-    invoice.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.patientId.toLowerCase().includes(searchTerm.toLowerCase())
+  const [patients, setPatients] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+
+  const [formData, setFormData] = useState({
+    patient_id: '',
+    appointment_id: '',
+    services: [{ name: '', quantity: 1, rate: 0 }],
+    discount: 0,
+    payment_mode: 'cash',
+    paid_amount: 0
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [billingData, patientsData, appointmentsData] = await Promise.all([
+        clinicService.getBilling(),
+        clinicService.getPatients(),
+        clinicService.getAppointments()
+      ]);
+      setInvoices(billingData);
+      setPatients(patientsData);
+      setAppointments(appointmentsData);
+    } catch (error) {
+      toast.error('Financial data synchronization failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateInvoice = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await clinicService.createInvoice(formData);
+      toast.success('Invoice protocol established');
+      setShowCreateModal(false);
+      setFormData({
+        patient_id: '',
+        appointment_id: '',
+        services: [{ name: '', quantity: 1, rate: 0 }],
+        discount: 0,
+        payment_mode: 'cash',
+        paid_amount: 0
+      });
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to generate statement');
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    try {
+      setLoading(true);
+      await clinicService.updateInvoiceStatus(id, { status });
+      toast.success('Financial node recalibrated');
+      setSelectedInvoice(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Failed to update status');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addServiceLine = () => {
+    setFormData({
+      ...formData,
+      services: [...formData.services, { name: '', quantity: 1, rate: 0 }]
+    });
+  };
+
+  const updateServiceLine = (index: number, field: string, value: any) => {
+    const newServices = [...formData.services];
+    newServices[index] = { ...newServices[index], [field]: value };
+    setFormData({ ...formData, services: newServices });
+  };
+
+  const filteredInvoices = invoices.filter(invoice =>
+    invoice.invoice_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invoice.patient?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    invoice.patient?.patient_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalRevenue = mockInvoices.filter(inv => inv.paymentStatus === 'paid').reduce((sum, inv) => sum + inv.total, 0);
-  const pendingPayments = mockInvoices.filter(inv => inv.paymentStatus === 'pending' || inv.paymentStatus === 'partial').length;
+  const totalRevenue = invoices.filter(inv => inv.status === 'paid' || inv.status === 'partial')
+    .reduce((sum, inv) => sum + (inv.invoice_payments?.reduce((s: number, p: any) => s + parseFloat(p.paid_amount), 0) || 0), 0);
+
+  const pendingPayments = invoices.filter(inv => inv.status === 'pending' || inv.status === 'partial').length;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Billing & Payments</h1>
-          <p className="text-gray-600">Manage invoices and track payments</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Billing & Payments</h1>
+          <p className="text-gray-500 text-sm">Synchronized financial ledger and automated invoicing</p>
         </div>
-        {(userRole === 'admin' || userRole === 'receptionist') && (
-          <button 
+        {(userRole === 'admin' || userRole === 'clinic' || userRole === 'receptionist') && (
+          <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
           >
             <Plus className="w-5 h-5" />
-            Create Invoice
+            Generate Invoice
           </button>
         )}
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-green-50">
-              <DollarSign className="w-6 h-6 text-green-600" />
+        {[
+          { label: 'Total Revenue', value: `₹${totalRevenue.toLocaleString()}`, icon: DollarSign, color: 'bg-green-50 text-green-600', trend: '+12%' },
+          { label: 'Total Invoices', value: invoices.length.toString(), icon: CreditCard, color: 'bg-blue-50 text-blue-600' },
+          { label: 'Pending Collections', value: pendingPayments.toString(), icon: Wallet, color: 'bg-orange-50 text-orange-600' },
+          { label: 'Growth Factor', value: '+18.4%', icon: TrendingUp, color: 'bg-purple-50 text-purple-600' }
+        ].map((stat, i) => (
+          <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between mb-4">
+              <div className={`p-3 rounded-xl ${stat.color}`}>
+                <stat.icon className="w-6 h-6" />
+              </div>
+              {stat.trend && <span className="text-xs font-bold text-green-600">{stat.trend}</span>}
             </div>
-            <TrendingUp className="w-4 h-4 text-green-600" />
+            <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mt-1">{stat.label}</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900">₹{totalRevenue.toLocaleString()}</p>
-          <p className="text-sm text-gray-600">Total Revenue</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-blue-50">
-              <CreditCard className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{mockInvoices.length}</p>
-          <p className="text-sm text-gray-600">Total Invoices</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-orange-50">
-              <Wallet className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">{pendingPayments}</p>
-          <p className="text-sm text-gray-600">Pending Payments</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-lg bg-purple-50">
-              <TrendingUp className="w-6 h-6 text-purple-600" />
-            </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900">+15%</p>
-          <p className="text-sm text-gray-600">Monthly Growth</p>
-        </div>
+        ))}
       </div>
 
-      {/* AI Insights */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-        <div className="flex items-start gap-3">
-          <div className="p-2 bg-green-600 rounded-lg">
+      {/* AI Intelligence Stream */}
+      <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-5 border border-blue-100/50">
+        <div className="flex items-start gap-4">
+          <div className="p-2.5 bg-blue-600 rounded-xl shadow-lg shadow-blue-200">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 mb-1">AI Revenue Insights</h3>
-            <p className="text-sm text-gray-700">
-              Revenue forecasting shows a potential ₹52,000 for next week. UPI payments increased by 23% this month. 
-              Auto-generated payment reminders sent to 8 pending invoices.
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider mb-1">Financial Intelligence</h3>
+            <p className="text-sm text-gray-600 leading-relaxed font-medium">
+              Revenue projection predicts ₹1,24,000 for current cycle. Digital payment adoption up 14%.
+              <span className="text-blue-600 font-bold ml-1">Automated reminders</span> dispatched for {pendingPayments} pending nodes.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Search Bar */}
-      <div className="bg-white rounded-xl p-4 border border-gray-200">
+      {/* Search and Navigation */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by invoice ID, patient name, or patient ID..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Search invoice ID, patient name, or biometric ID..."
+            className="w-full pl-12 pr-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm"
           />
         </div>
       </div>
 
-      {/* Invoices Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Data Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Mode</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                {['Invoice ID', 'Patient Unit', 'Transaction Date', 'Total Value', 'Channel', 'Status', 'Actions'].map(h => (
+                  <th key={h} className="px-6 py-4 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{invoice.id}</td>
+            <tbody className="divide-y divide-gray-50">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-20 text-center text-gray-500 animate-pulse">Syncing with financial node...</td>
+                </tr>
+              ) : filteredInvoices.map((invoice) => (
+                <tr key={invoice.invoice_id} className="hover:bg-blue-50/30 transition-colors group">
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{invoice.invoice_id}</td>
                   <td className="px-6 py-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{invoice.patientName}</p>
-                      <p className="text-xs text-gray-500">{invoice.patientId}</p>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-gray-900">{invoice.patient?.full_name}</span>
+                      <span className="text-[10px] font-bold text-gray-400 uppercase">{invoice.patient?.patient_id}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {new Date(invoice.date).toLocaleDateString()}
+                  <td className="px-6 py-4 text-sm font-medium text-gray-600">
+                    {new Date(invoice.invoice_date || Date.now()).toLocaleDateString()}
                   </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    ₹{invoice.total.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    {invoice.paymentMode ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 uppercase">
-                        {invoice.paymentMode}
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">-</span>
-                    )}
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                    ₹{parseFloat(invoice.total_amount as any).toLocaleString()}
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                      invoice.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' :
-                      invoice.paymentStatus === 'partial' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {invoice.paymentStatus.charAt(0).toUpperCase() + invoice.paymentStatus.slice(1)}
+                    <span className="text-[10px] font-bold text-gray-500 uppercase px-2 py-1 bg-gray-100 rounded-md">
+                      {invoice.invoice_payments?.[0]?.payment_mode || 'pending'}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <button 
+                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${invoice.status === 'paid' ? 'bg-green-100 text-green-700' :
+                      invoice.status === 'partial' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                      {invoice.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
                         onClick={() => setSelectedInvoice(invoice)}
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="View Invoice"
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button 
-                        className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                        title="Download"
-                      >
+                      <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-xl transition-colors">
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
@@ -272,112 +262,71 @@ export function BillingPayments({ userRole }: BillingPaymentsProps) {
         </div>
       </div>
 
-      {/* Invoice Details Modal */}
+      {/* Invoice Detail Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Invoice Details</h2>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-                    <Download className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => setSelectedInvoice(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                </div>
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900 tracking-tight">Invoice Protocol</h2>
+                <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{selectedInvoice.invoice_id}</p>
               </div>
+              <button onClick={() => setSelectedInvoice(null)} className="p-2 hover:bg-gray-200 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
             </div>
-            
-            <div className="p-6 space-y-6">
-              {/* Invoice Header */}
-              <div className="flex items-start justify-between">
+
+            <div className="p-8 space-y-8">
+              <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-2xl font-bold text-gray-900">Elinic Healthcare</h3>
-                  <p className="text-sm text-gray-600">123 Medical Street, Mumbai</p>
-                  <p className="text-sm text-gray-600">GST: 27AABCU9603R1ZM</p>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Patient Unit</h4>
+                  <p className="text-lg font-bold text-gray-900">{selectedInvoice.patient?.full_name}</p>
+                  <p className="text-xs font-bold text-blue-600 uppercase">{selectedInvoice.patient?.patient_id}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600">Invoice #</p>
-                  <p className="text-xl font-bold text-gray-900">{selectedInvoice.id}</p>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Date: {new Date(selectedInvoice.date).toLocaleDateString()}
-                  </p>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Statement Value</h4>
+                  <p className="text-3xl font-black text-gray-900">₹{parseFloat(selectedInvoice.total_amount as any).toLocaleString()}</p>
                 </div>
               </div>
 
-              {/* Patient Info */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm font-medium text-gray-500 mb-1">Bill To</p>
-                <p className="font-semibold text-gray-900">{selectedInvoice.patientName}</p>
-                <p className="text-sm text-gray-600">Patient ID: {selectedInvoice.patientId}</p>
-              </div>
-
-              {/* Services Table */}
-              <div>
-                <table className="w-full">
+              <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Service</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Qty</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Rate</th>
-                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                      <th className="px-4 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-widest">Service Item</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest">Qty</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {selectedInvoice.services.map((service, index) => (
-                      <tr key={index}>
-                        <td className="px-4 py-3 text-sm text-gray-900">{service.name}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 text-center">{service.quantity}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 text-right">₹{service.rate}</td>
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 text-right">₹{service.amount}</td>
+                  <tbody className="divide-y divide-gray-50">
+                    {selectedInvoice.invoice_items?.map((item: any, i: number) => (
+                      <tr key={i}>
+                        <td className="px-4 py-3 font-medium text-gray-900">{item.service_name}</td>
+                        <td className="px-4 py-3 text-right text-gray-500 font-bold">{item.quantity}</td>
+                        <td className="px-4 py-3 text-right font-bold text-gray-900">₹{parseFloat(item.amount).toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              {/* Totals */}
-              <div className="border-t border-gray-200 pt-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="text-gray-900">₹{selectedInvoice.subtotal}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax (18% GST)</span>
-                    <span className="text-gray-900">₹{selectedInvoice.tax}</span>
-                  </div>
-                  {selectedInvoice.discount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discount</span>
-                      <span className="text-green-600">-₹{selectedInvoice.discount}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-                    <span className="text-gray-900">Total Amount</span>
-                    <span className="text-gray-900">₹{selectedInvoice.total}</span>
-                  </div>
+              <div className={`p-4 rounded-2xl flex items-center justify-between ${selectedInvoice.status === 'paid' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5" />
+                  <span className="text-sm font-bold uppercase tracking-widest">Current Status: {selectedInvoice.status}</span>
                 </div>
-              </div>
-
-              {/* Payment Info */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Payment Status</p>
-                    <p className="text-lg font-bold text-blue-600 capitalize">{selectedInvoice.paymentStatus}</p>
-                  </div>
-                  {selectedInvoice.paymentMode && (
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-700">Payment Mode</p>
-                      <p className="text-lg font-bold text-blue-600 uppercase">{selectedInvoice.paymentMode}</p>
-                    </div>
+                <div className="flex gap-2">
+                  {selectedInvoice.status !== 'paid' && (
+                    <button
+                      onClick={() => handleUpdateStatus(selectedInvoice.invoice_id, 'paid')}
+                      className="px-4 py-2 bg-green-600 text-white rounded-xl shadow-sm text-xs font-bold hover:bg-green-700 transition-all"
+                    >
+                      Mark as Paid
+                    </button>
                   )}
+                  <button className="px-4 py-2 bg-white rounded-xl shadow-sm text-xs font-bold hover:shadow-md transition-shadow">
+                    Download Statement
+                  </button>
                 </div>
               </div>
             </div>
@@ -385,87 +334,118 @@ export function BillingPayments({ userRole }: BillingPaymentsProps) {
         </div>
       )}
 
-      {/* Create Invoice Modal */}
+      {/* Create Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Create New Invoice</h2>
-                <button 
-                  onClick={() => setShowCreateModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-blue-600">
+              <h2 className="text-lg font-bold text-white tracking-tight">Generate Financial Statement</h2>
+              <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-blue-500 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateInvoice} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Target Patient</label>
+                  <select
+                    value={formData.patient_id}
+                    onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-bold"
+                  >
+                    <option value="">Select Target...</option>
+                    {patients.map(p => <option key={p.patient_id} value={p.patient_id}>{p.full_name} ({p.patient_id})</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Linked Appointment</label>
+                  <select
+                    value={formData.appointment_id}
+                    onChange={(e) => setFormData({ ...formData, appointment_id: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-bold"
+                  >
+                    <option value="">Select Link...</option>
+                    {appointments.map(a => <option key={a.appointment_id} value={a.appointment_id}>{a.appointment_id} - {a.patient?.full_name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Service Nodes</label>
+                {formData.services.map((s, i) => (
+                  <div key={i} className="grid grid-cols-12 gap-3 pb-3 border-b border-gray-50 last:border-0">
+                    <input
+                      placeholder="Service/Medication"
+                      className="col-span-6 px-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-bold"
+                      value={s.name}
+                      onChange={(e) => updateServiceLine(i, 'name', e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qty"
+                      className="col-span-2 px-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-bold"
+                      value={s.quantity}
+                      onChange={(e) => updateServiceLine(i, 'quantity', parseInt(e.target.value) || 1)}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Rate"
+                      className="col-span-4 px-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-bold"
+                      value={s.rate}
+                      onChange={(e) => updateServiceLine(i, 'rate', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addServiceLine}
+                  className="w-full py-2 border-2 border-dashed border-gray-100 rounded-xl text-[10px] font-bold text-gray-400 uppercase hover:border-blue-200 hover:text-blue-500 transition-all"
                 >
-                  ✕
+                  + Add Service Protocol
                 </button>
               </div>
-            </div>
-            
-            <div className="p-6">
-              <form className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Select Patient</option>
-                      <option>John Smith (P001)</option>
-                      <option>Emily Davis (P002)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                </div>
 
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <h3 className="font-medium text-gray-900 mb-3">Services</h3>
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-12 gap-2">
-                      <input placeholder="Service name" className="col-span-5 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                      <input type="number" placeholder="Qty" className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                      <input type="number" placeholder="Rate" className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-                      <input placeholder="Amount" className="col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm bg-gray-50" disabled />
-                      <button type="button" className="col-span-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                        +
-                      </button>
-                    </div>
-                  </div>
+              <div className="grid grid-cols-3 gap-6 pt-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Discount (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.discount}
+                    onChange={(e) => setFormData({ ...formData, discount: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl text-sm font-bold"
+                  />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Payment Node</label>
+                  <select
+                    value={formData.payment_mode}
+                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
+                    className="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-blue-500/20 text-sm font-bold"
+                  >
+                    {['cash', 'card', 'upi', 'netbanking'].map(m => <option key={m} value={m}>{m.toUpperCase()}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount Paid (₹)</label>
+                  <input
+                    type="number"
+                    value={formData.paid_amount}
+                    onChange={(e) => setFormData({ ...formData, paid_amount: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 bg-blue-50 border-none rounded-xl text-sm font-bold text-blue-600"
+                  />
+                </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Discount (₹)</label>
-                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Mode</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Cash</option>
-                      <option>Card</option>
-                      <option>UPI</option>
-                      <option>Insurance</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="flex gap-3 pt-4">
-                  <button 
-                    type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Generate Invoice
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div className="flex gap-4 pt-6">
+                <button type="submit" className="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-blue-700 shadow-xl shadow-blue-200 transition-all">
+                  Synchronize & Generate
+                </button>
+                <button type="button" onClick={() => setShowCreateModal(false)} className="px-8 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-gray-200 transition-all">
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

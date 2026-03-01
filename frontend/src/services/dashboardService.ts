@@ -29,7 +29,8 @@ class DashboardService {
     async getStats(): Promise<DashboardStats> {
         try {
             const response = await dashboardAPI.getStats();
-            return response.data;
+            // Backend wraps results as { success, message, data }
+            return (response.data?.data ?? response.data) as DashboardStats;
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
             throw error;
@@ -39,7 +40,7 @@ class DashboardService {
     async getAppointmentData(): Promise<AppointmentChartData[]> {
         try {
             const response = await dashboardAPI.getAppointmentData();
-            return response.data;
+            return (response.data?.data ?? response.data) as AppointmentChartData[];
         } catch (error) {
             console.error('Error fetching appointment data:', error);
             throw error;
@@ -49,7 +50,7 @@ class DashboardService {
     async getRevenueData(): Promise<RevenueChartData[]> {
         try {
             const response = await dashboardAPI.getRevenueData();
-            return response.data;
+            return (response.data?.data ?? response.data) as RevenueChartData[];
         } catch (error) {
             console.error('Error fetching revenue data:', error);
             throw error;
@@ -59,7 +60,7 @@ class DashboardService {
     async getRecentAppointments(): Promise<RecentAppointment[]> {
         try {
             const response = await dashboardAPI.getRecentAppointments();
-            return response.data;
+            return (response.data?.data ?? response.data) as RecentAppointment[];
         } catch (error) {
             console.error('Error fetching recent appointments:', error);
             throw error;

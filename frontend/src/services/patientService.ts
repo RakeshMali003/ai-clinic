@@ -21,14 +21,16 @@ export interface Patient {
     currentMedications?: string[];
 }
 
-// Helper to convert relative path to absolute URL
-const getFullUrl = (path: string | undefined): string | undefined => {
-    if (!path) return undefined;
-    if (path.startsWith('http')) return path; // Already absolute
-    return `${API_BASE_URL}${path}`;
-};
+
 
 class PatientService {
+    // Helper to convert relative path to absolute URL
+    public getFullUrl(path: string | undefined): string | undefined {
+        if (!path) return undefined;
+        if (path.startsWith('http')) return path; // Already absolute
+        return `${API_BASE_URL}${path}`;
+    }
+
     private async getAuthHeaders() {
         const token = localStorage.getItem('auth_token');
         return {
@@ -49,10 +51,10 @@ class PatientService {
 
             const result = await response.json();
             const patients = result.data?.patients || [];
-            
+
             return patients.map((p: any) => ({
                 ...p,
-                profile_photo_url: getFullUrl(p.profile_photo_url)
+                profile_photo_url: this.getFullUrl(p.profile_photo_url)
             }));
         } catch (error) {
             console.error('Error fetching patients:', error);
@@ -74,7 +76,7 @@ class PatientService {
             const result = await response.json();
             const patient = result.data;
             if (patient) {
-                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+                patient.profile_photo_url = this.getFullUrl(patient.profile_photo_url);
             }
             return patient || null;
         } catch (error) {
@@ -91,11 +93,12 @@ class PatientService {
                 body: JSON.stringify(patient),
             });
 
+            const result = await response.json();
+
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                throw new Error(result.message || `HTTP error! status: ${response.status}`);
             }
 
-            const result = await response.json();
             return result.data;
         } catch (error) {
             console.error('Error creating patient:', error);
@@ -112,7 +115,7 @@ class PatientService {
             const result = await response.json();
             const patient = result.data;
             if (patient) {
-                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+                patient.profile_photo_url = this.getFullUrl(patient.profile_photo_url);
             }
             return patient || null;
         } catch (error) {
@@ -132,7 +135,7 @@ class PatientService {
             const result = await response.json();
             const patient = result.data;
             if (patient) {
-                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+                patient.profile_photo_url = this.getFullUrl(patient.profile_photo_url);
             }
             return patient || null;
         } catch (error) {
@@ -254,12 +257,39 @@ class PatientService {
             const result = await response.json();
             const patient = result.data;
             if (patient) {
-                patient.profile_photo_url = getFullUrl(patient.profile_photo_url);
+                patient.profile_photo_url = this.getFullUrl(patient.profile_photo_url);
             }
             return patient || null;
         } catch (error) {
             console.error('Error uploading profile photo:', error);
             return null;
+        }
+    }
+
+    async uploadDocument(file: File, type: string = 'Other'): Promise<any> {
+        try {
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('document_type', type);
+
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`${API_BASE_URL}/api/documents/upload`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error uploading document:', error);
+            throw error;
         }
     }
 }

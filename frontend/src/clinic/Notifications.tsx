@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { UserRole } from '../App';
-import { Bell, Mail, MessageSquare, Send, Clock, CheckCircle, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { UserRole } from '../common/types';
+import { Bell, Mail, MessageSquare, Send, Clock, CheckCircle, X, Loader2 } from 'lucide-react';
+import { clinicService } from '../services/clinicService';
 
 interface NotificationsProps {
   userRole: UserRole;
@@ -17,73 +18,57 @@ interface Notification {
   category: 'appointment' | 'payment' | 'announcement' | 'reminder';
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: 'N001',
-    type: 'sms',
-    title: 'Appointment Reminder',
-    message: 'Reminder: Your appointment with Dr. Sarah Johnson is scheduled for tomorrow at 10:00 AM.',
-    recipient: 'John Smith (+91 98765 43210)',
-    timestamp: '2025-01-12 09:30',
-    status: 'sent',
-    category: 'appointment'
-  },
-  {
-    id: 'N002',
-    type: 'email',
-    title: 'Payment Receipt',
-    message: 'Thank you for your payment of ₹1,888. Your invoice #INV-001 has been paid successfully.',
-    recipient: 'john.smith@email.com',
-    timestamp: '2025-01-12 11:15',
-    status: 'sent',
-    category: 'payment'
-  },
-  {
-    id: 'N003',
-    type: 'whatsapp',
-    title: 'Lab Report Ready',
-    message: 'Your lab test results for Complete Blood Count are now available. Please visit the clinic to collect.',
-    recipient: 'Emily Davis (+91 98765 43211)',
-    timestamp: '2025-01-12 14:20',
-    status: 'sent',
-    category: 'reminder'
-  },
-  {
-    id: 'N004',
-    type: 'in-app',
-    title: 'Clinic Announcement',
-    message: 'The clinic will be closed on January 26th for Republic Day. Emergency services will be available.',
-    recipient: 'All Patients',
-    timestamp: '2025-01-12 08:00',
-    status: 'sent',
-    category: 'announcement'
-  },
-  {
-    id: 'N005',
-    type: 'sms',
-    title: 'Appointment Confirmation',
-    message: 'Your appointment has been confirmed for Jan 15 at 2:00 PM with Dr. Michael Chen.',
-    recipient: 'Robert Brown (+91 98765 43212)',
-    timestamp: '2025-01-12 16:45',
-    status: 'pending',
-    category: 'appointment'
-  },
-];
-
 export function Notifications({ userRole }: NotificationsProps) {
   const [filterType, setFilterType] = useState<string>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [showSendModal, setShowSendModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const filteredNotifications = mockNotifications.filter(notif => {
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        setLoading(true);
+        const data = await clinicService.getNotifications();
+        // Map backend notification structure to frontend
+        const mapped: Notification[] = data.map((n: any) => ({
+          id: n.notification_id || String(n.id),
+          type: n.type || 'in-app',
+          title: n.title || 'Notification',
+          message: n.content || n.message || '',
+          recipient: n.recipients?.[0]?.recipient_contact || 'Multiple Recipients',
+          timestamp: new Date(n.created_at).toLocaleString(),
+          status: n.status || 'sent',
+          category: n.category || 'announcement'
+        }));
+        setNotifications(mapped);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchNotifications();
+  }, []);
+
+  const filteredNotifications = notifications.filter(notif => {
     const matchesType = filterType === 'all' || notif.type === filterType;
     const matchesCategory = filterCategory === 'all' || notif.category === filterCategory;
     return matchesType && matchesCategory;
   });
 
-  const sentCount = mockNotifications.filter(n => n.status === 'sent').length;
-  const pendingCount = mockNotifications.filter(n => n.status === 'pending').length;
-  const failedCount = mockNotifications.filter(n => n.status === 'failed').length;
+  const sentCount = notifications.filter(n => n.status === 'sent').length;
+  const pendingCount = notifications.filter(n => n.status === 'pending').length;
+  const failedCount = notifications.filter(n => n.status === 'failed').length;
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+        <p className="text-gray-600">Retrieving clinic transmissions...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -92,8 +77,8 @@ export function Notifications({ userRole }: NotificationsProps) {
           <h1 className="text-2xl font-bold text-gray-900">Notifications & Communication</h1>
           <p className="text-gray-600">Manage patient communications across all channels</p>
         </div>
-        {(userRole === 'admin' || userRole === 'receptionist') && (
-          <button 
+        {(userRole === 'clinic' || userRole === 'receptionist') && (
+          <button
             onClick={() => setShowSendModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
@@ -111,7 +96,7 @@ export function Notifications({ userRole }: NotificationsProps) {
               <Bell className="w-6 h-6 text-blue-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-gray-900">{mockNotifications.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{notifications.length}</p>
           <p className="text-sm text-gray-600">Total Notifications</p>
         </div>
 
@@ -156,11 +141,10 @@ export function Notifications({ userRole }: NotificationsProps) {
                 <button
                   key={type}
                   onClick={() => setFilterType(type)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    filterType === type
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterType === type
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {type === 'all' ? 'All' : type.toUpperCase()}
                 </button>
@@ -174,11 +158,10 @@ export function Notifications({ userRole }: NotificationsProps) {
                 <button
                   key={category}
                   onClick={() => setFilterCategory(category)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    filterCategory === category
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterCategory === category
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1)}
                 </button>
@@ -198,7 +181,7 @@ export function Notifications({ userRole }: NotificationsProps) {
           <h3 className="font-semibold text-gray-900 mb-2">Text Messages</h3>
           <p className="text-sm text-gray-600 mb-4">Quick appointment reminders and updates</p>
           <div className="text-2xl font-bold text-blue-600">
-            {mockNotifications.filter(n => n.type === 'sms').length}
+            {notifications.filter((n: Notification) => n.type === 'sms').length}
           </div>
           <p className="text-xs text-gray-500">messages sent</p>
         </div>
@@ -211,7 +194,7 @@ export function Notifications({ userRole }: NotificationsProps) {
           <h3 className="font-semibold text-gray-900 mb-2">Email</h3>
           <p className="text-sm text-gray-600 mb-4">Detailed reports and receipts</p>
           <div className="text-2xl font-bold text-green-600">
-            {mockNotifications.filter(n => n.type === 'email').length}
+            {notifications.filter((n: Notification) => n.type === 'email').length}
           </div>
           <p className="text-xs text-gray-500">emails sent</p>
         </div>
@@ -224,7 +207,7 @@ export function Notifications({ userRole }: NotificationsProps) {
           <h3 className="font-semibold text-gray-900 mb-2">WhatsApp</h3>
           <p className="text-sm text-gray-600 mb-4">Rich media and instant updates</p>
           <div className="text-2xl font-bold text-purple-600">
-            {mockNotifications.filter(n => n.type === 'whatsapp').length}
+            {notifications.filter((n: Notification) => n.type === 'whatsapp').length}
           </div>
           <p className="text-xs text-gray-500">messages sent</p>
         </div>
@@ -237,7 +220,7 @@ export function Notifications({ userRole }: NotificationsProps) {
           <h3 className="font-semibold text-gray-900 mb-2">In-App</h3>
           <p className="text-sm text-gray-600 mb-4">System notifications and alerts</p>
           <div className="text-2xl font-bold text-orange-600">
-            {mockNotifications.filter(n => n.type === 'in-app').length}
+            {notifications.filter((n: Notification) => n.type === 'in-app').length}
           </div>
           <p className="text-xs text-gray-500">notifications sent</p>
         </div>
@@ -254,27 +237,25 @@ export function Notifications({ userRole }: NotificationsProps) {
             <div key={notification.id} className="p-6 hover:bg-gray-50 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4 flex-1">
-                  <div className={`p-3 rounded-lg ${
-                    notification.type === 'sms' ? 'bg-blue-50' :
+                  <div className={`p-3 rounded-lg ${notification.type === 'sms' ? 'bg-blue-50' :
                     notification.type === 'email' ? 'bg-green-50' :
-                    notification.type === 'whatsapp' ? 'bg-purple-50' :
-                    'bg-orange-50'
-                  }`}>
+                      notification.type === 'whatsapp' ? 'bg-purple-50' :
+                        'bg-orange-50'
+                    }`}>
                     {notification.type === 'sms' && <MessageSquare className="w-5 h-5 text-blue-600" />}
                     {notification.type === 'email' && <Mail className="w-5 h-5 text-green-600" />}
                     {notification.type === 'whatsapp' && <MessageSquare className="w-5 h-5 text-purple-600" />}
                     {notification.type === 'in-app' && <Bell className="w-5 h-5 text-orange-600" />}
                   </div>
-                  
+
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold text-gray-900">{notification.title}</h4>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        notification.category === 'appointment' ? 'bg-blue-100 text-blue-700' :
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${notification.category === 'appointment' ? 'bg-blue-100 text-blue-700' :
                         notification.category === 'payment' ? 'bg-green-100 text-green-700' :
-                        notification.category === 'announcement' ? 'bg-purple-100 text-purple-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
+                          notification.category === 'announcement' ? 'bg-purple-100 text-purple-700' :
+                            'bg-yellow-100 text-yellow-700'
+                        }`}>
                         {notification.category}
                       </span>
                     </div>
@@ -289,11 +270,10 @@ export function Notifications({ userRole }: NotificationsProps) {
                   </div>
                 </div>
 
-                <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                  notification.status === 'sent' ? 'bg-green-100 text-green-700' :
+                <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${notification.status === 'sent' ? 'bg-green-100 text-green-700' :
                   notification.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-red-100 text-red-700'
-                }`}>
+                    'bg-red-100 text-red-700'
+                  }`}>
                   {notification.status === 'sent' && <CheckCircle className="w-3 h-3" />}
                   {notification.status === 'pending' && <Clock className="w-3 h-3" />}
                   {notification.status === 'failed' && <X className="w-3 h-3" />}
@@ -312,7 +292,7 @@ export function Notifications({ userRole }: NotificationsProps) {
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-gray-900">Send Notification</h2>
-                <button 
+                <button
                   onClick={() => setShowSendModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -320,7 +300,7 @@ export function Notifications({ userRole }: NotificationsProps) {
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6">
               <form className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -357,8 +337,8 @@ export function Notifications({ userRole }: NotificationsProps) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Subject/Title *</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     placeholder="Enter notification title"
                   />
@@ -366,8 +346,8 @@ export function Notifications({ userRole }: NotificationsProps) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
-                  <textarea 
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
+                  <textarea
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     rows={4}
                     placeholder="Enter your message here..."
                   ></textarea>
@@ -379,21 +359,21 @@ export function Notifications({ userRole }: NotificationsProps) {
                     <strong>Preview:</strong> This notification will be sent via SMS to 24 patients.
                   </p>
                 </div>
-                
+
                 <div className="flex gap-3 pt-4">
-                  <button 
+                  <button
                     type="submit"
                     className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                   >
                     Send Now
                   </button>
-                  <button 
+                  <button
                     type="button"
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     Schedule
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => setShowSendModal(false)}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UserRole } from '../common/types';
-import { Users, UserPlus, Clock, CheckCircle, XCircle, Camera, Calendar } from 'lucide-react';
+import { Users, UserPlus, Clock, CheckCircle, Camera, Calendar, Loader2, AlertCircle } from 'lucide-react';
+import { clinicService } from '../services/clinicService';
 
 interface StaffManagementProps {
     userRole: UserRole;
@@ -15,123 +16,116 @@ interface StaffMember {
     phone: string;
     joinDate: string;
     status: 'active' | 'on-leave' | 'inactive';
-    todayAttendance?: {
-        checkIn: string;
-        checkOut?: string;
-        status: 'present' | 'absent' | 'late';
-    };
-    performance: {
-        tasksCompleted: number;
-        rating: number;
-    };
 }
 
-const mockStaff: StaffMember[] = [
-    {
-        id: 'S001',
-        name: 'Emma Wilson',
+export function StaffManagement({ userRole }: StaffManagementProps) {
+    const [staff, setStaff] = useState<StaffMember[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [formData, setFormData] = useState({
+        full_name: '',
         role: 'Receptionist',
         department: 'Front Desk',
-        email: 'emma.wilson@clinic.com',
-        phone: '+91 98765 55555',
-        joinDate: '2023-06-15',
-        status: 'active',
-        todayAttendance: {
-            checkIn: '09:00 AM',
-            status: 'present'
-        },
-        performance: {
-            tasksCompleted: 142,
-            rating: 4.7
-        }
-    },
-    {
-        id: 'S002',
-        name: 'John Doe',
-        role: 'Nurse',
-        department: 'General Ward',
-        email: 'john.doe@clinic.com',
-        phone: '+91 98765 66666',
-        joinDate: '2023-03-20',
-        status: 'active',
-        todayAttendance: {
-            checkIn: '09:05 AM',
-            status: 'late'
-        },
-        performance: {
-            tasksCompleted: 238,
-            rating: 4.8
-        }
-    },
-    {
-        id: 'S003',
-        name: 'Lisa Martinez',
-        role: 'Lab Technician',
-        department: 'Laboratory',
-        email: 'lisa.martinez@clinic.com',
-        phone: '+91 98765 77777',
-        joinDate: '2023-08-10',
-        status: 'active',
-        todayAttendance: {
-            checkIn: '08:55 AM',
-            status: 'present'
-        },
-        performance: {
-            tasksCompleted: 189,
-            rating: 4.9
-        }
-    },
-    {
-        id: 'S004',
-        name: 'Robert Brown',
-        role: 'Pharmacist',
-        department: 'Pharmacy',
-        email: 'robert.brown@clinic.com',
-        phone: '+91 98765 88888',
-        joinDate: '2022-11-05',
-        status: 'active',
-        todayAttendance: {
-            checkIn: '09:00 AM',
-            checkOut: '06:00 PM',
-            status: 'present'
-        },
-        performance: {
-            tasksCompleted: 367,
-            rating: 4.6
-        }
-    },
-    {
-        id: 'S005',
-        name: 'Maria Garcia',
-        role: 'Nurse',
-        department: 'Emergency',
-        email: 'maria.garcia@clinic.com',
-        phone: '+91 98765 99999',
-        joinDate: '2023-01-12',
-        status: 'on-leave',
-        performance: {
-            tasksCompleted: 156,
-            rating: 4.5
-        }
-    },
-];
-
-export function StaffManagement({ userRole }: StaffManagementProps) {
-    const [showAddModal, setShowAddModal] = useState(false);
+        email: '',
+        mobile: '',
+        status: 'active'
+    });
     const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+    const [showDetailsModal, setShowDetailsModal] = useState(false);
 
-    const presentCount = mockStaff.filter(s => s.todayAttendance?.status === 'present' || s.todayAttendance?.status === 'late').length;
-    const onLeaveCount = mockStaff.filter(s => s.status === 'on-leave').length;
-    const lateCount = mockStaff.filter(s => s.todayAttendance?.status === 'late').length;
+    const fetchStaff = async () => {
+        try {
+            setLoading(true);
+            const data = await clinicService.getStaff();
+            const mappedStaff: StaffMember[] = data.map((s: any) => ({
+                id: s.id?.toString() || s.staff_id?.toString() || '0',
+                name: s.full_name || 'Staff Member',
+                role: s.role || 'Personnel',
+                department: s.department || 'General',
+                email: s.email || '',
+                phone: s.mobile || '',
+                joinDate: s.created_at ? new Date(s.created_at).toLocaleDateString() : 'N/A',
+                status: (s.status?.toLowerCase() || 'active') as any
+            }));
+            setStaff(mappedStaff);
+        } catch (err) {
+            console.error('Error fetching staff:', err);
+            setError('Failed to load staff directory.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchStaff();
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        try {
+            setLoading(true);
+            await clinicService.addStaff(formData);
+            setShowAddModal(false);
+            setFormData({
+                full_name: '',
+                role: 'Receptionist',
+                department: 'Front Desk',
+                email: '',
+                mobile: '',
+                status: 'active'
+            });
+            await fetchStaff();
+        } catch (err) {
+            console.error('Error adding staff:', err);
+            alert('Failed to add staff member');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteStaff = async (id: string) => {
+        if (!window.confirm('Are you sure you want to remove this staff member?')) return;
+        try {
+            await clinicService.deleteStaff(id);
+            await fetchStaff();
+        } catch (err) {
+            console.error('Error deleting staff:', err);
+            alert('Failed to remove staff member');
+        }
+    };
+
+    const presentCount = staff.filter(s => s.status === 'active').length;
+    const onLeaveCount = staff.filter(s => s.status === 'on-leave').length;
+
+    if (loading && staff.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center p-12">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
+                <p className="text-gray-600 font-medium">Loading staff directory...</p>
+            </div>
+        );
+    }
+
+    if (error && staff.length === 0) {
+        return (
+            <div className="p-6 bg-red-50 border border-red-200 rounded-xl">
+                <div className="flex items-center gap-3 text-red-700">
+                    <AlertCircle className="w-5 h-5" />
+                    <p>{error}</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Staff Management</h1>
-                    <p className="text-gray-600">Manage staff, attendance, and performance</p>
+                    <p className="text-gray-600">Manage your clinic's medical and administrative staff</p>
                 </div>
-                {userRole === 'admin' && (
+                {userRole === 'clinic' && (
                     <button
                         onClick={() => setShowAddModal(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -150,7 +144,7 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                             <Users className="w-6 h-6 text-blue-600" />
                         </div>
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">{mockStaff.length}</p>
+                    <p className="text-2xl font-bold text-gray-900">{staff.length}</p>
                     <p className="text-sm text-gray-600">Total Staff</p>
                 </div>
 
@@ -161,7 +155,7 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                         </div>
                     </div>
                     <p className="text-2xl font-bold text-green-600">{presentCount}</p>
-                    <p className="text-sm text-gray-600">Present Today</p>
+                    <p className="text-sm text-gray-600">Active Staff</p>
                 </div>
 
                 <div className="bg-white rounded-xl p-6 border border-yellow-200">
@@ -170,7 +164,7 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                             <Clock className="w-6 h-6 text-yellow-600" />
                         </div>
                     </div>
-                    <p className="text-2xl font-bold text-yellow-600">{lateCount}</p>
+                    <p className="text-2xl font-bold text-yellow-600">--</p>
                     <p className="text-sm text-gray-600">Late Arrivals</p>
                 </div>
 
@@ -218,69 +212,53 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Today's Attendance</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {mockStaff.map((staff) => (
-                                <tr key={staff.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{staff.id}</td>
+                            {staff.map((s) => (
+                                <tr key={s.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{s.id}</td>
                                     <td className="px-6 py-4">
                                         <div>
-                                            <p className="text-sm font-medium text-gray-900">{staff.name}</p>
-                                            <p className="text-xs text-gray-500">{staff.email}</p>
+                                            <p className="text-sm font-medium text-gray-900">{s.name}</p>
+                                            <p className="text-xs text-gray-500">{s.email}</p>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-900">{staff.role}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{staff.department}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-900">{s.role}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">{s.department}</td>
                                     <td className="px-6 py-4">
-                                        {staff.todayAttendance ? (
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${staff.todayAttendance.status === 'present' ? 'bg-green-100 text-green-700' :
-                                                            staff.todayAttendance.status === 'late' ? 'bg-yellow-100 text-yellow-700' :
-                                                                'bg-red-100 text-red-700'
-                                                        }`}>
-                                                        {staff.todayAttendance.status === 'present' && <CheckCircle className="w-3 h-3" />}
-                                                        {staff.todayAttendance.status === 'late' && <Clock className="w-3 h-3" />}
-                                                        {staff.todayAttendance.status.charAt(0).toUpperCase() + staff.todayAttendance.status.slice(1)}
-                                                    </span>
-                                                </div>
-                                                <p className="text-xs text-gray-600">In: {staff.todayAttendance.checkIn}</p>
-                                                {staff.todayAttendance.checkOut && (
-                                                    <p className="text-xs text-gray-600">Out: {staff.todayAttendance.checkOut}</p>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-gray-500">No attendance</span>
-                                        )}
+                                        <span className="text-xs text-gray-500 italic">Integration pending</span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div>
-                                            <div className="flex items-center gap-1 mb-1">
-                                                <span className="text-sm font-medium text-yellow-600">{staff.performance.rating}</span>
-                                                <span className="text-yellow-500">★</span>
-                                            </div>
-                                            <p className="text-xs text-gray-600">{staff.performance.tasksCompleted} tasks</p>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${staff.status === 'active' ? 'bg-green-100 text-green-700' :
-                                                staff.status === 'on-leave' ? 'bg-yellow-100 text-yellow-700' :
-                                                    'bg-gray-100 text-gray-700'
+                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${s.status === 'active' ? 'bg-green-100 text-green-700' :
+                                            s.status === 'on-leave' ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-gray-100 text-gray-700'
                                             }`}>
-                                            {staff.status === 'active' ? 'Active' : staff.status === 'on-leave' ? 'On Leave' : 'Inactive'}
+                                            {s.status.charAt(0).toUpperCase() + s.status.slice(1)}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => setSelectedStaff(staff)}
-                                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                        >
-                                            View Details
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedStaff(s);
+                                                    setShowDetailsModal(true);
+                                                }}
+                                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                            >
+                                                Details
+                                            </button>
+                                            {userRole === 'clinic' && (
+                                                <button
+                                                    onClick={() => handleDeleteStaff(s.id)}
+                                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -306,15 +284,25 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                         </div>
 
                         <div className="p-6">
-                            <form className="space-y-4">
+                            <form onSubmit={handleSubmit} className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
-                                        <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                        <input
+                                            type="text"
+                                            required
+                                            value={formData.full_name}
+                                            onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <select
+                                            value={formData.role}
+                                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        >
                                             <option>Receptionist</option>
                                             <option>Nurse</option>
                                             <option>Lab Technician</option>
@@ -324,7 +312,11 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                                        <select
+                                            value={formData.department}
+                                            onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        >
                                             <option>Front Desk</option>
                                             <option>General Ward</option>
                                             <option>Emergency</option>
@@ -334,22 +326,34 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                                        <input type="email" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                        <input
+                                            type="email"
+                                            required
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
-                                        <input type="tel" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Join Date *</label>
-                                        <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                        <input
+                                            type="tel"
+                                            required
+                                            value={formData.mobile}
+                                            onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                                            <option>Active</option>
-                                            <option>On Leave</option>
-                                            <option>Inactive</option>
+                                        <select
+                                            value={formData.status}
+                                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="on-leave">On Leave</option>
+                                            <option value="inactive">Inactive</option>
                                         </select>
                                     </div>
                                 </div>
@@ -357,9 +361,10 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                                 <div className="flex gap-3 pt-4">
                                     <button
                                         type="submit"
-                                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        disabled={loading}
+                                        className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
                                     >
-                                        Add Staff
+                                        {loading ? 'Adding...' : 'Add Staff'}
                                     </button>
                                     <button
                                         type="button"
@@ -370,6 +375,80 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Staff Details Modal */}
+            {showDetailsModal && selectedStaff && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-xl max-w-lg w-full">
+                        <div className="p-6 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-xl font-bold text-gray-900">Staff Member Details</h2>
+                                <button
+                                    onClick={() => setShowDetailsModal(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-4 bg-blue-50 rounded-full">
+                                    <Users className="w-12 h-12 text-blue-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-900">{selectedStaff.name}</h3>
+                                    <p className="text-sm text-gray-500">{selectedStaff.role} • {selectedStaff.department}</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Email Address</p>
+                                    <p className="text-sm font-medium text-gray-900">{selectedStaff.email}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Phone Number</p>
+                                    <p className="text-sm font-medium text-gray-900">{selectedStaff.phone}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Joining Date</p>
+                                    <p className="text-sm font-medium text-gray-900">{selectedStaff.joinDate}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Current Status</p>
+                                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${selectedStaff.status === 'active' ? 'bg-green-100 text-green-700' :
+                                        selectedStaff.status === 'on-leave' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-gray-100 text-gray-700'
+                                        }`}>
+                                        {selectedStaff.status.charAt(0).toUpperCase() + selectedStaff.status.slice(1)}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-gray-100 flex gap-3">
+                                <button
+                                    onClick={() => setShowDetailsModal(false)}
+                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Close
+                                </button>
+                                {userRole === 'clinic' && (
+                                    <button
+                                        onClick={() => {
+                                            handleDeleteStaff(selectedStaff.id);
+                                            setShowDetailsModal(false);
+                                        }}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                    >
+                                        Remove Staff
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>

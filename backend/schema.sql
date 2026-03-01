@@ -1381,9 +1381,12 @@ CREATE TABLE public.patients (
     blood_group character varying(5),
     abha_id character varying(25),
     phone character varying(20),
+    email character varying(100),
     address text,
     medical_history text,
-    insurance_id character varying(20)
+    insurance_id character varying(20),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
 );
 
 

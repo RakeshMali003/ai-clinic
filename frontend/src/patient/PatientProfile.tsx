@@ -225,7 +225,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
             <div className="flex flex-col items-center text-center">
               <Avatar className="size-24 mb-4">
                 {patient.avatar ? (
-                  <AvatarImage src={patient.avatar} alt={patient.name} />
+                  <AvatarImage src={patientService.getFullUrl(patient.avatar)} alt={patient.name} />
                 ) : (
                   <AvatarFallback className="bg-gradient-to-r from-pink-600 to-purple-600 text-white text-2xl">
                     {patient.name?.charAt(0) || 'P'}
@@ -269,8 +269,8 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                     accept="image/*"
                     className="hidden"
                   />
-                  <Button 
-                    className="w-full mt-6" 
+                  <Button
+                    className="w-full mt-6"
                     variant="outline"
                     onClick={triggerFileInput}
                     disabled={uploading}

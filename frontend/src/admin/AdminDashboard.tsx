@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { User } from '../common/types';
+import { clinicService } from '../services/clinicService';
 import {
   LayoutDashboard,
   Building2,
@@ -20,7 +21,8 @@ import {
   Brain,
   Watch,
   Bell,
-  LogOut
+  LogOut,
+  Loader2
 } from 'lucide-react';
 
 // Import existing components
@@ -69,14 +71,34 @@ type ViewType =
 export function AdminDashboard({ user }: AdminDashboardProps) {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
+  const [recentQueue, setRecentQueue] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (currentView === 'dashboard') {
+      const fetchDashboardData = async () => {
+        try {
+          setLoading(true);
+          const [reportsData, queueData] = await Promise.all([
+            clinicService.getReports(),
+            clinicService.getQueue()
+          ]);
+          setStats(reportsData);
+          setRecentQueue(queueData.slice(0, 5));
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchDashboardData();
+    }
+  }, [currentView]);
 
   const handleLogout = () => {
-    // Clear authentication data
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
-    localStorage.removeItem('token'); // Cleanup legacy key if exists
-
-    // Redirect to home page
     window.location.href = '/';
   };
 
@@ -149,9 +171,8 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   <div className="p-3 rounded-lg bg-blue-50">
                     <Users className="w-6 h-6 text-blue-600" />
                   </div>
-                  <span className="text-xs text-green-600 font-medium">+12%</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">1,247</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.total_patients || 0}</p>
                 <p className="text-sm text-gray-600">Total Patients</p>
               </div>
 
@@ -160,9 +181,8 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   <div className="p-3 rounded-lg bg-green-50">
                     <Stethoscope className="w-6 h-6 text-green-600" />
                   </div>
-                  <span className="text-xs text-green-600 font-medium">+2</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">12</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.total_doctors || 0}</p>
                 <p className="text-sm text-gray-600">Active Doctors</p>
               </div>
 
@@ -171,9 +191,8 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   <div className="p-3 rounded-lg bg-purple-50">
                     <UserCog className="w-6 h-6 text-purple-600" />
                   </div>
-                  <span className="text-xs text-blue-600 font-medium">28 Present</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">32</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.total_staff || 0}</p>
                 <p className="text-sm text-gray-600">Staff Members</p>
               </div>
 
@@ -182,10 +201,9 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   <div className="p-3 rounded-lg bg-orange-50">
                     <Calendar className="w-6 h-6 text-orange-600" />
                   </div>
-                  <span className="text-xs text-orange-600 font-medium">15 Pending</span>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">45</p>
-                <p className="text-sm text-gray-600">Today's Appointments</p>
+                <p className="text-2xl font-bold text-gray-900">{stats?.total_appointments || 0}</p>
+                <p className="text-sm text-gray-600">Total Appointments</p>
               </div>
             </div>
 
@@ -199,7 +217,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 >
                   <ClipboardList className="w-8 h-8 text-blue-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-sm font-medium text-gray-900">Manage Queue</p>
-                  <p className="text-xs text-gray-500 mt-1">15 waiting</p>
+                  <p className="text-xs text-gray-500 mt-1">{recentQueue.length} waiting</p>
                 </button>
                 <button
                   onClick={() => setCurrentView('appointments')}
@@ -207,7 +225,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 >
                   <Calendar className="w-8 h-8 text-green-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-sm font-medium text-gray-900">Appointments</p>
-                  <p className="text-xs text-gray-500 mt-1">45 today</p>
+                  <p className="text-xs text-gray-500 mt-1">Real-time schedule</p>
                 </button>
                 <button
                   onClick={() => setCurrentView('patients')}
@@ -215,15 +233,15 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                 >
                   <Users className="w-8 h-8 text-purple-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
                   <p className="text-sm font-medium text-gray-900">Patients</p>
-                  <p className="text-xs text-gray-500 mt-1">1,247 total</p>
+                  <p className="text-xs text-gray-500 mt-1">Registry access</p>
                 </button>
                 <button
                   onClick={() => setCurrentView('billing')}
                   className="p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all text-center group"
                 >
                   <DollarSign className="w-8 h-8 text-orange-600 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                  <p className="text-sm font-medium text-gray-900">Billing</p>
-                  <p className="text-xs text-gray-500 mt-1">₹2.4L today</p>
+                  <p className="text-sm font-medium text-gray-900">Revenue</p>
+                  <p className="text-xs text-gray-500 mt-1">₹{stats?.total_revenue || 0} total</p>
                 </button>
               </div>
             </div>
@@ -231,37 +249,37 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
             {/* Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Appointments</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Queue Activities</h2>
                 <div className="space-y-3">
-                  {[
-                    { patient: 'John Doe', doctor: 'Dr. Sarah', time: '10:00 AM', status: 'Completed' },
-                    { patient: 'Jane Smith', doctor: 'Dr. Michael', time: '11:30 AM', status: 'In Progress' },
-                    { patient: 'Bob Johnson', doctor: 'Dr. Priya', time: '2:00 PM', status: 'Scheduled' },
-                  ].map((apt, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">{apt.patient}</p>
-                        <p className="text-sm text-gray-600">{apt.doctor} • {apt.time}</p>
+                  {recentQueue.length > 0 ? (
+                    recentQueue.map((apt, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{apt.patient?.full_name}</p>
+                          <p className="text-sm text-gray-600">{apt.doctor?.full_name} • {new Date(apt.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${apt.status === 'completed' ? 'bg-green-100 text-green-700' :
+                          apt.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                          {apt.status}
+                        </span>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${apt.status === 'Completed' ? 'bg-green-100 text-green-700' :
-                        apt.status === 'In Progress' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                        {apt.status}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">No active queue items</p>
+                  )}
                 </div>
                 <button
-                  onClick={() => setCurrentView('appointments')}
+                  onClick={() => setCurrentView('queue')}
                   className="w-full mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
-                  View All Appointments →
+                  View Full Queue →
                 </button>
               </div>
 
               <div className="bg-white rounded-xl p-6 border border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Facility Status</h2>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -305,6 +323,17 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         );
     }
   };
+
+  if (loading && currentView === 'dashboard') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Powering up your medical command center...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">

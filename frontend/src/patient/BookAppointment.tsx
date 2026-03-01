@@ -69,9 +69,11 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
     const fetchDoctors = async () => {
       try {
         const response = await api.get('/doctors');
-        setDoctors(response.doctors || response);
+        const doctorsList = Array.isArray(response) ? response : (response.data || response.doctors || []);
+        setDoctors(Array.isArray(doctorsList) ? doctorsList : []);
       } catch (error) {
         console.error('Failed to fetch doctors:', error);
+        setDoctors([]);
       } finally {
         setLoading(false);
       }
@@ -118,7 +120,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
 
   const handleBooking = async () => {
     if (!selectedDoctor || !selectedDate || !selectedTime) return;
-    
+
     // Validate that selectedDate is a valid Date
     if (!isValidDate(selectedDate)) {
       alert('Please select a valid date from the calendar.');
@@ -129,7 +131,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
     const day = selectedDate.getDate();
-    
+
     // Check if any component is NaN or infinite
     if (!isFinite(year) || !isFinite(month) || !isFinite(day)) {
       console.error('Invalid date components:', { year, month, day });
@@ -146,7 +148,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
 
     // Create UTC date
     const utcDate = new Date(Date.UTC(year, month, day));
-    
+
     // Final validation of UTC date
     if (!isValidDate(utcDate)) {
       console.error('Invalid UTC date:', utcDate);
@@ -169,12 +171,12 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
       // Format date as YYYY-MM-DD string for backend compatibility
       // Backend expects string format, not Date object
       const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      
+
       const appointmentData = {
         patient_id: patient.id.toString(),
         doctor_id: selectedDoctor.id,
         appointment_date: dateString,
-        appointment_time: formattedTime, 
+        appointment_time: formattedTime,
         type: appointmentType === 'in-clinic' ? 'in-clinic' : 'video',
         mode: appointmentType === 'video' ? 'online' : 'offline',
         status: 'scheduled',
@@ -435,8 +437,8 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
             <Button variant="outline" onClick={() => setStep(1)}>
               Back
             </Button>
-            <Button 
-              className="flex-1" 
+            <Button
+              className="flex-1"
               onClick={() => setStep(3)}
               disabled={!selectedDate || !selectedTime}
             >
@@ -479,10 +481,10 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
                 <div>
                   <Label className="text-gray-600">Date</Label>
                   <p className="font-medium text-gray-900">
-                    {selectedDate?.toLocaleDateString('en-IN', { 
-                      day: 'numeric', 
-                      month: 'long', 
-                      year: 'numeric' 
+                    {selectedDate?.toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
                     })}
                   </p>
                 </div>
@@ -517,7 +519,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
 
               <div className="space-y-2">
                 <Label>Reason for Visit (Optional)</Label>
-                <Textarea 
+                <Textarea
                   placeholder="Describe your symptoms or reason for consultation..."
                   rows={3}
                   value={reasonForVisit}
@@ -554,7 +556,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
               <p className="text-sm text-gray-600 mb-6">
                 Your appointment has been confirmed. You will receive a confirmation email and SMS shortly.
               </p>
-              
+
               <div className="bg-white rounded-lg p-6 mb-6 text-left">
                 <div className="grid grid-cols-2 gap-4">
                   <div>

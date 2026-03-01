@@ -3,20 +3,36 @@ const ResponseHandler = require('../utils/responseHandler');
 
 exports.createPatient = async (req, res, next) => {
     try {
-        const { patient_id, full_name, age, gender, phone } = req.body;
+        const { patient_id, full_name, age, gender, phone, email, address, abha_id, blood_group, medical_history, insurance_id } = req.body;
 
         if (!patient_id || !full_name || !phone) {
-            return ResponseHandler.badRequest(res, 'Missing essential bio-data (ID, Name, Phone)');
+            return ResponseHandler.badRequest(res, 'Missing essential fields (patient_id, full_name, phone)');
         }
 
         const existing = await Patient.findById(patient_id);
         if (existing) {
-            return ResponseHandler.badRequest(res, 'Patient identity integrity violation: ID already exists');
+            return ResponseHandler.badRequest(res, 'Patient with this ID already exists');
         }
 
-        const newPatient = await Patient.create(req.body);
-        ResponseHandler.created(res, newPatient, 'Patient lifecycle initiated');
+        // Build clean data object matching patients table columns from data.sql
+        const patientData = {
+            patient_id,
+            full_name,
+            age: age ? parseInt(age, 10) : null,
+            gender: gender || null,
+            phone,
+            email: email || null,
+            address: address || null,
+            abha_id: abha_id || null,
+            blood_group: blood_group || null,
+            medical_history: medical_history || null,
+            insurance_id: insurance_id || null,
+        };
+
+        const newPatient = await Patient.create(patientData);
+        ResponseHandler.created(res, newPatient, 'Patient added successfully');
     } catch (error) {
+        console.error('createPatient error:', error);
         next(error);
     }
 };
@@ -58,7 +74,7 @@ exports.getPatientById = async (req, res, next) => {
 exports.getPatientProfile = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
-        
+
         let patient = await Patient.findByUserId(userId);
 
         if (!patient && req.user.email) {
@@ -95,7 +111,7 @@ exports.updatePatientProfile = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
         console.log('updatePatientProfile called with userId:', userId);
-        
+
         let patient = await Patient.findByUserId(userId);
 
         if (!patient && req.user.email) {
@@ -168,7 +184,7 @@ exports.uploadProfilePhoto = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
         let patient = await Patient.findByUserId(userId);
-        
+
         if (!patient && req.user.email) {
             patient = await Patient.findByEmail(req.user.email);
         }
@@ -183,7 +199,7 @@ exports.uploadProfilePhoto = async (req, res, next) => {
 
         const photoUrl = `/uploads/${req.file.filename}`;
         const updated = await Patient.update(patient.patient_id, { profile_photo_url: photoUrl });
-        
+
         ResponseHandler.updated(res, updated, 'Profile photo updated successfully');
     } catch (error) {
         console.error('Error uploading profile photo:', error);

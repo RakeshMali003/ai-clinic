@@ -6,7 +6,7 @@ export async function getUserWithRole(): Promise<User | null> {
     const token = localStorage.getItem('auth_token');
     console.log('getUserWithRole: Checking for token...');
     console.log('Token in localStorage:', token ? `Found (${token.substring(0, 30)}...)` : 'NOT FOUND');
-    
+
     if (!token) {
         console.log('No token found in localStorage');
         return null;
@@ -150,12 +150,12 @@ export class AuthService {
         const data = await response.json();
         console.log("signInWithEmail response data:", data);
         console.log("Token received:", data.token ? `Yes (${data.token.substring(0, 30)}...)` : 'No');
-        
+
         // Store token FIRST before anything else
         if (data.token) {
             localStorage.setItem('auth_token', data.token);
             console.log("✅ Token stored in localStorage");
-            
+
             // Verify token was stored
             const storedToken = localStorage.getItem('auth_token');
             console.log("Verification - Token in localStorage:", storedToken ? 'YES' : 'NO');
@@ -183,13 +183,13 @@ export class AuthService {
     }
 
     // Sign up clinic
-    async signUpClinic(data: ClinicRegistrationData, password: string) {
+    async signUpClinic(data: ClinicRegistrationData, extraData: any, password: string) {
         const response = await fetch(`${API_BASE_URL}/api/auth/register/clinic`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ...data, password }),
+            body: JSON.stringify({ ...data, ...extraData, password }),
         });
 
         if (!response.ok) {

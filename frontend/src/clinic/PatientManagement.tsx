@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { UserRole } from '../common/types';
-import { Search, Plus, Edit, Eye, FileText, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, Plus, Eye, Phone, Mail, MapPin, Calendar, Clock, CheckCircle } from 'lucide-react';
 import { patientService, Patient } from '../services/patientService';
+import { clinicService } from '../services/clinicService';
 import { Toaster, toast } from 'sonner';
 
 interface PatientManagementProps {
@@ -12,21 +13,22 @@ export function PatientManagement({ userRole }: PatientManagementProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'today' | 'upcoming' | 'completed'>('today');
 
   useEffect(() => {
     loadPatients();
-  }, []);
+  }, [activeTab]);
 
   async function loadPatients() {
     try {
       setIsLoading(true);
-      const data = await patientService.getPatients();
+      const data = await clinicService.getPatients(activeTab);
       setPatients(data);
     } catch (error) {
       console.error('Failed to load patients:', error);
-      toast.error('Failed to load patients. Is the database connected?');
+      toast.error('Failed to load patients.');
     } finally {
       setIsLoading(false);
     }
@@ -36,34 +38,45 @@ export function PatientManagement({ userRole }: PatientManagementProps) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    const emailVal = (formData.get('email') as string)?.trim();
+    const abhaVal = (formData.get('abha_id') as string)?.trim();
+    const addressVal = (formData.get('address') as string)?.trim();
+
     const newPatient = {
-      patient_id: `P${Date.now()}`, // Consistent ID generation
-      full_name: formData.get('name') as string,
+      patient_id: `P${Date.now()}`,
+      full_name: (formData.get('name') as string)?.trim(),
       age: Number(formData.get('age')),
       gender: formData.get('gender') as string,
-      phone: formData.get('contact') as string,
-      email: formData.get('email') as string,
-      address: formData.get('address') as string,
-      abha_id: formData.get('abha_id') as string,
+      phone: (formData.get('contact') as string)?.trim(),
+      email: emailVal || null,
+      address: addressVal || null,
+      abha_id: abhaVal || null,
       medical_history: 'New patient'
     };
 
     try {
-      await patientService.createPatient(newPatient);
+      await patientService.createPatient(newPatient as any);
       toast.success('Patient added successfully');
       setShowAddModal(false);
       loadPatients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to add patient:', error);
-      toast.error('Failed to add patient');
+      toast.error(error?.message || 'Failed to add patient');
     }
   }
 
-  const filteredPatients = patients.filter(patient =>
-    patient.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.patient_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (patient.phone && patient.phone.includes(searchTerm))
-  );
+  const filteredPatients = patients.filter(item => {
+    const p = item.patient || item;
+    return (p.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.patient_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.phone && p.phone.includes(searchTerm)))
+  });
+
+  const tabs = [
+    { id: 'today', label: 'Today Patients', icon: Clock },
+    { id: 'upcoming', label: 'Upcoming Patients', icon: Calendar },
+    { id: 'completed', label: 'Completed Patients', icon: CheckCircle },
+  ];
 
   return (
     <div className="space-y-6">
@@ -71,9 +84,9 @@ export function PatientManagement({ userRole }: PatientManagementProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Patient Management</h1>
-          <p className="text-gray-600">Manage all registered patients</p>
+          <p className="text-gray-600">Manage {activeTab} patient roster</p>
         </div>
-        {(userRole === 'admin' || userRole === 'receptionist') && (
+        {(userRole === 'clinic' || userRole === 'admin' || userRole === 'receptionist') && (
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -82,6 +95,26 @@ export function PatientManagement({ userRole }: PatientManagementProps) {
             Add New Patient
           </button>
         )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex bg-white p-1 rounded-xl border border-gray-200 w-fit">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-600 hover:bg-gray-50'
+                }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Search Bar */}
@@ -119,61 +152,51 @@ export function PatientManagement({ userRole }: PatientManagementProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredPatients.map((patient) => (
-                  <tr key={patient.patient_id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{patient.patient_id.slice(0, 8)}...</td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{patient.full_name}</p>
-                        {patient.abha_id && (
-                          <p className="text-xs text-gray-500">ABHA: {patient.abha_id}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{patient.age}Y / {patient.gender}</td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600">
-                        <p className="flex items-center gap-1">
-                          <Phone className="w-3 h-3" />
-                          {patient.phone}
-                        </p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {'N/A'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {0} visits
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setSelectedPatient(patient)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title="View Details"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        {(userRole === 'admin' || userRole === 'receptionist') && (
+                {filteredPatients.map((item) => {
+                  const patient = item.patient || item;
+                  return (
+                    <tr key={patient.patient_id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900">{patient.patient_id?.slice(0, 8)}...</td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{patient.full_name}</p>
+                          {patient.abha_id && (
+                            <p className="text-xs text-gray-500">ABHA: {patient.abha_id}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{patient.age}Y / {patient.gender}</td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-600">
+                          <p className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {patient.phone}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {item.appointment_date ? new Date(item.appointment_date).toLocaleDateString() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                          {item.status || 'Active'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
                           <button
-                            className="p-1.5 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                            title="Edit"
+                            onClick={() => setSelectedPatient(patient)}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                            title="View Details"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                           </button>
-                        )}
-                        <button
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
-                          title="Medical Records"
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

@@ -1,42 +1,35 @@
 const express = require('express');
-const { check } = require('express-validator');
+const router = express.Router();
 const doctorController = require('../controllers/doctorController');
-const validate = require('../middleware/validator');
 const { protect, authorize } = require('../middleware/auth');
 
-const router = express.Router();
+// All doctor routes are protected
+router.use(protect);
 
-// Public registration endpoint (no auth required)
-router.post(
-    '/register',
-    [
-        check('full_name', 'Full name is required').not().isEmpty(),
-        check('email', 'Valid email is required').isEmail(),
-        check('mobile', 'Mobile number is required').not().isEmpty(),
-        check('medical_council_reg_no', 'Council Registration Number is required').not().isEmpty(),
-        validate
-    ],
-    doctorController.registerDoctor
-);
-
-// Admin-only doctor creation
-router.post(
-    '/',
-    [
-        protect,
-        authorize('admin'),
-        check('full_name', 'Full name is required').not().isEmpty(),
-        check('email', 'Valid email is required').isEmail(),
-        check('medical_council_reg_no', 'Council Registration Number is required').not().isEmpty(),
-        validate
-    ],
-    doctorController.createDoctor
-);
-
-// Public endpoint to get all doctors (no auth required for patients)
+// Routes accessible by both patients and doctors (like fetching the doctor list)
 router.get('/', doctorController.getAllDoctors);
-router.get('/:id', protect, doctorController.getDoctorById);
-router.put('/:id', protect, doctorController.updateDoctor);
-router.delete('/:id', protect, doctorController.deleteDoctor);
+
+// Other doctor-specific routes require 'doctor' role
+router.use(authorize('doctor'));
+
+// Patient Management
+router.get('/patients', doctorController.getDoctorPatients);
+router.delete('/patients/:id', doctorController.deleteDoctorPatient);
+
+// Appointment Management
+router.get('/appointments', doctorController.getDoctorAppointments);
+router.post('/appointments', doctorController.createDoctorAppointment);
+router.patch('/appointments/:id/status', doctorController.updateAppointmentStatus);
+
+// Prescription Management
+router.get('/prescriptions', doctorController.getDoctorPrescriptions);
+router.post('/prescriptions', doctorController.createDoctorPrescription);
+
+// Dashboard Stats
+router.get('/stats', doctorController.getDoctorStats);
+
+// Profile Management
+router.get('/profile', doctorController.getDoctorProfile);
+router.put('/profile', doctorController.updateDoctorProfile);
 
 module.exports = router;

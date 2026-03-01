@@ -40,7 +40,8 @@ api.interceptors.response.use(
 // Dashboard API
 export const dashboardAPI = {
     getStats: () => api.get('/dashboard/stats'),
-    getAppointmentData: () => api.get('/dashboard/appointment-data'),
+    // Fixed path to match backend route `/appointments-data`
+    getAppointmentData: () => api.get('/dashboard/appointments-data'),
     getRevenueData: () => api.get('/dashboard/revenue-data'),
     getRecentAppointments: () => api.get('/dashboard/recent-appointments'),
 };

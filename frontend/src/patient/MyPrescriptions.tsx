@@ -1,37 +1,57 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { patientService } from '../services/patientService';
 import {
   FileText,
-  Download,
   Eye,
   Calendar,
   User,
   Pill,
-  Clock,
   Brain,
-  Languages,
-  ChevronDown,
-  ChevronUp
+  Upload,
+  Trash2
 } from 'lucide-react';
-import { Card, CardContent } from '../common/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../common/ui/card';
 import { Button } from '../common/ui/button';
 import { Badge } from '../common/ui/badge';
 import { Input } from '../common/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../common/ui/select';
+import { toast } from 'react-hot-toast';
 import type { PatientUser } from './PatientPortal';
 
-interface MyPrescriptionsProps {
-  patient: PatientUser;
-}
-
-export function MyPrescriptions({ patient }: MyPrescriptionsProps) {
-  const prescriptions = (patient as any).prescriptions || [];
+export function MyPrescriptions({ patient }: { patient: PatientUser }) {
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [_loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAIExplanation, setShowAIExplanation] = useState<string | null>(null);
   const [aiContent, setAIContent] = useState<string | null>(null);
   const [aiLoading, setAILoading] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [_selectedLanguage] = useState('English');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    fetchPrescriptions();
+    fetchDocuments();
+  }, []);
+
+  const fetchPrescriptions = async () => {
+    try {
+      setPrescriptions((patient as any).prescriptions || []);
+    } catch (error) {
+      console.error('Error fetching prescriptions:', error);
+    }
+  };
+
+  const fetchDocuments = async () => {
+    try {
+      setLoading(true);
+      const data = await patientService.getMyDocuments();
+      setDocuments(data);
+    } catch (error) {
+      console.error('Error fetching documents:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPrescriptions = prescriptions.filter((rx: any) =>
     rx.prescription_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -47,7 +67,7 @@ export function MyPrescriptions({ patient }: MyPrescriptionsProps) {
     try {
       setAILoading(true);
       setShowAIExplanation(rxId);
-      const explanation = await patientService.explainPrescription(prescriptionText, selectedLanguage);
+      const explanation = await patientService.explainPrescription(prescriptionText, _selectedLanguage);
       setAIContent(explanation);
     } catch (error) {
       console.error('AI Explanation Error:', error);
@@ -70,174 +90,167 @@ export function MyPrescriptions({ patient }: MyPrescriptionsProps) {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-semibold text-gray-900 mb-1">My Prescriptions</h1>
-          <p className="text-sm text-gray-600">View, download, and get AI explanations of your prescriptions</p>
+          <h1 className="font-semibold text-gray-900 mb-1">My Prescriptions & Documents</h1>
+          <p className="text-sm text-gray-600">View your medical documents and get AI-powered insights</p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <FileText className="size-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Active Prescriptions</p>
-                <p className="font-semibold text-gray-900">{prescriptions.filter((rx: any) => rx.status === 'active').length || prescriptions.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Search */}
+          <div className="relative">
+            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <Input
+              placeholder="Search prescriptions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
 
-      {/* Search and Filter */}
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <Input
-            placeholder="Search by prescription ID, doctor, or diagnosis..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Prescriptions List */}
-      <div className="space-y-4">
-        {filteredPrescriptions.map((rx: any) => (
-          <Card key={rx.prescription_id} className="overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-gray-900">{rx.prescription_id}</h3>
-                    <Badge className={rx.status === 'active' ? 'bg-green-600' : 'bg-gray-600'}>
-                      {rx.status || 'Active'}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="size-4" />
-                      {new Date(rx.created_at).toLocaleDateString()}
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <User className="size-4" />
-                      {rx.doctor?.full_name || 'Clinic Doctor'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline">
-                    <Download className="size-4 mr-2" />
-                    Download
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => toggleExpand(rx.prescription_id)}
-                  >
-                    <Eye className="size-4 mr-2" />
-                    {expandedId === rx.prescription_id ? 'Hide' : 'View'}
-                    {expandedId === rx.prescription_id ? (
-                      <ChevronUp className="size-4 ml-2" />
-                    ) : (
-                      <ChevronDown className="size-4 ml-2" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-
-              {expandedId === rx.prescription_id && (
-                <div className="pt-4 border-t space-y-4">
-                  {/* Medicines */}
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <Pill className="size-4" />
-                      Prescribed Medicines
-                    </h4>
-                    <div className="space-y-2">
-                      {(rx.medicines || []).map((med: any, idx: number) => (
-                        <div key={idx} className="p-4 bg-gray-50 rounded-lg">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="font-medium text-gray-900 mb-1">{med.name || med.medicine_id}</p>
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600">
-                                <div>
-                                  <span className="font-medium">Dosage:</span> {med.dosage}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Frequency:</span> {med.frequency}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+          {/* Prescriptions List */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <Pill className="size-5 text-pink-600" />
+              Clinic Prescriptions
+            </h2>
+            {filteredPrescriptions.length === 0 ? (
+              <Card className="p-8 text-center border-dashed">
+                <p className="text-gray-500">No prescriptions found.</p>
+              </Card>
+            ) : (
+              filteredPrescriptions.map((rx: any) => (
+                <Card key={rx.prescription_id} className="overflow-hidden border-pink-50">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-gray-900">{rx.prescription_id}</h3>
+                          <Badge className={rx.status === 'active' ? 'bg-green-600' : 'bg-gray-600'}>
+                            {rx.status || 'Active'}
+                          </Badge>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* AI Explanation */}
-                  <div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleAIExplanation(rx.prescription_id, JSON.stringify(rx))}
-                      disabled={aiLoading}
-                      className="mb-3"
-                    >
-                      <Brain className="size-4 mr-2" />
-                      {aiLoading && showAIExplanation === rx.prescription_id ? 'Analyzing...' : (showAIExplanation === rx.prescription_id ? 'Hide' : 'Get') + ' AI Explanation'}
-                    </Button>
-
-                    {showAIExplanation === rx.prescription_id && (
-                      <div className="p-6 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-                        <div className="flex items-center gap-2 mb-4">
-                          <Brain className="size-5 text-purple-600" />
-                          <h4 className="font-semibold text-gray-900">AI-Powered Explanation</h4>
-                          <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
-                            <SelectTrigger className="w-[140px] h-8 ml-auto">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="English">
-                                <div className="flex items-center gap-2">
-                                  <Languages className="size-3" />
-                                  English
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="Hindi">
-                                <div className="flex items-center gap-2">
-                                  <Languages className="size-3" />
-                                  हिंदी
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div className="p-4 bg-white rounded-lg prose prose-sm max-w-none">
-                          {aiLoading ? (
-                            <div className="flex items-center justify-center p-8">
-                              <Clock className="size-6 animate-spin text-purple-600 mr-2" />
-                              <span>Generating personalized health insights...</span>
-                            </div>
-                          ) : (
-                            <div className="whitespace-pre-line text-gray-700">
-                              {aiContent}
-                            </div>
-                          )}
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1"><Calendar className="size-4" /> {new Date(rx.created_at).toLocaleDateString()}</span>
+                          <span className="flex items-center gap-1"><User className="size-4" /> {rx.doctor?.full_name || 'Clinic Doctor'}</span>
                         </div>
                       </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => toggleExpand(rx.prescription_id)}
+                      >
+                        {expandedId === rx.prescription_id ? 'Hide' : 'View Details'}
+                      </Button>
+                    </div>
+
+                    {expandedId === rx.prescription_id && (
+                      <div className="pt-4 border-t space-y-4">
+                        <div className="space-y-2">
+                          {(rx.medicines || []).map((med: any, idx: number) => (
+                            <div key={idx} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                              <div>
+                                <p className="font-bold text-gray-900">{med.name || med.medicine_id}</p>
+                                <p className="text-xs text-gray-600">{med.dosage} • {med.frequency}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleAIExplanation(rx.prescription_id, JSON.stringify(rx))}
+                          disabled={aiLoading}
+                          className="w-full bg-purple-50 text-purple-700 border-purple-200"
+                        >
+                          <Brain className="size-4 mr-2" />
+                          AI Explanation
+                        </Button>
+                        {showAIExplanation === rx.prescription_id && (
+                          <div className="p-4 bg-white border border-purple-100 rounded-lg text-sm text-gray-700 leading-relaxed">
+                            {aiLoading ? 'Analyzing...' : aiContent}
+                          </div>
+                        )}
+                      </div>
                     )}
-                  </div>
-                </div>
-              )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Documents Sidebar */}
+        <div className="space-y-6">
+          <Card className="border-pink-200 shadow-md">
+            <CardHeader className="bg-pink-50/50">
+              <CardTitle className="text-base flex items-center justify-between">
+                <span>Upload Documents</span>
+                <Upload className="size-4 text-pink-600" />
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="border-2 border-dashed border-pink-100 rounded-lg p-6 text-center">
+                <p className="text-xs text-gray-500 mb-3">Upload lab reports or external prescriptions</p>
+                <input
+                  type="file"
+                  id="file-upload"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        setLoading(true);
+                        await patientService.uploadDocument(file);
+                        toast.success('Document uploaded successfully');
+                        fetchDocuments();
+                      } catch (error: any) {
+                        toast.error(error.message || 'Failed to upload document');
+                      } finally {
+                        setLoading(false);
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  className="w-full bg-pink-600 hover:bg-pink-700"
+                  size="sm"
+                  onClick={() => document.getElementById('file-upload')?.click()}
+                  disabled={_loading}
+                >
+                  {_loading ? 'Uploading...' : 'Choose Files'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        ))}
+
+          <div className="space-y-4">
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">Storage</h3>
+            {documents.length === 0 ? (
+              <p className="text-xs text-gray-400 italic">No uploaded documents yet.</p>
+            ) : (
+              documents.map((doc) => (
+                <Card key={doc.id} className="border-gray-100 hover:border-pink-200 transition-colors">
+                  <CardContent className="p-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="size-8 bg-pink-50 rounded flex items-center justify-center">
+                        <FileText className="size-4 text-pink-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-900 truncate max-w-[120px]">{doc.file_name}</p>
+                        <p className="text-[10px] text-gray-500">{new Date(doc.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" className="size-7"><Eye className="size-3" /></Button>
+                      <Button variant="ghost" size="icon" className="size-7 text-red-400"><Trash2 className="size-3" /></Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

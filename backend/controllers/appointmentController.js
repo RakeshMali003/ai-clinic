@@ -58,7 +58,7 @@ exports.createAppointment = async (req, res, next) => {
         // Handle appointment_time - convert to full ISO-8601 datetime string for Prisma
         let appointmentTime = req.body.appointment_time;
         console.log('DEBUG: Raw appointment_time:', appointmentTime, 'Type:', typeof appointmentTime);
-        
+
         if (appointmentTime) {
             // If time is like "15:30:00", convert to full datetime string
             // Force conversion for any time-like string
@@ -68,7 +68,7 @@ exports.createAppointment = async (req, res, next) => {
                 const hours = parts[0]?.padStart(2, '0') || '00';
                 const minutes = parts[1]?.padStart(2, '0') || '00';
                 const seconds = parts[2]?.padStart(2, '0') || '00';
-                
+
                 appointmentTime = `1970-01-01T${hours}:${minutes}:${seconds}.000Z`;
                 console.log('DEBUG: Converted appointment_time:', appointmentTime);
             }
@@ -155,6 +155,95 @@ exports.getUpcomingAppointments = async (req, res, next) => {
     }
 };
 
+exports.getDoctorAppointments = async (req, res, next) => {
+    try {
+        const doctor_id = req.user.doctor_id || req.query.doctor_id;
+        if (!doctor_id) {
+            return ResponseHandler.badRequest(res, 'Doctor ID is required');
+        }
+
+        // Data isolation: ensure doctor can only see their own appointments
+        if (req.user.role === 'doctor' && req.user.doctor_id && req.user.doctor_id.toString() !== doctor_id.toString()) {
+            return ResponseHandler.forbidden(res, 'Access denied to other doctor\'s appointments');
+        }
+
+        const filters = {
+            doctor_id,
+            type: req.query.type, // 'all', 'in-clinic', 'online'
+            dateFilter: req.query.dateFilter, // 'today', 'yesterday', 'tomorrow', 'custom'
+            from: req.query.from,
+            to: req.query.to
+        };
+
+        const appointments = await Appointment.findDoctorAppointments(filters);
+        ResponseHandler.success(res, appointments, 'Doctor appointments retrieved');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.startAppointment = async (req, res, next) => {
+    try {
+        const { appointment_id } = req.body;
+        if (!appointment_id) return ResponseHandler.badRequest(res, 'Appointment ID required');
+
+        const appointment = await Appointment.findById(appointment_id);
+        if (!appointment) return ResponseHandler.notFound(res, 'Appointment not found');
+
+        // Check if doctor owns this appointment
+        if (appointment.doctor_id.toString() !== req.user.doctor_id.toString()) {
+            return ResponseHandler.forbidden(res, 'You are not authorized to start this appointment');
+        }
+
+        const updated = await Appointment.updateStatus(appointment_id, 'in_progress');
+        ResponseHandler.success(res, updated, 'Appointment started');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.updateStatusFromPost = async (req, res, next) => {
+    try {
+        const { appointment_id, status } = req.body;
+        if (!appointment_id || !status) return ResponseHandler.badRequest(res, 'Appointment ID and status required');
+
+        const updated = await Appointment.updateStatus(appointment_id, status);
+        ResponseHandler.updated(res, updated, 'Appointment status updated');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.rescheduleAppointment = async (req, res, next) => {
+    try {
+        const { appointment_id, appointment_date, appointment_time } = req.body;
+        if (!appointment_id || !appointment_date || !appointment_time) {
+            return ResponseHandler.badRequest(res, 'Missing reschedule parameters');
+        }
+
+        const updateData = {
+            appointment_date: new Date(appointment_date),
+            appointment_time: appointment_time,
+            status: 'scheduled'
+        };
+
+        const updated = await Appointment.update(appointment_id, updateData);
+        ResponseHandler.updated(res, updated, 'Appointment rescheduled');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.deleteAppointment = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        await Appointment.delete(id);
+        ResponseHandler.success(res, null, 'Appointment deleted');
+    } catch (error) {
+        next(error);
+    }
+};
+
 exports.updateStatus = async (req, res, next) => {
     try {
         const { status } = req.body;
@@ -162,9 +251,9 @@ exports.updateStatus = async (req, res, next) => {
 
         const updated = await Appointment.updateStatus(req.params.id, status);
         if (!updated) {
-            return ResponseHandler.notFound(res, 'Rendezvous target lost');
+            return ResponseHandler.notFound(res, 'Appointment not found');
         }
-        ResponseHandler.updated(res, updated, 'Encounter status recalibrated');
+        ResponseHandler.updated(res, updated, 'Appointment status updated');
     } catch (error) {
         next(error);
     }
@@ -173,18 +262,11 @@ exports.updateStatus = async (req, res, next) => {
 exports.getBookedSlots = async (req, res, next) => {
     try {
         const { doctorId, date } = req.params;
-
-        console.log('getBookedSlots controller called with:', { doctorId, date });
-
-        if (!doctorId || !date) {
-            return ResponseHandler.badRequest(res, 'Doctor ID and date are required');
-        }
+        if (!doctorId || !date) return ResponseHandler.badRequest(res, 'Doctor ID and date are required');
 
         const bookedSlots = await Appointment.getBookedSlots(doctorId, date);
-        console.log('Controller returning booked slots:', bookedSlots);
         ResponseHandler.success(res, { bookedSlots }, 'Booked time slots retrieved successfully');
     } catch (error) {
-        console.error('Error in getBookedSlots controller:', error);
         next(error);
     }
 };

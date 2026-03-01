@@ -1,91 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { UserRole } from '../common/types';
 import { Calendar, Clock, Plus, Filter, ChevronLeft, ChevronRight, User, Sparkles } from 'lucide-react';
+import { clinicService } from '../services/clinicService';
+import { Toaster, toast } from 'sonner';
 
 interface AppointmentManagementProps {
   userRole: UserRole;
 }
 
 interface Appointment {
-  id: string;
-  patientName: string;
-  patientId: string;
-  doctorName: string;
-  date: string;
-  time: string;
-  type: 'consultation' | 'follow-up' | 'checkup';
-  status: 'scheduled' | 'waiting' | 'in-progress' | 'completed' | 'cancelled';
-  tokenNumber?: number;
+  appointment_id: string;
+  patient_id: string;
+  doctor_id: number;
+  appointment_date: string;
+  appointment_time: string;
+  type: string;
+  status: string;
+  patient?: any;
+  doctor?: any;
 }
 
-const mockAppointments: Appointment[] = [
-  {
-    id: 'A001',
-    patientName: 'John Smith',
-    patientId: 'P001',
-    doctorName: 'Dr. Sarah Johnson',
-    date: '2025-01-12',
-    time: '09:30',
-    type: 'consultation',
-    status: 'scheduled',
-    tokenNumber: 1
-  },
-  {
-    id: 'A002',
-    patientName: 'Emily Davis',
-    patientId: 'P002',
-    doctorName: 'Dr. Michael Chen',
-    date: '2025-01-12',
-    time: '10:00',
-    type: 'follow-up',
-    status: 'waiting',
-    tokenNumber: 2
-  },
-  {
-    id: 'A003',
-    patientName: 'Robert Brown',
-    patientId: 'P003',
-    doctorName: 'Dr. Sarah Johnson',
-    date: '2025-01-12',
-    time: '10:30',
-    type: 'checkup',
-    status: 'in-progress',
-    tokenNumber: 3
-  },
-  {
-    id: 'A004',
-    patientName: 'Lisa Anderson',
-    patientId: 'P004',
-    doctorName: 'Dr. Michael Chen',
-    date: '2025-01-12',
-    time: '11:00',
-    type: 'consultation',
-    status: 'scheduled',
-    tokenNumber: 4
-  },
-  {
-    id: 'A005',
-    patientName: 'David Wilson',
-    patientId: 'P005',
-    doctorName: 'Dr. Sarah Johnson',
-    date: '2025-01-12',
-    time: '11:30',
-    type: 'follow-up',
-    status: 'scheduled',
-    tokenNumber: 5
-  },
-  {
-    id: 'A006',
-    patientName: 'Sarah Miller',
-    patientId: 'P006',
-    doctorName: 'Dr. Michael Chen',
-    date: '2025-01-12',
-    time: '14:00',
-    type: 'consultation',
-    status: 'scheduled',
-    tokenNumber: 6
-  },
-];
+// Mocks removed
 
 const timeSlots = [
   '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -93,15 +28,67 @@ const timeSlots = [
 ];
 
 export function AppointmentManagement({ userRole }: AppointmentManagementProps) {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [patients, setPatients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showAddModal, setShowAddModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  const todaysAppointments = mockAppointments.filter(apt => apt.date === '2025-01-12');
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [aptData, docData, patData] = await Promise.all([
+        clinicService.getAppointments(),
+        clinicService.getDoctors(),
+        clinicService.getAllPatients()
+      ]);
+      setAppointments(aptData);
+      setDoctors(docData);
+      setPatients(patData);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load schedule');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBookAppointment = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      patient_id: formData.get('patient_id'),
+      doctor_id: formData.get('doctor_id'),
+      appointment_date: formData.get('date'),
+      appointment_time: formData.get('time'),
+      type: formData.get('type'),
+      reason: formData.get('reason')
+    };
+
+    try {
+      const success = await clinicService.createAppointment(data);
+      if (success) {
+        toast.success('Appointment booked successfully');
+        setShowAddModal(false);
+        fetchData();
+      } else {
+        toast.error('Failed to book appointment');
+      }
+    } catch (error) {
+      toast.error('Error booking appointment');
+    }
+  };
+
   const filteredAppointments = filterStatus === 'all'
-    ? todaysAppointments
-    : todaysAppointments.filter(apt => apt.status === filterStatus);
+    ? appointments
+    : appointments.filter(apt => apt.status === filterStatus);
 
   return (
     <div className="space-y-6">
@@ -165,8 +152,8 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
                 key={status}
                 onClick={() => setFilterStatus(status)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filterStatus === status
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
                 {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -183,39 +170,39 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Calendar className="w-5 h-5 text-gray-600" />
-                <span className="font-medium text-gray-900">Today's Appointments - January 12, 2026</span>
+                <span className="font-medium text-gray-900">Clinic Schedule - {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
               </div>
               <span className="text-sm text-gray-600">{filteredAppointments.length} appointments</span>
             </div>
           </div>
 
           <div className="divide-y divide-gray-200">
-            {filteredAppointments.map((appointment) => (
-              <div key={appointment.id} className="p-4 hover:bg-gray-50 transition-colors">
+            {filteredAppointments.length > 0 ? filteredAppointments.map((appointment, idx) => (
+              <div key={appointment.appointment_id} className="p-4 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="bg-blue-100 rounded-lg p-3 text-center min-w-[60px]">
-                      <p className="text-xs text-blue-600 font-medium">Token</p>
-                      <p className="text-xl font-bold text-blue-700">{appointment.tokenNumber}</p>
+                      <p className="text-xs text-blue-600 font-medium">Spot</p>
+                      <p className="text-xl font-bold text-blue-700">{idx + 1}</p>
                     </div>
 
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-gray-900">{appointment.patientName}</h3>
-                        <span className="text-xs text-gray-500">({appointment.patientId})</span>
+                        <h3 className="font-semibold text-gray-900">{appointment.patient?.full_name || 'Anonymous'}</h3>
+                        <span className="text-xs text-gray-500">({appointment.patient_id})</span>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-gray-600">
                         <span className="flex items-center gap-1">
                           <User className="w-4 h-4" />
-                          {appointment.doctorName}
+                          {appointment.doctor?.full_name || 'Any Doctor'}
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          {appointment.time}
+                          {new Date(appointment.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${appointment.type === 'consultation' ? 'bg-purple-100 text-purple-700' :
-                            appointment.type === 'follow-up' ? 'bg-green-100 text-green-700' :
-                              'bg-blue-100 text-blue-700'
+                          appointment.type === 'follow-up' ? 'bg-green-100 text-green-700' :
+                            'bg-blue-100 text-blue-700'
                           }`}>
                           {appointment.type}
                         </span>
@@ -225,10 +212,10 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
 
                   <div className="flex items-center gap-3">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
-                        appointment.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                          appointment.status === 'waiting' ? 'bg-yellow-100 text-yellow-700' :
-                            appointment.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
-                              'bg-red-100 text-red-700'
+                      appointment.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                        appointment.status === 'waiting' ? 'bg-yellow-100 text-yellow-700' :
+                          appointment.status === 'scheduled' ? 'bg-purple-100 text-purple-700' :
+                            'bg-red-100 text-red-700'
                       }`}>
                       {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1).replace('-', ' ')}
                     </span>
@@ -241,7 +228,11 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
                   </div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="p-12 text-center text-gray-500">
+                {loading ? 'Refreshing medical pulse...' : 'No appointments synchronized for this period'}
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -265,29 +256,29 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-            {['Dr. Sarah Johnson', 'Dr. Michael Chen'].map(doctor => (
-              <div key={doctor}>
-                <h3 className="font-semibold text-gray-900 mb-3">{doctor}</h3>
+            {doctors.map(doctor => (
+              <div key={doctor.id}>
+                <h3 className="font-semibold text-gray-900 mb-3">{doctor.full_name}</h3>
                 <div className="space-y-2">
                   {timeSlots.map(slot => {
-                    const appointment = mockAppointments.find(
-                      apt => apt.doctorName === doctor && apt.time === slot
+                    const appointment = appointments.find(
+                      apt => apt.doctor_id === doctor.id && new Date(apt.appointment_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) === slot
                     );
 
                     return (
                       <div
                         key={slot}
                         className={`p-3 rounded-lg border transition-colors ${appointment
-                            ? 'border-blue-300 bg-blue-50 cursor-pointer hover:bg-blue-100'
-                            : 'border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100'
+                          ? 'border-blue-300 bg-blue-50 cursor-pointer hover:bg-blue-100'
+                          : 'border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100'
                           }`}
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-gray-700">{slot}</span>
                           {appointment ? (
                             <div className="text-sm">
-                              <p className="font-medium text-gray-900">{appointment.patientName}</p>
-                              <p className="text-xs text-gray-600">Token #{appointment.tokenNumber}</p>
+                              <p className="font-medium text-gray-900">{appointment.patient?.full_name}</p>
+                              <p className="text-xs text-gray-600">{appointment.status}</p>
                             </div>
                           ) : (
                             <span className="text-xs text-gray-500">Available</span>
@@ -320,44 +311,48 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
             </div>
 
             <div className="p-6">
-              <form className="space-y-4">
+              <Toaster />
+              <form className="space-y-4" onSubmit={handleBookAppointment}>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Patient *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Select Patient</option>
-                      <option>John Smith (P001)</option>
-                      <option>Emily Davis (P002)</option>
-                      <option>Robert Brown (P003)</option>
+                    <select name="patient_id" required className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <option value="">Select Patient</option>
+                      {patients.map(p => (
+                        <option key={p.patient_id} value={p.patient_id}>
+                          {p.full_name} ({p.patient_id.slice(0, 8)})
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Doctor *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Select Doctor</option>
-                      <option>Dr. Sarah Johnson</option>
-                      <option>Dr. Michael Chen</option>
+                    <select name="doctor_id" required className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <option value="">Select Doctor</option>
+                      {doctors.map(d => (
+                        <option key={d.id} value={d.id}>{d.full_name}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                    <input name="date" type="date" required className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Select Time</option>
+                    <select name="time" required className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <option value="">Select Time</option>
                       {timeSlots.map(slot => (
-                        <option key={slot}>{slot}</option>
+                        <option key={slot} value={slot}>{slot}</option>
                       ))}
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Appointment Type *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option>Consultation</option>
-                      <option>Follow-up</option>
-                      <option>Checkup</option>
+                    <select name="type" required className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <option value="consultation">Consultation</option>
+                      <option value="follow-up">Follow-up</option>
+                      <option value="checkup">Checkup</option>
                     </select>
                   </div>
                   <div>
@@ -369,8 +364,8 @@ export function AppointmentManagement({ userRole }: AppointmentManagementProps) 
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={2}></textarea>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Visit</label>
+                  <textarea name="reason" className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={2}></textarea>
                 </div>
 
                 <div className="flex gap-3 pt-4">
