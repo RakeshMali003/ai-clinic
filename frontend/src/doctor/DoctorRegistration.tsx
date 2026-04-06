@@ -1001,7 +1001,7 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-6 transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -1012,7 +1012,6 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
         {/* Steps */}
         <div className="flex items-center justify-between mb-8">
           {steps.map((step, index) => {
-            const Icon = step.icon;
             const isActive = currentStep === step.id;
             const isCompleted = currentStep > step.id;
 

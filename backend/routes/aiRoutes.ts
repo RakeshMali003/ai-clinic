@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { handleTTS, handleChat, analyzeSymptoms, analyzeDocument, scanPrescription } from '../controllers/genkitController';
+import { handleTTS, handleChat, analyzeSymptoms, analyzeDocument, scanPrescription, analyzeSentiment } from '../controllers/genkitController';
 
 const router = Router();
 
@@ -23,6 +23,13 @@ router.post('/analyze-document', analyzeDocument);
  * @access  Public
  */
 router.post('/scan-prescription', scanPrescription);
+
+/**
+ * @route   POST /api/ai/analyze-sentiment
+ * @desc    Analyze patient feedback sentiment
+ * @access  Public
+ */
+router.post('/analyze-sentiment', analyzeSentiment);
 
 /**
  * @route   POST /api/ai/tts

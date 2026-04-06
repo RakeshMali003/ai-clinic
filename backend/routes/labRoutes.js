@@ -15,8 +15,23 @@ router.get('/dashboard-stats', authorize('lab'), labController.getDashboardStats
 router.get('/inventory', authorize('lab'), labController.getInventory);
 router.post('/inventory', authorize('lab'), labController.saveInventory);
 router.get('/staff', authorize('lab'), labController.getStaff);
+router.post('/staff', authorize('lab'), labController.onboardStaff);
+router.get('/shifts', authorize('lab'), labController.getLabShifts);
+router.post('/shifts', authorize('lab'), labController.createLabShift);
 router.get('/bookings', authorize('lab'), labController.getLabBookings);
 router.get('/connections', authorize('lab'), labController.getClinicConnections);
+router.get('/partners', authorize('lab'), labController.getPotentialPartners);
+router.get('/mapping-reports', authorize('lab'), labController.getMappingReports);
+router.get('/billing/report', authorize('lab'), labController.getBillingReport);
+router.post('/billing/invoice', authorize('lab'), labController.createManualInvoice);
+router.get('/billing/archive', authorize('lab'), labController.getBillingArchive);
+router.get('/reviews', authorize('lab'), labController.getReviews);
+router.get('/reviews/export', authorize('lab'), labController.exportReviews);
+router.put('/reviews/:id/helpful', authorize('lab'), labController.markReviewHelpful);
+router.put('/reviews/:id/flag', authorize('lab'), labController.flagReview);
+router.get('/reviews/archive', authorize('lab'), labController.getReviewArchives);
+router.get('/scheduling', authorize('lab'), labController.getScheduling);
+router.put('/scheduling', authorize('lab'), labController.updateScheduling);
 
 router.route('/')
     .get(labController.getOrders)

@@ -347,3 +347,28 @@ exports.getNotifications = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.sendNotification = async (req, res, next) => {
+    try {
+        const clinicId = req.user.clinic_id;
+        const { channel, category, recipient, title, message } = req.body;
+
+        // In a real system, we'd trigger SMS/Email gateways here.
+        // For now, we record it in the unified notifications table.
+        
+        const newNotification = await prisma.notifications_unified.create({
+            data: {
+                channel: channel.toLowerCase(),
+                notification_type: category.toUpperCase(),
+                title: title,
+                message: message,
+                status: 'sent', // Assume success for demo
+                created_at: new Date()
+            }
+        });
+
+        ResponseHandler.success(res, newNotification, 'Communication broadcast initiated successfully.');
+    } catch (error) {
+        next(error);
+    }
+};

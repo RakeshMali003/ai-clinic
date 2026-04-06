@@ -1,4 +1,5 @@
 import { User } from '../common/types';
+import { ThemeToggle } from '../common/ThemeToggle';
 import {
     Users,
     Activity,
@@ -42,9 +43,12 @@ export function NurseDashboard({ user }: NurseDashboardProps) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Nurse Dashboard</h1>
-                <p className="text-gray-600">Patient care and vital monitoring</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Nurse Dashboard</h1>
+                    <p className="text-gray-600">Patient care and vital monitoring</p>
+                </div>
+                <ThemeToggle />
             </div>
 
             {/* Stats Grid - ROLE: Nurse can view patient care stats */}

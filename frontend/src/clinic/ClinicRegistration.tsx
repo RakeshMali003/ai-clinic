@@ -113,7 +113,6 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
   const [showCustomLanguageInput, setShowCustomLanguageInput] = useState(false);
   const [customSpecialization, setCustomSpecialization] = useState('');
   const [showCustomSpecializationInput, setShowCustomSpecializationInput] = useState(false);
-  const [otp, setOtp] = useState('');
 
   const handleFileChange = (key: string, e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -347,24 +346,6 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp) {
-      toast.error('Please enter OTP');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await authService.verifyOtp(formData.email, otp);
-      toast.success('Email verified successfully! Registration complete.');
-      onBack();
-    } catch (error: any) {
-      console.error('OTP verification error:', error);
-      toast.error(error.message || 'Failed to verify OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const toggleSelection = (item: string, selected: string[], setSelected: (items: string[]) => void) => {
     if (selected.includes(item)) {
@@ -1093,7 +1074,7 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-6 transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -1102,9 +1083,8 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
         </div>
 
         {/* Steps */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-8 overflow-x-auto">
           {steps.map((step, index) => {
-            const Icon = step.icon;
             const isActive = currentStep === step.id;
             const isCompleted = currentStep > step.id;
 

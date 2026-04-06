@@ -24,6 +24,14 @@ export function Notifications({ userRole }: NotificationsProps) {
   const [showSendModal, setShowSendModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [sending, setSending] = useState(false);
+  const [formData, setFormData] = useState({
+    channel: 'SMS',
+    category: 'Appointment Reminder',
+    recipient: 'Select Patient(s)',
+    title: '',
+    message: ''
+  });
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -50,6 +58,50 @@ export function Notifications({ userRole }: NotificationsProps) {
     };
     fetchNotifications();
   }, []);
+
+  const handleSendNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title || !formData.message) {
+      alert('Please fill in mandatory fields (Title and Message)');
+      return;
+    }
+
+    try {
+      setSending(true);
+      const success = await clinicService.sendNotification(formData);
+      if (success) {
+        alert('Communication broadcast initiated successfully! All target recipients will be notified.');
+        setShowSendModal(false);
+        setFormData({
+            channel: 'SMS',
+            category: 'Appointment Reminder',
+            recipient: 'Select Patient(s)',
+            title: '',
+            message: ''
+        });
+        // Refresh notifications list
+        const data = await clinicService.getNotifications();
+        const mapped: Notification[] = data.map((n: any) => ({
+            id: n.notification_id || String(n.id),
+            type: n.channel || 'in-app',
+            title: n.title || 'Notification',
+            message: n.message || '',
+            recipient: 'Multi-recipient',
+            timestamp: new Date(n.created_at).toLocaleString(),
+            status: n.status || 'sent',
+            category: n.notification_type || 'announcement'
+          }));
+        setNotifications(mapped);
+      } else {
+        alert('Broadcast failure: Neural link could not be established.');
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      alert('Failed to send notification.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const filteredNotifications = notifications.filter(notif => {
     const matchesType = filterType === 'all' || notif.type === filterType;
@@ -302,11 +354,15 @@ export function Notifications({ userRole }: NotificationsProps) {
             </div>
 
             <div className="p-6">
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSendNotification}>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Channel *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <select 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        value={formData.channel}
+                        onChange={(e) => setFormData({ ...formData, channel: e.target.value })}
+                    >
                       <option>SMS</option>
                       <option>Email</option>
                       <option>WhatsApp</option>
@@ -315,7 +371,11 @@ export function Notifications({ userRole }: NotificationsProps) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <select 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                    >
                       <option>Appointment Reminder</option>
                       <option>Payment Receipt</option>
                       <option>Announcement</option>
@@ -326,7 +386,11 @@ export function Notifications({ userRole }: NotificationsProps) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Recipients *</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <select 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    value={formData.recipient}
+                    onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
+                  >
                     <option>Select Patient(s)</option>
                     <option>All Patients</option>
                     <option>Today's Appointments</option>
@@ -341,6 +405,8 @@ export function Notifications({ userRole }: NotificationsProps) {
                     type="text"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     placeholder="Enter notification title"
+                    value={formData.title}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   />
                 </div>
 
@@ -350,21 +416,25 @@ export function Notifications({ userRole }: NotificationsProps) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     rows={4}
                     placeholder="Enter your message here..."
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                   ></textarea>
                   <p className="text-xs text-gray-500 mt-1">Available variables: {'{patient_name}'}, {'{appointment_date}'}, {'{doctor_name}'}</p>
                 </div>
 
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-900">
-                    <strong>Preview:</strong> This notification will be sent via SMS to 24 patients.
+                    <strong>Preview:</strong> This notification will be sent via {formData.channel} to localized regional clusters.
                   </p>
                 </div>
 
                 <div className="flex gap-3 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    disabled={sending}
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
+                    {sending && <Loader2 className="w-4 h-4 animate-spin" />}
                     Send Now
                   </button>
                   <button

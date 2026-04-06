@@ -17,11 +17,10 @@ import { ThemeToggle } from "./ThemeToggle";
 
 interface NavigationProps {
   onNavigate: (view: PageView) => void;
-  onGetStarted?: () => void;
   cartCount?: number;
 }
 
-export function Navigation({ onNavigate, onGetStarted, cartCount = 0 }: NavigationProps) {
+export function Navigation({ onNavigate, cartCount = 0 }: NavigationProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const mainMenuItems = [
@@ -93,7 +92,8 @@ export function Navigation({ onNavigate, onGetStarted, cartCount = 0 }: Navigati
             <Button
               variant="ghost"
               size="icon"
-              className="hidden sm:flex text-foreground"
+              className="hidden sm:flex text-foreground relative"
+              onClick={() => onNavigate("cart")}
             >
               <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />
               {cartCount > 0 && (
@@ -105,7 +105,7 @@ export function Navigation({ onNavigate, onGetStarted, cartCount = 0 }: Navigati
             <Button
               variant="ghost"
               onClick={() => onNavigate("login")}
-              className="hidden sm:flex"
+              className="hidden sm:flex text-foreground font-semibold"
             >
               Login
             </Button>
@@ -119,6 +119,24 @@ export function Navigation({ onNavigate, onGetStarted, cartCount = 0 }: Navigati
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </Button>
           </div>
+        </div>
+
+        {/* Desktop Subtle Category Sub-navigation */}
+        <div className="hidden lg:flex items-center justify-center gap-6 py-2 border-t border-border/40">
+          {categoryItems.map((item) => (
+            <button
+              key={item.view}
+              onClick={() => onNavigate(item.view)}
+              className="flex items-center gap-2 group cursor-pointer transition-colors"
+            >
+              <div className="p-1 rounded-md bg-transparent group-hover:bg-primary/10 text-muted-foreground group-hover:text-primary transition-colors">
+                <item.icon className="w-4 h-4" />
+              </div>
+              <span className="text-xs font-medium text-foreground/70 group-hover:text-foreground transition-colors">
+                {item.label}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* Mobile Menu */}
@@ -188,27 +206,6 @@ export function Navigation({ onNavigate, onGetStarted, cartCount = 0 }: Navigati
           </div>
         )}
 
-        {/* Category Navigation */}
-        <div className="border-t border-border">
-          <div className="flex items-center gap-4 sm:gap-6 py-2 sm:py-3 overflow-x-auto">
-            {categoryItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.view}
-                  onClick={() => onNavigate(item.view)}
-                  className="relative group flex items-center gap-2 whitespace-nowrap px-3 sm:px-4 py-2 rounded-xl transition-all duration-300 ease-out hover:scale-105"
-                >
-                  <div className="relative z-10 flex items-center gap-2">
-                    <Icon className="w-4 h-4 text-foreground/70 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors duration-300 group-hover:scale-110" />
-                    <span className="text-xs sm:text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors duration-300">{item.label}</span>
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 to-purple-600/20 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </nav>
   );

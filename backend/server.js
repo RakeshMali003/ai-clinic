@@ -34,6 +34,7 @@ const prescriptionRoutes = require('./routes/prescriptionRoutes');
 const aiRoutes = require('./routes/aiRoutes').default;
 const clinicAiRoutes = require('./routes/clinicAiRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 require('./ai/flows/index');
 
 const app = express();
@@ -90,6 +91,7 @@ app.use('/api/devices', deviceRoutes);
 app.use('/api/labs', labRoutes);
 app.use('/api/lab', labRoutes); // Also mount at /api/lab for frontend compatibility
 app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/clinic-ai', clinicAiRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -103,6 +105,10 @@ app.use('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+const { checkUpcomingAppointments } = require('./utils/reminderJob');
+// Check for upcoming appointment alerts every 5 minutes
+setInterval(checkUpcomingAppointments, 5 * 60 * 1000);
 
 app.listen(PORT, () => {
     console.log(`🚀 Anti-Gravity Healthcare Server running on port ${PORT}`);

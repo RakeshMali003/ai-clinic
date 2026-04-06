@@ -12,12 +12,13 @@ import { Pricing } from "../public/Pricing";
 import { AIFeatures } from "../public/AIFeatures";
 import { Healthcare } from "../public/Healthcare";
 import { MedicineEnhanced as Medicine } from "../public/MedicineEnhanced";
-import { TelemedicineConsultationEnhanced as DoctorConsult } from "../doctor/TelemedicineConsultationEnhanced";
+import { DoctorDirectory as DoctorConsult } from "../public/DoctorDirectory";
 import { LabTests } from "../public/LabTests";
 import { Plus } from "../public/Plus";
 import { HealthInsights } from "../public/HealthInsights";
 import { Offers } from "../public/Offers";
 import { Contact } from "../public/Contact";
+import { CartPage } from "../patient/CartPage";
 
 // Registration Components
 import { ClinicRegistration } from "../clinic/ClinicRegistration";
@@ -133,12 +134,13 @@ export const AppRouter: React.FC = () => {
     if (currentView === "ai-features") return <AIFeatures onNavigate={navigateTo} />;
     if (currentView === "medicine") return <Medicine onNavigate={navigateTo} user={user} onLoginRequired={handleLoginRequired} />;
     if (currentView === "healthcare") return <Healthcare onNavigate={navigateTo} />;
-    if (currentView === "doctor-consult") return <DoctorConsult onClose={() => navigateTo("dashboard")} />;
+    if (currentView === "doctor-consult") return <DoctorConsult onNavigate={navigateTo} user={user} onLoginRequired={handleLoginRequired} onBookAppointment={() => navigateTo("patient-book-appointment")} />;
     if (currentView === "lab-tests") return <LabTests onNavigate={navigateTo} />;
     if (currentView === "plus") return <Plus onNavigate={navigateTo} />;
     if (currentView === "health-insights") return <HealthInsights onNavigate={navigateTo} />;
     if (currentView === "offers") return <Offers onNavigate={navigateTo} />;
     if (currentView === "contact") return <Contact onNavigate={navigateTo} />;
+    if (currentView === "cart") return <CartPage patient={user as any} onNavigate={navigateTo} />;
 
     // Patient Secured Views
     if (currentView === "patient-book-appointment") return <BookAppointment patient={user as any} />;

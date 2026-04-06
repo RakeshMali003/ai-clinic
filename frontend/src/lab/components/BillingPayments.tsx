@@ -82,10 +82,31 @@ export function BillingPayments() {
                     <p className="text-gray-600 font-medium">Manage earnings, generate invoices, and track diagnostic transaction history</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" className="flex items-center gap-2 h-11 border-blue-100 text-blue-600 bg-blue-50/50 hover:bg-blue-50">
+                    <Button 
+                        variant="outline" 
+                        onClick={async () => {
+                            try {
+                                const res = await labService.getBillingReport();
+                                if (res.success) alert(`Success: ${res.data.summary} generated at ${new Date(res.data.generated_at).toLocaleString()}`);
+                            } catch (e) { alert('Report generation error'); }
+                        }}
+                        className="flex items-center gap-2 h-11 border-blue-100 text-blue-600 bg-blue-50/50 hover:bg-blue-600 hover:text-white transition-all shadow-none"
+                    >
                         <Download className="w-4 h-4" /> Settlement Report
                     </Button>
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center gap-2 h-11 px-6 shadow-blue-100 italic font-black uppercase tracking-widest text-[10px]">
+                    <Button 
+                        onClick={async () => {
+                            try {
+                                const res = await labService.createManualInvoice({
+                                    patient_name: "Manual Client",
+                                    amount: 1500,
+                                    test: "Diagnostic Summary"
+                                });
+                                if (res.success) alert(`Project Protocol Initialized: Draft Invoice #${res.data.created_at.toString().slice(0,8)} created.`);
+                            } catch (e) { alert('Draft initialization failed'); }
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white shadow-xl shadow-blue-100 flex items-center gap-2 h-11 px-6 active:scale-95 transition-all italic font-black uppercase tracking-widest text-[10px]"
+                    >
                         <Plus className="w-4 h-4" /> Create Manual Invoice
                     </Button>
                 </div>
@@ -99,9 +120,9 @@ export function BillingPayments() {
                     { label: 'Settled to Banks', value: stats.settled, icon: BadgeCheck, color: 'green', change: 'Audit Ready' },
                     { label: 'Transaction Pipeline', value: stats.count.toString(), icon: Activity, color: 'purple', change: 'Active Records' },
                 ].map((stat, idx) => (
-                    <Card key={idx} className="bg-white border-blue-50/50 hover:shadow-xl transition-all group overflow-hidden">
-                        <CardContent className="p-5 flex items-center justify-between">
-                            <div className="space-y-1 text-left">
+                    <Card key={idx} className="bg-white border-blue-50/50 hover:shadow-2xl hover:-translate-y-1 transition-all group overflow-hidden">
+                        <CardContent className="p-5 flex items-center justify-between relative">
+                            <div className="space-y-1 text-left relative z-10">
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none font-mono mb-1">{stat.label}</p>
                                 <h3 className="text-2xl font-black text-gray-900 italic transform transition-transform group-hover:scale-110 origin-left leading-none">{stat.value}</h3>
                                 <div className="flex items-center gap-1 mt-1">
@@ -109,9 +130,19 @@ export function BillingPayments() {
                                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-tight italic">{stat.change}</p>
                                 </div>
                             </div>
-                            <div className={`w-12 h-12 rounded-full bg-${stat.color}-50 flex items-center justify-center text-${stat.color}-600 grow-0 shrink-0 shadow-inner group-hover:rotate-12 transition-transform`}>
-                                <stat.icon className="w-5 h-5" />
+                            <div className={`w-14 h-14 rounded-2xl bg-${stat.color}-50 flex items-center justify-center text-${stat.color}-600 grow-0 shrink-0 shadow-inner group-hover:rotate-12 transition-all relative z-10`}>
+                                <stat.icon className="w-6 h-6" />
+                                {stat.label === 'Pending Collections' && (
+                                    <div className="absolute -top-1 -right-1 flex">
+                                        <div className="w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+                                    </div>
+                                )}
                             </div>
+                            {stat.label === 'Pending Collections' && (
+                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-50">
+                                    <div className="h-full bg-orange-400 animate-pulse" style={{ width: '65%' }} />
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 ))}
@@ -201,7 +232,18 @@ export function BillingPayments() {
                         </div>
                     </CardContent>
                     <div className="p-4 bg-gray-50 border-t flex justify-end">
-                        <Button variant="ghost" size="sm" className="text-blue-600 font-black uppercase tracking-widest text-[9px] flex items-center gap-2 hover:bg-transparent p-0 italic">
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={async () => {
+                                try {
+                                    const res = await labService.getBillingArchive();
+                                    if (res.success) alert(`Connection Established: ${res.data.length} historical records retrieved from the Archive Node.`);
+                                    else alert('Archive handshake failed');
+                                } catch (e) { alert('Critical Archive failure'); }
+                            }}
+                            className="text-blue-600 font-black uppercase tracking-widest text-[9px] flex items-center gap-2 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-xl transition-all italic"
+                        >
                             Access Full Transaction History <ArrowUpRight className="w-4 h-4" />
                         </Button>
                     </div>

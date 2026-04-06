@@ -52,4 +52,8 @@ router.post('/forgot-password', authController.forgotPassword);
 // Reset Password
 router.post('/reset-password', authController.resetPassword);
 
+// Mobile OTP login
+router.post('/send-otp-mobile', authController.sendOtpMobile);
+router.post('/login-otp-mobile', authController.loginOtpMobile);
+
 module.exports = router;

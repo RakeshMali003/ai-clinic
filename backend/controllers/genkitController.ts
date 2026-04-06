@@ -25,6 +25,17 @@ const PrescriptionScanOutputSchema = z.object({
     medicines: z.array(z.string()).describe("List of medicine names extracted from the prescription."),
 });
 
+// ----------------------------------------------------------------------------
+// 1.6. Sentiment Analysis
+// ----------------------------------------------------------------------------
+
+const SentimentAnalysisSchema = z.object({
+    sentiment: z.enum(['Positive', 'Neutral', 'Negative']),
+    score: z.number().min(0).max(100),
+    key_topics: z.array(z.string()),
+    summary: z.string(),
+    actionable_improvements: z.array(z.string()),
+});
 
 export const analyzeSymptoms = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -48,6 +59,7 @@ export const analyzeSymptoms = async (req: Request, res: Response, next: NextFun
 
         (ResponseHandler as any).success(res, output, 'Symptoms analyzed successfully');
     } catch (error) {
+        console.error('Symptom analysis failed:', error);
         next(error);
     }
 };
@@ -82,7 +94,6 @@ export const analyzeDocument = async (req: Request, res: Response, next: NextFun
             parts.push({ text: `Document text extracted:\n${documentText}` });
         }
         if (fileDataUri) {
-            // Note: Data URI includes 'data:image/jpeg;base64,...'
             parts.push({ media: { url: fileDataUri } });
         }
 
@@ -93,6 +104,7 @@ export const analyzeDocument = async (req: Request, res: Response, next: NextFun
 
         (ResponseHandler as any).success(res, output, 'Medical document analyzed successfully');
     } catch (error) {
+        console.error('Document analysis failed:', error);
         next(error);
     }
 };
@@ -106,17 +118,8 @@ export const scanPrescription = async (req: Request, res: Response, next: NextFu
         }
 
         const systemPrompt = `You are a world-class pharmacist and expert in medical calligraphy and prescription decoding. 
-        Your task is to scan the provided image (which could be a handwritten or typed prescription) and extract every single medicine or pharmaceutical product mentioned.
-
-        Guidelines:
-        1. Be extremely thorough. Even if a word is partially legible, try to identify if it's a known medicine using your vast clinical database.
-        2. Look for common medicine formats: Name (e.g. Amoxicillin), Strength (e.g. 500mg), Form (e.g. Tab/Cap), and Frequency (e.g. TDS/1-0-1).
-        3. Extract the full product name including strength if possible (e.g., "Paracetamol 500mg").
-        4. Focus on identifying brand names or generic names of tablets, syrups, injections, and ointments.
-        5. If you see lists of items starting with symbols like #, Rx, or numbers, these are likely medicines.
-        
-        Respond ONLY in valid JSON with a "medicines" array containing the strings of detected medicine names.
-        If absolutely no medical terms are found, return an empty array.`;
+        Your task is to scan the provided image and extract every single medicine or pharmaceutical product mentioned.
+        Respond ONLY in valid JSON with a "medicines" array containing the strings of detected medicine names.`;
 
         const { output } = await ai.generate({
             prompt: [
@@ -126,14 +129,29 @@ export const scanPrescription = async (req: Request, res: Response, next: NextFu
             output: { schema: PrescriptionScanOutputSchema },
         });
 
-        console.log("Prescription extraction result:", output);
         (ResponseHandler as any).success(res, output, 'Prescription scanned successfully');
     } catch (error) {
+        console.error('Prescription scan failed:', error);
         next(error);
     }
 };
 
+export const analyzeSentiment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { feedback } = req.body;
+        if (!feedback) return (ResponseHandler as any).badRequest(res, 'Feedback is required');
 
+        const { output } = await ai.generate({
+            prompt: `Analyze the following patient feedback:\n"${feedback}"`,
+            output: { schema: SentimentAnalysisSchema },
+        });
+
+        (ResponseHandler as any).success(res, output, 'Sentiment analysis complete');
+    } catch (error) {
+        console.error('Sentiment analysis failed:', error);
+        next(error);
+    }
+};
 
 // ----------------------------------------------------------------------------
 // 3. Text to Speech
@@ -159,7 +177,7 @@ export const handleTTS = async (req: Request, res: Response, next: NextFunction)
 };
 
 // ----------------------------------------------------------------------------
-// 4. Chat Follow-up
+// 4. Chat Follow-up (Generic & Specialized)
 // ----------------------------------------------------------------------------
 export const handleChat = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -168,15 +186,30 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
             return (ResponseHandler as any).badRequest(res, 'Prompt is required for chat');
         }
 
-        let response;
-        if (language === 'hi') {
-            response = await chatWithXrayBot({ prompt, history });
-        } else {
-            response = await chatWithEnglishXrayBot({ prompt, history });
-        }
+        // Map roles precisely: Gemini requires Alternating User/Model, starting with User.
+        const messages = history.map((h: any) => ({
+            role: (h.role === 'assistant' || h.role === 'model') ? 'model' : 'user',
+            content: [{ text: h.content }]
+        }));
 
-        (ResponseHandler as any).success(res, { response }, 'Chat response generated');
-    } catch (error) {
+        // Filter out any leading 'model' messages as Gemini history MUST start with 'user'
+        let validStartIndex = 0;
+        while (validStartIndex < messages.length && messages[validStartIndex].role === 'model') {
+            validStartIndex++;
+        }
+        
+        const finalMessages = messages.slice(validStartIndex);
+        
+        // Add current prompt
+        finalMessages.push({ role: 'user', content: [{ text: prompt }] });
+
+        const { text } = await ai.generate({
+            messages: finalMessages
+        });
+
+        (ResponseHandler as any).success(res, { response: text }, 'AI response generated');
+    } catch (error: any) {
+        console.error('Chat generation failed:', error?.name, error?.message);
         next(error);
     }
 };

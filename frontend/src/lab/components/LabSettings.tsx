@@ -1,25 +1,20 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
-    Settings, 
-    User, 
     Lock, 
     Bell, 
     FileText, 
     ShieldCheck, 
     Building2, 
     Globe, 
-    Mail, 
-    Phone, 
     MapPin, 
     Save, 
     ShieldAlert, 
     Upload,
     ChevronRight,
-    Search,
     BadgeCheck,
     FlaskConical
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../common/ui/card';
+import { Card, CardContent, CardHeader, CardFooter } from '../../common/ui/card';
 import { Button } from '../../common/ui/button';
 import { Input } from '../../common/ui/input';
 import { Label } from '../../common/ui/label';
@@ -27,6 +22,16 @@ import { Badge } from '../../common/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../common/ui/tabs';
 
 export function LabSettings() {
+    const [activeTab, setActiveTab] = useState('profile');
+
+    const navItems = [
+        { id: 'profile', icon: Building2, label: 'Facility Profile' },
+        { id: 'security', icon: Lock, label: 'Cyber Protection' },
+        { id: 'logic', icon: Bell, label: 'System Logic' },
+        { id: 'trust', icon: FileText, label: 'Diagnostic Trust' },
+        { id: 'sync', icon: Globe, label: 'Partner Sync' },
+    ];
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -56,19 +61,17 @@ export function LabSettings() {
                          </div>
                      </CardHeader>
                      <CardContent className="p-4 bg-white grow flex flex-col gap-2 pt-8">
-                         {[
-                             { id: 'profile', icon: Building2, label: 'Facility Profile', active: true },
-                             { id: 'security', icon: Lock, label: 'Cyber Protection' },
-                             { id: 'notifications', icon: Bell, label: 'System Logic' },
-                             { id: 'compliance', icon: FileText, label: 'Diagnostic Trust' },
-                             { id: 'connected', icon: Globe, label: 'Partner Sync' },
-                         ].map((item, idx) => (
-                             <button key={item.id} className={`flex items-center justify-between w-full p-4 rounded-2xl transition-all group/btn ${item.active ? 'bg-blue-50 text-blue-600 shadow-inner' : 'hover:bg-gray-50 text-gray-400 hover:text-gray-900'}`}>
+                         {navItems.map((item) => (
+                             <button 
+                                 key={item.id} 
+                                 onClick={() => setActiveTab(item.id)}
+                                 className={`flex items-center justify-between w-full p-4 rounded-2xl transition-all group/btn ${activeTab === item.id ? 'bg-blue-50 text-blue-600 shadow-inner' : 'hover:bg-gray-50 text-gray-400 hover:text-gray-900'}`}
+                             >
                                  <div className="flex items-center gap-3">
-                                     <item.icon className="w-5 h-5 group-hover/btn:scale-110 transition-transform" />
+                                     <item.icon className={`w-5 h-5 transition-transform ${activeTab === item.id ? 'scale-110' : 'group-hover/btn:scale-110'}`} />
                                      <span className="font-black uppercase tracking-widest text-[10px] italic">{item.label}</span>
                                  </div>
-                                 {item.active && <ChevronRight className="w-4 h-4 animate-pulse" />}
+                                 {activeTab === item.id && <ChevronRight className="w-4 h-4 animate-pulse" />}
                              </button>
                          ))}
                      </CardContent>
@@ -79,13 +82,19 @@ export function LabSettings() {
 
                 {/* Main Settings Content */}
                 <Card className="flex-1 shadow-2xl border-none rounded-[2.5rem] overflow-hidden bg-white group border-t-8 border-t-white hover:border-t-blue-600 transition-all p-1">
-                    <Tabs defaultValue="profile" className="w-full h-full flex flex-col">
-                        <TabsList className="bg-white p-8 pb-4 h-fit flex items-center justify-start gap-12 rounded-none border-b shadow-none cursor-pointer">
-                            <TabsTrigger value="profile" className="px-0 py-2 font-black uppercase tracking-widest text-xs italic flex items-center gap-2 border-transparent border-b-4 h-12 transition-all hover:text-blue-600 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
+                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full flex flex-col">
+                        <TabsList className="bg-white p-8 pb-4 h-fit flex items-center justify-start gap-12 rounded-none border-b shadow-none cursor-pointer overflow-x-auto custom-scrollbar">
+                            <TabsTrigger value="profile" className="px-0 py-2 shrink-0 font-black uppercase tracking-widest text-xs italic flex items-center gap-2 border-transparent border-b-4 h-12 transition-all hover:text-blue-600 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
                                 Global Profile Control
                             </TabsTrigger>
-                            <TabsTrigger value="password" className="px-0 py-2 font-black uppercase tracking-widest text-xs italic flex items-center gap-2 border-transparent border-b-4 h-12 transition-all hover:text-blue-600 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
+                            <TabsTrigger value="security" className="px-0 py-2 shrink-0 font-black uppercase tracking-widest text-xs italic flex items-center gap-2 border-transparent border-b-4 h-12 transition-all hover:text-blue-600 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
                                 Identity & Access
+                            </TabsTrigger>
+                            <TabsTrigger value="logic" className="px-0 py-2 shrink-0 font-black uppercase tracking-widest text-xs italic flex items-center gap-2 border-transparent border-b-4 h-12 transition-all hover:text-blue-600 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
+                                System Logic
+                            </TabsTrigger>
+                            <TabsTrigger value="trust" className="px-0 py-2 shrink-0 font-black uppercase tracking-widest text-xs italic flex items-center gap-2 border-transparent border-b-4 h-12 transition-all hover:text-blue-600 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600">
+                                Diagnostic Trust
                             </TabsTrigger>
                         </TabsList>
 
@@ -155,10 +164,10 @@ export function LabSettings() {
                                  </div>
                             </TabsContent>
                             
-                            <TabsContent value="password" className="mt-0 animate-in slide-in-from-right duration-700">
+                            <TabsContent value="security" className="mt-0 animate-in slide-in-from-right duration-700">
                                  <div className="max-w-md mx-auto space-y-10 py-10">
                                      <div className="text-center space-y-2">
-                                          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 mx-auto border-4 border-white shadow-xl shadow-orange-100 mb-4 animate-bounce duration-[3000ms]"><Lock className="w-10 h-10" /></div>
+                                          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 mx-auto border-4 border-white shadow-xl shadow-orange-100 mb-4 animate-bounce duration-[2000ms]"><Lock className="w-10 h-10" /></div>
                                           <h4 className="text-2xl font-black italic uppercase text-gray-900 tracking-tighter shadow-sm mb-1">Authorization Matrix Control</h4>
                                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest italic leading-none transition-colors hover:text-orange-600 cursor-cell">Identity verification and credential rotation</p>
                                      </div>

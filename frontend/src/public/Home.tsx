@@ -8,14 +8,12 @@ import {
   TrendingUp,
   Activity,
   Star,
-  Check,
   Sparkles,
   ArrowRight,
   Zap
 } from "lucide-react";
 import { Navigation } from "../common/Navigation";
 import { Footer } from "../common/Footer";
-import React from 'react';
 import { PageView } from "../common/types";
 
 interface HomeProps {
@@ -56,7 +54,7 @@ export function Home({ onGetStarted, onNavigate }: HomeProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Navigation */}
-      <Navigation onGetStarted={onGetStarted} onNavigate={onNavigate} />
+      <Navigation onNavigate={onNavigate} />
 
       <main className="flex-grow">
         {/* Hero Section */}
@@ -146,7 +144,7 @@ export function Home({ onGetStarted, onNavigate }: HomeProps) {
               <Button size="lg" variant="secondary" onClick={onGetStarted}>
                 Start Free Trial
               </Button>
-              <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10">
+              <Button size="lg" variant="outline" onClick={() => onNavigate("contact")} className="bg-transparent text-white border-white hover:bg-white/10">
                 Schedule Demo
               </Button>
             </div>

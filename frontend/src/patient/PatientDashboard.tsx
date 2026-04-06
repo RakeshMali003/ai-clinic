@@ -16,6 +16,8 @@ import { Avatar, AvatarFallback } from '../common/ui/avatar';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { PatientUser, PatientPage } from './PatientPortal';
 import { useState, useEffect } from 'react';
+import { Switch } from '../common/ui/switch';
+import { Label } from '../common/ui/label';
 import api from '../lib/api';
 import { patientService } from '../services/patientService';
 
@@ -118,14 +120,22 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
     }
   }, [patient.id]);
 
+  const [isDemoMode, setIsDemoMode] = useState(false);
+
+  const displayHeartRate = isDemoMode ? heartRateData : [];
+  const displaySteps = isDemoMode ? stepsData : [];
+  const displayActivities = isDemoMode ? dashboardStats.recentActivities : [];
+  const displayUpcoming = isDemoMode ? upcomingAppointments.appointments : [];
+
   return (
     <div className="p-6 space-y-6">
-      {/* Welcome Header */}
-      <div>
-        <h1 className="font-semibold text-gray-900 mb-1">
-          Welcome back, {patient.name.split(' ')[0]}!
-        </h1>
-        <p className="text-sm text-gray-600">Manage your health, anytime, anywhere</p>
+      <div className="flex justify-end items-center mb-4">
+        <div className="flex items-center space-x-2 bg-white p-2 rounded-lg border border-gray-200">
+          <Switch id="demo-mode" checked={isDemoMode} onCheckedChange={setIsDemoMode} />
+          <Label htmlFor="demo-mode" className="text-sm cursor-pointer select-none">
+            Demo Mode (Sample Data)
+          </Label>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -203,28 +213,36 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={heartRateData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#fce7f3" />
-                <XAxis dataKey="day" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} domain={[60, 80]} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#fdf2f8',
-                    border: '1px solid #fbcfe8',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="bpm"
-                  stroke="#ec4899"
-                  strokeWidth={3}
-                  dot={{ fill: '#ec4899', r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {displayHeartRate.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={displayHeartRate}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} domain={[60, 80]} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      color: 'hsl(var(--foreground))'
+                    }}
+                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="bpm"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={3}
+                    dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-gray-400 text-sm">
+                No heart rate data. Enable Demo Mode to view sample data.
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -236,21 +254,29 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={stepsData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f3e8ff" />
-                <XAxis dataKey="day" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <YAxis stroke="#9ca3af" style={{ fontSize: '12px' }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#faf5ff',
-                    border: '1px solid #e9d5ff',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Bar dataKey="steps" fill="#a855f7" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {displaySteps.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={displaySteps}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                  <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" style={{ fontSize: '12px' }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      color: 'hsl(var(--foreground))'
+                    }}
+                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                  />
+                  <Bar dataKey="steps" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} opacity={0.8} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-gray-400 text-sm">
+                No activity data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -305,8 +331,8 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {dashboardStats.recentActivities && dashboardStats.recentActivities.length > 0 ? (
-                dashboardStats.recentActivities.map((activity) => {
+              {displayActivities && displayActivities.length > 0 ? (
+                displayActivities.map((activity: any) => {
                   const details = getActivityDetails(activity.type);
                   const Icon = details.icon;
                   return (
@@ -349,12 +375,12 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
               <div className="text-center py-4">
                 <p className="text-gray-500">Loading appointments...</p>
               </div>
-            ) : !upcomingAppointments?.appointments || upcomingAppointments.appointments.length === 0 ? (
+            ) : !displayUpcoming || displayUpcoming.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-gray-500">No upcoming appointments</p>
               </div>
             ) : (
-              upcomingAppointments.appointments.map((appointment) => (
+              displayUpcoming.map((appointment: any) => (
                 <div key={appointment.appointment_id} className="p-4 border-2 border-pink-200 rounded-lg bg-pink-50">
                   <div className="flex items-start gap-3 mb-3">
                     <Avatar className="size-10">

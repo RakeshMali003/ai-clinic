@@ -3,6 +3,17 @@ import { Button } from '../common/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../common/ui/avatar';
 import { Badge } from '../common/ui/badge';
 import type { PatientUser } from './PatientPortal';
+import { ThemeToggle } from '../common/ThemeToggle';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../common/ui/dropdown-menu';
+import { useState, useEffect } from 'react';
+import { notificationService, type Notification } from '../services/notificationService';
 
 interface PatientHeaderProps {
   patient: PatientUser;
@@ -10,6 +21,60 @@ interface PatientHeaderProps {
 }
 
 export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const initialFetch = async () => {
+      setLoading(true);
+      const data = await notificationService.getNotifications();
+      setNotifications(data || []);
+      setLoading(false);
+    };
+    
+    initialFetch();
+    
+    // Refresh notifications every 2 minutes
+    const interval = setInterval(async () => {
+      const data = await notificationService.getNotifications();
+      if (data) setNotifications(data);
+    }, 2 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const unreadCount = Array.isArray(notifications) ? notifications.filter(n => n.status !== 'READ').length : 0;
+
+  const handleMarkAsRead = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const success = await notificationService.markAsRead(id);
+    if (success) {
+      setNotifications(prev => 
+        prev.map(n => n.notification_id === id ? { ...n, status: 'READ' } : n)
+      );
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    const success = await notificationService.markAllAsRead();
+    if (success) {
+      setNotifications(prev => prev.map(n => ({ ...n, status: 'READ' })));
+    }
+  };
+
+  const formatNotificationTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+  };
+
   return (
     <header className="bg-white border-b border-pink-200 px-6 py-4">
       <div className="flex items-center justify-between">
@@ -19,12 +84,70 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" className="relative hover:bg-pink-50">
-            <Bell className="size-5 text-gray-700" />
-            <Badge className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 bg-pink-600">
-              3
-            </Badge>
-          </Button>
+          <ThemeToggle />
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative hover:bg-pink-50">
+                <Bell className="size-5 text-gray-700" />
+                {unreadCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 bg-pink-600">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="flex items-center justify-between px-2 py-1.5 cursor-default">
+                <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={handleMarkAllAsRead}
+                    className="text-xs text-pink-600 hover:text-pink-700 font-medium"
+                  >
+                    Mark all as read
+                  </button>
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              <div className="max-h-[400px] overflow-y-auto">
+                {loading ? (
+                  <div className="p-4 text-center text-sm text-gray-500">Loading notifications...</div>
+                ) : !Array.isArray(notifications) || notifications.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-gray-500">No notifications</div>
+                ) : (
+                  notifications.map((notification) => (
+                    <DropdownMenuItem 
+                      key={notification.notification_id} 
+                      className={`flex flex-col items-start gap-1 p-4 cursor-pointer border-b last:border-0 ${
+                        notification.status !== 'READ' ? 'bg-pink-50/50' : ''
+                      }`}
+                    >
+                      <div className="flex justify-between w-full">
+                        <span className={`font-semibold text-sm ${notification.status !== 'READ' ? 'text-pink-900' : 'text-gray-900'}`}>
+                          {notification.title}
+                        </span>
+                        <span className="text-[10px] text-gray-500">{formatNotificationTime(notification.created_at)}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2">{notification.message}</p>
+                      {notification.status !== 'READ' && (
+                        <button 
+                          onClick={(e) => handleMarkAsRead(notification.notification_id, e)}
+                          className="text-[10px] text-pink-600 mt-1 hover:underline"
+                        >
+                          Mark as read
+                        </button>
+                      )}
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="justify-center text-pink-600 font-medium cursor-pointer">
+                View all notifications
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="flex items-center gap-3 border-l border-pink-200 pl-4">
             <Avatar>

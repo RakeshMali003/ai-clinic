@@ -4,7 +4,7 @@ const ResponseHandler = require('../utils/responseHandler');
 exports.getAllMedicines = async (req, res, next) => {
     try {
         const { category, search, mine } = req.query;
-        const clinicId = req.user.role === 'clinic' ? req.user.clinic_id : null;
+        const clinicId = req.user && req.user.role === 'clinic' ? req.user.clinic_id : null;
 
         const where = {};
         if (category && category !== 'All') {

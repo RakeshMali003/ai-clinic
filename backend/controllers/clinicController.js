@@ -314,26 +314,63 @@ exports.getReports = async (req, res, next) => {
         });
         const doctorIds = clinicDoctors.map(d => d.doctor_id);
 
-        const realAppointmentsCount = await prisma.appointments.count({
-            where: { doctor_id: { in: doctorIds } }
-        });
-
         const patientsResult = await prisma.appointments.groupBy({
             by: ['patient_id'],
-            where: { doctor_id: { in: doctorIds } }
+            where: { 
+                OR: [
+                    { doctor_id: { in: doctorIds } },
+                    { clinic_id: clinicId }
+                ]
+            }
         });
         const patientsCount = patientsResult.length;
 
+        const realAppointmentsCount = await prisma.appointments.count({
+            where: { 
+                OR: [
+                    { doctor_id: { in: doctorIds } },
+                    { clinic_id: clinicId }
+                ]
+            }
+        });
+
         const revenue = await prisma.appointments.aggregate({
             _sum: { earnings: true },
-            where: { doctor_id: { in: doctorIds } }
+            where: { 
+                OR: [
+                    { doctor_id: { in: doctorIds } },
+                    { clinic_id: clinicId }
+                ]
+            }
         });
+
+        // Get detailed doctor performance
+        const doctorPerformance = await Promise.all(doctorIds.map(async (id) => {
+            const doc = await prisma.doctors.findUnique({ where: { id } });
+            const consults = await prisma.appointments.count({ where: { doctor_id: id } });
+            const earnings = await prisma.appointments.aggregate({
+                _sum: { earnings: true },
+                where: { doctor_id: id }
+            });
+            const ratings = await prisma.doctor_reviews.aggregate({
+                _avg: { rating: true },
+                where: { doctor_id: id }
+            });
+
+            return {
+                name: doc.full_name,
+                consultations: consults,
+                revenue: parseFloat(earnings._sum.earnings || 0),
+                rating: parseFloat(ratings._avg.rating || 0).toFixed(1)
+            };
+        }));
 
         ResponseHandler.success(res, {
             total_doctors: doctorsCount,
             total_appointments: realAppointmentsCount,
             total_patients: patientsCount,
-            total_revenue: revenue._sum.earnings || 0
+            total_revenue: revenue._sum.earnings || 0,
+            doctor_performance: doctorPerformance
         }, 'Clinic analytics retrieved');
     } catch (error) {
         next(error);
@@ -378,6 +415,32 @@ exports.updateSettings = async (req, res, next) => {
         await Promise.all(promises);
 
         ResponseHandler.success(res, updates, 'Clinic configuration parameters synchronized');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.submitTicket = async (req, res, next) => {
+    try {
+        const clinicId = req.user.clinic_id;
+        const { type, subject, description } = req.body;
+
+        // In a real system, we'd have a support_tickets table.
+        // For now, we'll log it and return success to the user.
+        console.log(`[Support Ticket] Clinic ${clinicId}: ${type} - ${subject}`);
+        
+        // We can also create a system notification
+        await prisma.notifications_unified.create({
+            data: {
+                notification_type: 'SUPPORT_TICKET',
+                title: `New Ticket: ${subject}`,
+                message: `Clinic ${clinicId} raised a ${type} ticket: ${description}`,
+                status: 'pending',
+                channel: 'system'
+            }
+        });
+
+        ResponseHandler.success(res, null, 'Support ticket submitted to command center. Analysis in progress.');
     } catch (error) {
         next(error);
     }

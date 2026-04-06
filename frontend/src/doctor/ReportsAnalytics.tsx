@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { UserRole } from '../common/types';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Calendar, Download, TrendingUp, Users, DollarSign, Activity, Loader2 } from 'lucide-react';
+import { Calendar, Download, Users, DollarSign, Activity, Loader2 } from 'lucide-react';
 import { analyticsService, DashboardStats, ChartData } from '../services/analyticsService';
 
 interface ReportsAnalyticsProps {
     userRole: UserRole;
 }
 
-export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
+export function ReportsAnalytics({ }: ReportsAnalyticsProps) {
     const [dateRange, setDateRange] = useState('week');
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -33,6 +33,26 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
 
         fetchData();
     }, []);
+
+    const handleDownload = (reportName: string, data: any[]) => {
+        if (!data || data.length === 0) return;
+        
+        const headers = Object.keys(data[0]).join(',');
+        const rows = data.map(row => 
+            Object.values(row).map(val => 
+                typeof val === 'string' ? `"${val}"` : val
+            ).join(',')
+        ).join('\n');
+        
+        const csvContent = `data:text/csv;charset=utf-8,${headers}\n${rows}`;
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `${reportName.toLowerCase().replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     if (loading) {
         return (
@@ -98,65 +118,113 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
                 {/* Daily Appointments */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden group">
                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-[100px] -mr-8 -mt-8" />
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mb-8">Consultation Volume</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={chartData?.dailyAppointments || []}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} />
-                            <Tooltip 
-                                contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', fontWeight: 800}}
-                            />
-                            <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} barSize={24} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <div className="flex items-center justify-between mb-8 relative z-10">
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Consultation Volume</h3>
+                        <button 
+                            onClick={() => handleDownload('Daily Appointments', chartData?.dailyAppointments || [])}
+                            className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all"
+                            title="Download CSV"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {(!chartData?.dailyAppointments || chartData.dailyAppointments.length === 0) ? (
+                        <div className="h-[300px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                             <Calendar className="w-8 h-8 text-slate-300 mb-2" />
+                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No recent consultations recorded</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={chartData.dailyAppointments}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} />
+                                <Tooltip 
+                                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', fontWeight: 800}}
+                                />
+                                <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} barSize={24} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
 
                 {/* Revenue Trend */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden group">
                      <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-[100px] -mr-8 -mt-8" />
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mb-8">Financial Projection</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={chartData?.revenueTrend || []}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                            <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} />
-                            <Tooltip 
-                                contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', fontWeight: 800}}
-                            />
-                            <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={4} dot={{ fill: '#10b981', r: 5, strokeWidth: 3, stroke: '#fff' }} activeDot={{r: 8, strokeWidth: 0}} />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    <div className="flex items-center justify-between mb-8 relative z-10">
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Financial Projection</h3>
+                        <button 
+                            onClick={() => handleDownload('Revenue Trend', chartData?.revenueTrend || [])}
+                            className="p-2 hover:bg-emerald-50 text-slate-400 hover:text-emerald-600 rounded-xl transition-all"
+                            title="Download CSV"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {(!chartData?.revenueTrend || chartData.revenueTrend.length === 0) ? (
+                        <div className="h-[300px] flex flex-col items-center justify-center bg-emerald-50/30 rounded-2xl border border-dashed border-emerald-100">
+                             <DollarSign className="w-8 h-8 text-emerald-300 mb-2" />
+                             <p className="text-xs font-black text-emerald-400/70 uppercase tracking-widest">Revenue data not yet synced</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={chartData.revenueTrend}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#94a3b8' }} />
+                                <Tooltip 
+                                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', fontWeight: 800}}
+                                />
+                                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={4} dot={{ fill: '#10b981', r: 5, strokeWidth: 3, stroke: '#fff' }} activeDot={{r: 8, strokeWidth: 0}} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
 
                 {/* Patient Distribution */}
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm relative overflow-hidden group">
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mb-8">Patient Segmentation</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={chartData?.visitDist || []}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={70}
-                                outerRadius={100}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {(chartData?.visitDist || []).map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
-                                ))}
-                            </Pie>
-                            <Tooltip 
-                                contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', fontWeight: 800}}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
+                    <div className="flex items-center justify-between mb-8 relative z-10">
+                        <h3 className="text-xl font-black text-slate-900 tracking-tight">Patient Segmentation</h3>
+                        <button 
+                            onClick={() => handleDownload('Visit Distribution', chartData?.visitDist || [])}
+                            className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all"
+                            title="Download CSV"
+                        >
+                            <Download className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {(!chartData?.visitDist || chartData.visitDist.length === 0) ? (
+                         <div className="h-[300px] flex flex-col items-center justify-center bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                             <Users className="w-8 h-8 text-slate-300 mb-2" />
+                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Awaiting segmentation data</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={chartData.visitDist}
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={70}
+                                    outerRadius={100}
+                                    paddingAngle={5}
+                                    dataKey="value"
+                                >
+                                    {chartData.visitDist.map((_, index) => (
+                                        <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][index % 4]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip 
+                                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', fontWeight: 800}}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    )}
                     <div className="mt-4 grid grid-cols-2 gap-4">
-                        {(chartData?.visitDist || []).map((entry, i) => (
+                        {(chartData?.visitDist || []).map((_, i) => (
                             <div key={i} className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'][i % 4]}} />
-                                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{entry.name}</span>
+                                <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{(chartData?.visitDist || [])[i].name}</span>
                             </div>
                         ))}
                     </div>
@@ -166,35 +234,42 @@ export function ReportsAnalytics({ userRole }: ReportsAnalyticsProps) {
                 <div className="bg-white rounded-[2.5rem] p-8 border border-slate-100 shadow-sm">
                     <h3 className="text-xl font-black text-slate-900 tracking-tight mb-8">Medical Team Efficiency</h3>
                     <div className="space-y-4">
-                        {(chartData?.doctorPerf || []).map((doc, idx) => (
-                            <div key={idx} className="p-5 bg-slate-50/50 hover:bg-slate-50 rounded-[1.5rem] border border-slate-100 transition-colors">
-                                <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-black">
-                                            {doc.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <p className="font-black text-slate-900 text-sm leading-none">{doc.name}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Medical Specialist</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 text-yellow-600 rounded-lg text-xs font-black border border-yellow-100">
-                                        <span>★</span>
-                                        <span>{doc.rating}</span>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-6 pt-3 border-t border-slate-100">
-                                    <div className="space-y-0.5">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Consultations</p>
-                                        <p className="text-lg font-black text-slate-900">{doc.consultations}</p>
-                                    </div>
-                                    <div className="space-y-0.5 text-right">
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Revenue Generated</p>
-                                        <p className="text-lg font-black text-emerald-600">₹{doc.revenue.toLocaleString()}</p>
-                                    </div>
-                                </div>
+                        {(!chartData?.doctorPerf || chartData.doctorPerf.length === 0) ? (
+                            <div className="py-20 flex flex-col items-center justify-center bg-slate-50/30 rounded-2xl border border-dashed border-slate-200">
+                                <Activity className="w-10 h-10 text-slate-300 mb-2" />
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">No staff performance data available</p>
                             </div>
-                        ))}
+                        ) : (
+                            chartData.doctorPerf.map((doc, idx) => (
+                                <div key={idx} className="p-5 bg-slate-50/50 hover:bg-slate-50 rounded-[1.5rem] border border-slate-100 transition-colors">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-black">
+                                                {doc.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <p className="font-black text-slate-900 text-sm leading-none">{doc.name}</p>
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">Medical Specialist</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 px-3 py-1 bg-yellow-50 text-yellow-600 rounded-lg text-xs font-black border border-yellow-100">
+                                            <span>★</span>
+                                            <span>{doc.rating}</span>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-6 pt-3 border-t border-slate-100">
+                                        <div className="space-y-0.5">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Consultations</p>
+                                            <p className="text-lg font-black text-slate-900">{doc.consultations}</p>
+                                        </div>
+                                        <div className="space-y-0.5 text-right">
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Revenue Generated</p>
+                                            <p className="text-lg font-black text-emerald-600">₹{doc.revenue.toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
             </div>

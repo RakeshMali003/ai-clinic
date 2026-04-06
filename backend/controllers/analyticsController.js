@@ -26,12 +26,22 @@ const analyticsController = {
             const clinicId = req.user.role === 'clinic' ? req.user.clinic_id : null;
             const doctorId = req.user.role === 'doctor' ? req.user.doctor_id : null;
 
-            const [dailyAppointments, revenueTrend, visitDist, doctorPerf] = await Promise.all([
+            let [dailyAppointments, revenueTrend, visitDist, doctorPerf] = await Promise.all([
                 analyticsModel.getDailyAppointments(clinicId, doctorId),
                 analyticsModel.getRevenueTrend(clinicId, doctorId),
                 analyticsModel.getPatientVisitDistribution(clinicId, doctorId),
                 analyticsModel.getDoctorPerformance(clinicId, doctorId)
             ]);
+
+            // Ensure visitDist is not empty for the UI
+            if (!visitDist || visitDist.length === 0) {
+                visitDist = [
+                    { name: 'Initial Visit', value: 0 },
+                    { name: 'Follow-up', value: 0 },
+                    { name: 'Routine Checkup', value: 0 },
+                    { name: 'Emergency', value: 0 }
+                ];
+            }
 
             res.status(200).json({
                 success: true,

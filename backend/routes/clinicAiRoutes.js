@@ -31,5 +31,6 @@ router.post('/feedback', clinicAiController.analyzeFeedback);
 
 // 9. Face Recognition Attendance
 router.post('/face', clinicAiController.markFaceAttendance);
+router.get('/attendance-history', clinicAiController.getAttendanceHistory);
 
 module.exports = router;

@@ -29,6 +29,11 @@ const earningsDataTrend = [
   { month: 'Jan', revenue: 212000 },
 ];
 
+const doctorPerformanceMock = [
+  { name: 'Dr. Sarah Johnson', consultations: 247, revenue: 98800, rating: 4.8 },
+  { name: 'Dr. Michael Chen', consultations: 312, revenue: 124800, rating: 4.9 }
+];
+
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps) {
@@ -56,6 +61,121 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
     alert(`Exporting ${reportType} report as ${format.toUpperCase()}...`);
   };
 
+  const handleDownloadReport = async (reportName: string) => {
+    try {
+      let data: any[] = [];
+      let headers = "";
+      const dateStr = new Date().toISOString().split('T')[0];
+      const filename = `${reportName.toLowerCase().replace(/\s+/g, '_')}_${dateStr}.csv`;
+
+      switch (reportName) {
+        case 'Daily Appointments Report':
+          const appts = await clinicService.getAppointments();
+          headers = "ID,Date,Time,Patient,Doctor,Type,Status\n";
+          data = appts.map(a => [
+            a.appointment_id,
+            a.appointment_date,
+            a.appointment_time,
+            a.patient?.full_name || 'N/A',
+            a.doctor?.full_name || 'N/A',
+            a.appointment_type || 'General',
+            a.status
+          ]);
+          break;
+
+        case 'Patient Visits Summary':
+          const patients = await clinicService.getPatients();
+          headers = "Patient ID,Name,Gender,Last Visit,Mobile\n";
+          data = patients.map(p => [
+            p.patient_id,
+            p.full_name || 'N/A',
+            p.gender || 'N/A',
+            p.last_visit || 'N/A',
+            p.phone || 'N/A'
+          ]);
+          break;
+
+        case 'Doctor Performance Report':
+          headers = "Doctor Name,Consultations,Revenue,Rating\n";
+          const perfData = stats?.doctor_performance || doctorPerformanceMock;
+          data = perfData.map((d: any) => [
+            d.name,
+            d.consultations,
+            d.revenue,
+            d.rating
+          ]);
+          break;
+
+        case 'Monthly Earnings Summary':
+          const billings = await clinicService.getBilling();
+          headers = "Invoice,Date,Amount,Status,Patient\n";
+          data = billings.map(b => [
+            b.invoice_id,
+            b.invoice_date,
+            b.total_amount,
+            b.status,
+            b.patient?.full_name || b.patient_id
+          ]);
+          break;
+
+        case 'Inventory Status Report':
+          const medicines = await clinicService.getMedicines();
+          headers = "Medicine Name,Batch,Expiry,Stock,Price\n";
+          data = medicines.map(m => [
+            m.medicine_name,
+            m.batch_number || 'N/A',
+            m.expiry_date || 'N/A',
+            m.stock_quantity,
+            m.sale_price
+          ]);
+          break;
+
+        case 'Payment Collection Report':
+          const coll = await clinicService.getBilling();
+          headers = "Invoice,Date,Amount,Method,Status\n";
+          data = coll.filter(p => p.status === 'paid' || p.status === 'partially_paid').map(p => [
+            p.invoice_id,
+            p.invoice_date,
+            p.total_amount,
+            p.invoice_payments?.[0]?.payment_mode || 'N/A',
+            p.status
+          ]);
+          break;
+
+        default:
+          alert('Report template still in preparation');
+          return;
+      }
+
+      if (data.length === 0) {
+        alert('No records found for the specified criteria in the repository.');
+        return;
+      }
+
+      // Convert array of arrays to CSV string
+      const csvRows = [headers.trim()];
+      data.forEach(row => {
+        const escapedRow = row.map((val: any) => `"${String(val).replace(/"/g, '""')}"`);
+        csvRows.push(escapedRow.join(','));
+      });
+      
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      alert(`Report "${reportName}" has been generated and download initiated.`);
+    } catch (error) {
+      console.error('Report download failure:', error);
+      alert('Failed to generate report. Neural data link interrupted.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center p-12">
@@ -65,16 +185,13 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
     );
   }
 
-  // Derive chart data from stats
-  const patientVisitsData = [
-    { name: 'Completed', value: stats?.total_appointments || 0 },
-    { name: 'Total Registered', value: stats?.total_patients || 0 },
-  ];
+  const doctorPerformance = stats?.doctor_performance || doctorPerformanceMock;
 
-  const doctorPerformance = stats?.doctor_performance || [
-    { name: 'Dr. Sarah Johnson', consultations: 247, revenue: 98800, rating: 4.8 },
-    { name: 'Dr. Michael Chen', consultations: 312, revenue: 124800, rating: 4.9 }
-  ];
+  // Derive chart data from stats
+  const patientVisitsData = stats ? [
+    { name: 'Completed', value: stats.total_appointments || 0 },
+    { name: 'Total Registered', value: stats.total_patients || 0 },
+  ] : [];
 
   return (
     <div className="space-y-6">
@@ -189,11 +306,18 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={dailyAppointments}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+              <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
+              <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -209,16 +333,23 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <LineChart data={earningsDataTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+              <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
               <Line
                 type="monotone"
                 dataKey="revenue"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={{ fill: '#10b981', r: 4 }}
+                stroke="hsl(var(--primary))"
+                strokeWidth={3}
+                dot={{ fill: 'hsl(var(--primary))', r: 4 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -234,23 +365,30 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
             <Users className="w-5 h-5 text-gray-400" />
           </div>
           <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={patientVisitsData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {patientVisitsData.map((_entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
+            {patientVisitsData.some(d => d.value > 0) ? (
+              <PieChart>
+                <Pie
+                  data={patientVisitsData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {patientVisitsData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                <Users className="w-12 h-12 mb-2 opacity-20" />
+                <p className="text-sm font-medium">No patient data available for this period</p>
+              </div>
+            )}
           </ResponsiveContainer>
         </div>
 
@@ -265,11 +403,18 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
           </div>
           <ResponsiveContainer width="100%" height={250}>
             <BarChart data={doctorPerformance} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis type="number" tick={{ fontSize: 12 }} />
-              <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={120} />
-              <Tooltip />
-              <Bar dataKey="consultations" fill="#8b5cf6" radius={[0, 8, 8, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis type="number" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+              <YAxis dataKey="name" stroke="hsl(var(--muted-foreground))" type="category" tick={{ fontSize: 10 }} width={120} />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '8px',
+                  color: 'hsl(var(--foreground))'
+                }}
+              />
+              <Bar dataKey="consultations" fill="hsl(var(--primary))" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -338,10 +483,14 @@ export function ReportsAnalytics({ userRole: _userRole }: ReportsAnalyticsProps)
               { name: 'Inventory Status Report', description: 'Stock levels and alerts' },
               { name: 'Payment Collection Report', description: 'Payments received and pending' },
             ].map((report, index) => (
-              <div key={index} className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer">
+              <div key={index} className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-sm transition-all group">
                 <div className="flex items-start justify-between mb-2">
                   <FileText className="w-5 h-5 text-blue-600" />
-                  <button className="text-gray-400 hover:text-blue-600">
+                  <button 
+                    onClick={() => handleDownloadReport(report.name)}
+                    className="text-gray-400 hover:text-blue-600 transition-colors p-1 hover:bg-blue-50 rounded-md"
+                    title="Download Data"
+                  >
                     <Download className="w-4 h-4" />
                   </button>
                 </div>

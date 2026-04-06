@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     Brain, MessageSquare, Activity, Pill, TrendingUp, FileText,
     Mic, Scan, Stethoscope, HeartHandshake, Camera, CalendarClock,
-    Send, MicOff, Upload, CheckCircle, AlertTriangle,
+    Send, MicOff, Upload, CheckCircle,
     XCircle, BarChart2, Zap, Shield, RefreshCw, Clock
 } from 'lucide-react';
-import axios from 'axios';
+import api from '../services/api';
 
-const API = 'http://localhost:5000/api';
+// const API = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
 interface AIModulesProps {
     userRole?: unknown;
@@ -159,8 +159,8 @@ function AppointmentAssistant({ user }: { user?: any }) {
         setLoading(true); setResult(null);
         try {
             const [aptRes, wlRes] = await Promise.all([
-                axios.get(`${API}/appointments?doctorId=${doctorId}&limit=50`).catch(() => ({ data: { data: [] } })),
-                axios.get(`${API}/clinic-ai/workload?clinic_id=1`).catch(() => ({ data: { data: { prediction: 'Morning hours (10–12 AM) are typically busiest.' } } }))
+                api.get(`/appointments?doctorId=${doctorId}&limit=50`).catch(() => ({ data: { data: [] } })),
+                api.get(`/clinic-ai/workload?clinic_id=1`).catch(() => ({ data: { data: { prediction: 'Morning hours (10–12 AM) are typically busiest.' } } }))
             ]);
             const apts = aptRes.data?.data || [];
             const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
@@ -239,7 +239,7 @@ function VirtualReceptionist() {
         setHistory(h => [...h, { role:'user', content:msg }]);
         setLoading(true);
         try {
-            const res = await axios.post(`${API}/clinic-ai/chatbot`, { message: msg, language: lang });
+            const res = await api.post(`/clinic-ai/chatbot`, { message: msg, language: lang });
             setHistory(h => [...h, { role:'assistant', content: res.data?.data?.reply || 'I am here to help!' }]);
         } catch {
             setHistory(h => [...h, { role:'assistant', content: 'I am temporarily unavailable. Please try again.' }]);
@@ -290,7 +290,7 @@ function SymptomChecker() {
     const analyze = async () => {
         setLoading(true); setResult(null);
         try {
-            const res = await axios.post(`${API}/clinic-ai/symptoms`, { symptoms, language: lang });
+            const res = await api.post(`/clinic-ai/symptoms`, { symptoms, language: lang });
             setResult(res.data?.data?.analysis || '');
         } catch { setResult('AI analysis failed.'); }
         finally { setLoading(false); }
@@ -338,7 +338,7 @@ function PrescriptionGenerator() {
         setLoading(true); setResult('');
         try {
             const payload = { diagnosis: fields.diagnosis, patientAge: fields.age, patientWeight: fields.weight, allergies: fields.allergies };
-            const res = await axios.post(`${API}/clinic-ai/prescription`, payload);
+            const res = await api.post(`/clinic-ai/prescription`, payload);
             setResult(res.data?.data?.prescription || '');
         } catch { setResult('Could not generate. Please try again.'); }
         finally { setLoading(false); }
@@ -380,8 +380,8 @@ function AnalyticsInsights() {
         setLoading(true);
         try {
             const [aptRes, wlRes] = await Promise.all([
-                axios.get(`${API}/appointments?limit=200`).catch(() => ({ data:{ data:[] } })),
-                axios.get(`${API}/clinic-ai/workload?clinic_id=1`).catch(() => ({ data:{ data:{ prediction:'' } } }))
+                api.get(`/appointments?limit=200`).catch(() => ({ data:{ data:[] } })),
+                api.get(`/clinic-ai/workload?clinic_id=1`).catch(() => ({ data:{ data:{ prediction:'' } } }))
             ]);
             const apts = aptRes.data?.data || [];
             const completed = apts.filter((a:any) => a.status === 'completed').length;
@@ -433,7 +433,7 @@ function RecordSummarizer() {
     const summarize = async () => {
         setLoading(true); setSummary('');
         try {
-            const res = await axios.post(`${API}/clinic-ai/summarize`, { record_text: text });
+            const res = await api.post(`/clinic-ai/summarize`, { record_text: text });
             setSummary(res.data?.data?.summary || '');
         } catch { setSummary('Summarization failed.'); }
         finally { setLoading(false); }
@@ -519,7 +519,7 @@ function DocumentScanner() {
             const dataUri = ev.target?.result as string;
             setPreview(dataUri); setLoading(true); setResult(null);
             try {
-                const res = await axios.post(`${API}/ai/analyze-document`, { fileDataUri: dataUri, fileType:'medical document/prescription', language:'en' });
+                const res = await api.post(`/ai/analyze-document`, { fileDataUri: dataUri, fileType:'medical document/prescription', language:'en' });
                 setResult(res.data?.data);
             } catch { setResult({ error: 'Analysis failed.' }); }
             finally { setLoading(false); }
@@ -575,10 +575,9 @@ function TreatmentRecommendation() {
     const recommend = async () => {
         setLoading(true); setResult('');
         try {
-            const prompt = `Clinical decision support: Based on symptoms: ${symptoms} and history: ${history||'None'}, recommend treatments using clinical guidelines. Include first-line treatments, lifestyle advice, red flags. Add disclaimer.`;
-            const res = await axios.post(`${API}/ai/chat`, { prompt, language:'en', history:[] });
-            setResult(res.data?.data?.response || '');
-        } catch { setResult('Failed.'); }
+            const res = await api.post(`/ai/chat`, { prompt: `Clinical guidelines for Symptoms: ${symptoms}, History: ${history||'None'}. Suggest first-line treatment and lifestyle only.`, language:'en', history:[] });
+            setResult(res.data?.data?.response || 'No recommendations generated.');
+        } catch { setResult('Failed to connect to clinical knowledge base.'); }
         finally { setLoading(false); }
     };
 
@@ -618,12 +617,9 @@ function SentimentAnalyzer() {
     const analyze = async () => {
         setLoading(true); setResult(null);
         try {
-            const prompt = `Analyze this patient feedback and return ONLY valid JSON:\n{ "sentiment": "Positive"|"Neutral"|"Negative", "score": 0-100, "key_topics": [], "summary": "", "actionable_improvements": [] }\n\nFeedback: "${feedback}"`;
-            const res = await axios.post(`${API}/ai/chat`, { prompt, language:'en', history:[] });
-            const raw = res.data?.data?.response || '{}';
-            const match = raw.match(/\{[\s\S]*\}/);
-            setResult(match ? JSON.parse(match[0]) : null);
-        } catch { setResult({ error:'Analysis failed.' }); }
+            const res = await api.post(`/ai/analyze-sentiment`, { feedback });
+            setResult(res.data?.data);
+        } catch { setResult({ error:'Analysis engine failed to respond.' }); }
         finally { setLoading(false); }
     };
 
@@ -675,20 +671,48 @@ function FaceAttendance({ user }: { user?: any }) {
     const [result, setResult] = useState<any>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const [streaming, setStreaming] = useState(false);
+    const [history, setHistory] = useState<any[]>([]);
+    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
     const startCam = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-            if (videoRef.current) { videoRef.current.srcObject = stream; setStreaming(true); }
+            setLocalStream(stream);
+            if (videoRef.current) videoRef.current.srcObject = stream;
+            setStreaming(true);
         } catch { alert('Camera access denied or no camera present.'); }
     };
+
+    const stopCam = () => {
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+            setLocalStream(null);
+        }
+        setStreaming(false);
+    };
+
+    const fetchHistory = async () => {
+        try {
+            const res = await api.get(`/clinic-ai/attendance-history?staff_id=${user?.id || 'staff-demo'}`);
+            if (res.data?.success) setHistory(res.data.data);
+        } catch (e) { console.error('History fetch failed', e); }
+    };
+
+    useEffect(() => {
+        fetchHistory();
+        return () => {
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+        };
+    }, []);
 
     const capture = async () => {
         setLoading(true);
         try {
-            const res = await axios.post(`${API}/clinic-ai/face`, { studentId: user?.id || 'staff-demo', confidence: 0.97 });
+            const res = await api.post(`/clinic-ai/face`, { studentId: user?.id || 'staff-demo', confidence: 0.97 });
             setResult(res.data?.data);
-        } catch { setResult({ error:'Attendance marking failed.' }); }
+            stopCam();
+            fetchHistory();
+        } catch { setResult({ error: 'Attendance marking failed.' }); }
         finally { setLoading(false); }
     };
 
@@ -698,8 +722,13 @@ function FaceAttendance({ user }: { user?: any }) {
             <div className="flex gap-8 items-start">
                 <div>
                     <div className="w-72 h-52 bg-slate-900 rounded-xl overflow-hidden flex items-center justify-center border-2 border-slate-700 mb-3">
-                        {streaming ? <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                            : <div className="text-center text-slate-500"><Camera className="w-10 h-10 mx-auto mb-2" /><p className="text-sm">Camera Off</p></div>}
+                        <video ref={videoRef} autoPlay playsInline muted className={`w-full h-full object-cover ${!streaming ? 'hidden' : ''}`} />
+                        {!streaming && (
+                            <div className="text-center text-slate-500">
+                                <Camera className="w-10 h-10 mx-auto mb-2" />
+                                <p className="text-sm">Camera Off</p>
+                            </div>
+                        )}
                     </div>
                     <div className="flex gap-2">
                         <button onClick={startCam} disabled={streaming} className="flex-1 bg-slate-700 text-white px-3 py-2 rounded-lg text-sm hover:bg-slate-800 disabled:opacity-40">
@@ -723,6 +752,38 @@ function FaceAttendance({ user }: { user?: any }) {
                     )}
                     {result?.error && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{result.error}</div>}
                     {!result && <div className="text-sm text-gray-500"><p className="font-medium text-gray-700 mb-2">Steps:</p><ol className="space-y-1 list-decimal pl-4"><li>Click <strong>Start Camera</strong></li><li>Position face in frame</li><li>Click <strong>Identify</strong> to mark attendance</li></ol></div>}
+                    
+                    {/* History Viewer */}
+                    <div className="mt-8 border-t pt-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tighter">My Attendance Log</h3>
+                            <button onClick={fetchHistory} className="text-[10px] text-blue-600 hover:underline">Refresh</button>
+                        </div>
+                        {history.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic">No past logs available.</p>
+                        ) : (
+                            <div className="space-y-2 max-h-52 overflow-y-auto pr-1 thin-scrollbar">
+                                {history.map((h: any) => {
+                                    const d = new Date(h.check_in);
+                                    return (
+                                        <div key={h.id} className="flex items-center justify-between bg-white/50 p-2 rounded-lg border border-slate-100">
+                                            <div>
+                                                <p className="text-xs font-bold text-slate-800">{d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                                                <p className="text-[10px] text-slate-500 uppercase">{h.method} check-in</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-black text-slate-900">{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                                                    <span className="text-[9px] text-green-700 font-bold uppercase">{h.status}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
@@ -732,16 +793,28 @@ function FaceAttendance({ user }: { user?: any }) {
 // ══════════════════════════════════════════════════════════════════
 // MODULE 11 — Workload Planner
 // ══════════════════════════════════════════════════════════════════
-function WorkloadPlanner() {
+function WorkloadPlanner({ user }: { user?: any }) {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState('');
 
     const predict = async () => {
         setLoading(true); setResult('');
         try {
-            const res = await axios.get(`${API}/clinic-ai/workload?clinic_id=1`);
-            setResult(res.data?.data?.prediction || 'No prediction available.');
-        } catch { setResult('Failed to connect to backend.'); }
+            const res = await api.get('/clinic-ai/workload', { 
+                params: { 
+                    clinic_id: 1, 
+                    doctor_id: user?.id 
+                } 
+            });
+            if (res.data?.success) {
+                setResult(res.data.data?.prediction || 'No prediction available.');
+            } else {
+                setResult(`AI Error: ${res.data?.message || 'Processing failed'}`);
+            }
+        } catch (err: any) {
+            const errMsg = err.response?.data?.message || err.message || 'Connection failed';
+            setResult(`Failed to connect to backend: ${errMsg}`);
+        }
         finally { setLoading(false); }
     };
 

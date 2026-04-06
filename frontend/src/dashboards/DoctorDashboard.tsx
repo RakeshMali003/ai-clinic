@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { User } from '../common/types';
 import {
     Calendar,
@@ -10,7 +10,11 @@ import {
     FileText,
     Activity
 } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+    BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+import { Switch } from '../common/ui/switch';
+import { Label } from '../common/ui/label';
 
 interface DoctorDashboardProps {
     user: User;
@@ -45,7 +49,12 @@ const mockRecentAppointments = [
 ];
 
 export function DoctorDashboard({ user }: DoctorDashboardProps) {
-    const [loading, setLoading] = useState(false);
+    const [isDemoMode, setIsDemoMode] = useState(false);
+    
+    // Use empty arrays if demo mode is off
+    const displayAppointments = isDemoMode ? mockAppointmentData : [];
+    const displayPatients = isDemoMode ? mockPatientData : [];
+    const displayRecent = isDemoMode ? mockRecentAppointments : [];
 
     const stats = [
         { label: "Today's Appointments", value: '23', change: '+12%', icon: Calendar, color: 'blue' },
@@ -57,9 +66,17 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Doctor Dashboard</h1>
-                <p className="text-gray-600">Welcome back, Dr. {user.name}</p>
+            <div className="flex items-end justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Doctor Dashboard</h1>
+                    <p className="text-gray-600">Welcome back, Dr. {user.name}</p>
+                </div>
+                <div className="flex items-center space-x-2 bg-white p-2 rounded-lg border border-gray-200">
+                    <Switch id="demo-mode" checked={isDemoMode} onCheckedChange={setIsDemoMode} />
+                    <Label htmlFor="demo-mode" className="text-sm cursor-pointer select-none">
+                       Demo Mode (Sample Data)
+                    </Label>
+                </div>
             </div>
 
             {/* Stats Grid - ROLE: Doctor can view all stats */}
@@ -98,15 +115,28 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
                             <span>Peak: 11 AM</span>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={mockAppointmentData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {displayAppointments.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={displayAppointments}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'hsl(var(--card))',
+                                        border: '1px solid hsl(var(--border))',
+                                        borderRadius: '8px',
+                                        color: 'hsl(var(--foreground))'
+                                    }}
+                                />
+                                <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[250px] text-gray-400 text-sm">
+                            Enable Demo Mode to view sample appointment data.
+                        </div>
+                    )}
                 </div>
 
                 {/* Weekly Patient Trend */}
@@ -121,21 +151,34 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
                             <span>+12%</span>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <LineChart data={mockPatientData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Line
-                                type="monotone"
-                                dataKey="patients"
-                                stroke="#10b981"
-                                strokeWidth={2}
-                                dot={{ fill: '#10b981', r: 4 }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    {displayPatients.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <LineChart data={displayPatients}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                                <XAxis dataKey="day" stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+                                <YAxis stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 12 }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'hsl(var(--card))',
+                                        border: '1px solid hsl(var(--border))',
+                                        borderRadius: '8px',
+                                        color: 'hsl(var(--foreground))'
+                                    }}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="patients"
+                                    stroke="hsl(var(--primary))"
+                                    strokeWidth={3}
+                                    dot={{ fill: 'hsl(var(--primary))', r: 4 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[250px] text-gray-400 text-sm">
+                            No patient data available.
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -157,33 +200,41 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {mockRecentAppointments.map((appointment) => (
-                                <tr key={appointment.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 text-sm text-gray-900">{appointment.patient}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                        <div className="flex items-center gap-2">
-                                            <Clock className="w-4 h-4" />
-                                            {appointment.time}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{appointment.type}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                appointment.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
-                                                    appointment.status === 'waiting' ? 'bg-yellow-100 text-yellow-700' :
-                                                        'bg-purple-100 text-purple-700'
-                                            }`}>
-                                            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1).replace('-', ' ')}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {/* ROLE: Doctor can view/edit patient records */}
-                                        <button className="text-sm text-blue-600 hover:underline">
-                                            View Details
-                                        </button>
+                            {displayRecent.length > 0 ? (
+                                displayRecent.map((appointment) => (
+                                    <tr key={appointment.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 text-sm text-gray-900">{appointment.patient}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="w-4 h-4" />
+                                                {appointment.time}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{appointment.type}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${appointment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                                    appointment.status === 'in-progress' ? 'bg-blue-100 text-blue-700' :
+                                                        appointment.status === 'waiting' ? 'bg-yellow-100 text-yellow-700' :
+                                                            'bg-purple-100 text-purple-700'
+                                                }`}>
+                                                {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1).replace('-', ' ')}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {/* ROLE: Doctor can view/edit patient records */}
+                                            <button className="text-sm text-blue-600 hover:underline">
+                                                View Details
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                                        No recent appointments
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>

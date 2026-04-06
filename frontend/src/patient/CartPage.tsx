@@ -16,15 +16,19 @@ import { Input } from '../common/ui/input';
 import { medicineService } from '../services/medicineService';
 import type { PatientUser } from './PatientPortal';
 
-export function CartPage({ patient, onNavigate }: { patient: PatientUser; onNavigate: (page: any) => void }) {
+export function CartPage({ patient, onNavigate }: { patient: PatientUser | null; onNavigate: (page: any) => void }) {
     const [cartItems, setCartItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [deliveryAddress, setDeliveryAddress] = useState(patient.address || '');
+    const [deliveryAddress, setDeliveryAddress] = useState(patient?.address || '');
     const [placingOrder, setPlacingOrder] = useState(false);
 
     useEffect(() => {
+        if (!patient) {
+            onNavigate('login');
+            return;
+        }
         fetchCart();
-    }, []);
+    }, [patient, onNavigate]);
 
     const fetchCart = async () => {
         try {

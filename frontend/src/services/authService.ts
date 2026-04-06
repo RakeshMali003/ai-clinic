@@ -215,7 +215,13 @@ export class AuthService {
             body: formData,
         });
 
-        const responseData = await response.json();
+        const rawData = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(rawData.message || 'Clinic registration failed');
+        }
+
+        const responseData = rawData.success ? rawData.data : rawData;
         
         // Store token and user for auto-login
         if (responseData.token) {
@@ -226,7 +232,7 @@ export class AuthService {
                 name: responseData.user.full_name,
                 email: responseData.user.email,
                 role: 'clinic',
-                clinic_id: responseData.clinic.id
+                clinic_id: responseData.clinic?.id
             };
             localStorage.setItem('user', JSON.stringify(userData));
         }
@@ -261,12 +267,13 @@ export class AuthService {
             body: formData,
         });
 
+        const rawData = await response.json().catch(() => ({}));
+
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Lab registration failed');
+            throw new Error(rawData.message || 'Lab registration failed');
         }
 
-        const responseData = await response.json();
+        const responseData = rawData.success ? rawData.data : rawData;
 
         // Store token and user for auto-login
         if (responseData.token) {
@@ -314,12 +321,13 @@ export class AuthService {
             body: formData,
         });
 
+        const rawData = await response.json().catch(() => ({}));
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Doctor registration failed');
+            throw new Error(rawData.message || 'Doctor registration failed');
         }
 
-        const responseData = await response.json();
+        const responseData = rawData.success ? rawData.data : rawData;
 
         // Store token and user for auto-login
         if (responseData.token) {
@@ -330,7 +338,7 @@ export class AuthService {
                 name: responseData.user.full_name,
                 email: responseData.user.email,
                 role: 'doctor',
-                doctor_id: responseData.doctor.id
+                doctor_id: responseData.doctor?.id
             };
             localStorage.setItem('user', JSON.stringify(userData));
         }
@@ -431,19 +439,31 @@ export class AuthService {
         return await response.json();
     }
 
-    // Sign out
-    async signOut() {
-        localStorage.removeItem('auth_token');
-    }
-
-    // OTP verification
-    async verifyOtp(email: string, otp: string) {
-        const response = await fetch(`${API_BASE_URL}/api/auth/verify-otp`, {
+    // Mobile OTP
+    async sendMobileOTP(mobile: string) {
+        const response = await fetch(`${API_BASE_URL}/api/auth/send-otp-mobile`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, otp }),
+            body: JSON.stringify({ mobile }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to send OTP');
+        }
+
+        return await response.json();
+    }
+
+    async loginWithMobileOTP(mobile: string, otp: string): Promise<User> {
+        const response = await fetch(`${API_BASE_URL}/api/auth/login-otp-mobile`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ mobile, otp }),
         });
 
         if (!response.ok) {
@@ -452,10 +472,29 @@ export class AuthService {
         }
 
         const data = await response.json();
-        // Store token
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        return data;
+        
+        if (data.token) {
+            localStorage.setItem('auth_token', data.token);
+        }
+
+        const userData: User = {
+            id: String(data.user.user_id),
+            full_name: data.user.full_name,
+            name: data.user.full_name, 
+            email: data.user.email,
+            role: data.user.role as UserRole,
+            doctor_id: data.user.doctor_id,
+            patient_id: data.user.patient_id,
+            clinic_id: data.user.clinic_id
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        return userData;
+    }
+
+    // Sign out
+    async signOut() {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
     }
 }
 

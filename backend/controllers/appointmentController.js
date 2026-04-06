@@ -1,5 +1,7 @@
 const Appointment = require('../models/appointmentModel');
 const ResponseHandler = require('../utils/responseHandler');
+const prisma = require('../config/database');
+const { createNotification } = require('../utils/notificationHelper');
 
 exports.getPatientAppointments = async (req, res, next) => {
     try {
@@ -114,6 +116,25 @@ exports.createAppointment = async (req, res, next) => {
         };
 
         const newAppointment = await Appointment.create(appointmentData);
+
+        // Notify patient
+        try {
+            const patientRecord = await prisma.patients.findUnique({
+                where: { patient_id: patient_id },
+                select: { user_id: true }
+            });
+            if (patientRecord?.user_id) {
+                await createNotification({
+                    userId: patientRecord.user_id,
+                    type: 'APPOINTMENT',
+                    title: 'Appointment Confirmed',
+                    message: `Upcoming consultation on ${new Date(appointment_date).toLocaleDateString()} at ${req.body.appointment_time || 'scheduled time'}`
+                });
+            }
+        } catch (err) {
+            console.error('Error sending appointment notification:', err);
+        }
+
         ResponseHandler.created(res, newAppointment, 'Appointment created successfully');
     } catch (error) {
         console.error('Error in createAppointment:', error);
@@ -291,6 +312,27 @@ exports.rescheduleAppointment = async (req, res, next) => {
 
         const updated = await Appointment.update(appointment_id, updateData);
         console.log('RESCHEDULE SUCCESS:', updated);
+        
+        // Notify patient of reschedule
+        try {
+            if (updated.patient_id) {
+                const patientRecord = await prisma.patients.findUnique({
+                    where: { patient_id: updated.patient_id },
+                    select: { user_id: true }
+                });
+                if (patientRecord?.user_id) {
+                    await createNotification({
+                        userId: patientRecord.user_id,
+                        type: 'APPOINTMENT',
+                        title: 'Appointment Rescheduled',
+                        message: `Your appointment has been moved to ${new Date(appointment_date).toLocaleDateString()} at ${appointment_time}`
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error sending reschedule notification:', err);
+        }
+
         ResponseHandler.updated(res, updated, 'Appointment rescheduled');
     } catch (error) {
         console.error('Error in rescheduleAppointment:', error);
@@ -318,6 +360,35 @@ exports.updateStatus = async (req, res, next) => {
             return ResponseHandler.notFound(res, 'Appointment not found');
         }
         ResponseHandler.updated(res, updated, 'Appointment status updated');
+
+        // Notify patient of status update
+        try {
+            if (updated.patient_id) {
+                const patientRecord = await prisma.patients.findUnique({
+                    where: { patient_id: updated.patient_id },
+                    select: { user_id: true }
+                });
+                
+                if (patientRecord?.user_id) {
+                    let title = 'Appointment Update';
+                    let message = `Your appointment status has been updated to ${status.replace('_', ' ')}`;
+                    
+                    if (status.toLowerCase() === 'completed') {
+                        title = 'Consultation Completed';
+                        message = 'Your consultation is now complete. Feel free to view your prescription and visit summary.';
+                    }
+
+                    await createNotification({
+                        userId: patientRecord.user_id,
+                        type: 'APPOINTMENT',
+                        title: title,
+                        message: message
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Error sending status update notification:', err);
+        }
     } catch (error) {
         next(error);
     }

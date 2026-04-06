@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UserRole } from '../common/types';
-import { User, Bell, CreditCard, Database, HelpCircle, Save, Loader2 } from 'lucide-react';
+import { User, Bell, CreditCard, Database, HelpCircle, Save, Loader2, ArrowUpRight } from 'lucide-react';
 import { clinicService } from '../services/clinicService';
 
 interface SettingsProps {
@@ -12,6 +12,8 @@ export function Settings({ userRole }: SettingsProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<any>({});
+  const [ticketData, setTicketData] = useState({ type: 'Technical Issue', subject: '', description: '' });
+  const [submittingTicket, setSubmittingTicket] = useState(false);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -19,6 +21,17 @@ export function Settings({ userRole }: SettingsProps) {
         setLoading(true);
         const data = await clinicService.getSettings();
         setSettings(data);
+        
+        // Also fetch profile for clinic_name etc.
+        const profile = await clinicService.getProfile();
+        if (profile) {
+            setSettings((prev: any) => ({ 
+                ...prev, 
+                clinic_name: profile.clinic_name, 
+                clinic_email: profile.email, 
+                clinic_phone: profile.mobile 
+            }));
+        }
       } catch (error) {
         console.error('Error fetching settings:', error);
       } finally {
@@ -39,6 +52,47 @@ export function Settings({ userRole }: SettingsProps) {
       alert('Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggle = async (key: string, value: boolean) => {
+    const stringValue = String(value);
+    const oldValue = settings[key];
+    
+    // Optimistic update
+    setSettings((prev: any) => ({ ...prev, [key]: stringValue }));
+    
+    try {
+        const success = await clinicService.updateSettings({ [key]: stringValue });
+        if (!success) throw new Error('Failed to update');
+    } catch (error) {
+        console.error('Error updating notification toggle:', error);
+        // Rollback
+        setSettings((prev: any) => ({ ...prev, [key]: oldValue }));
+        alert('Failed to update preference. Please try again.');
+    }
+  };
+
+  const handleTicketSubmit = async () => {
+    if (!ticketData.subject.trim() || !ticketData.description.trim()) {
+        alert('Please fill in both subject and description.');
+        return;
+    }
+
+    try {
+        setSubmittingTicket(true);
+        const success = await clinicService.submitTicket(ticketData);
+        if (success) {
+            alert('Support ticket raised successfully! Our technical team will analyze the situation and contact you shortly.');
+            setTicketData({ type: 'Technical Issue', subject: '', description: '' });
+        } else {
+            alert('Transmission failure: Could not reach support center.');
+        }
+    } catch (error) {
+        console.error('Error submitting ticket:', error);
+        alert('An error occurred while submitting the ticket.');
+    } finally {
+        setSubmittingTicket(false);
     }
   };
 
@@ -103,7 +157,7 @@ export function Settings({ userRole }: SettingsProps) {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                       <input
                         type="text"
-                        defaultValue={settings.clinic_name || ''}
+                        value={settings.clinic_name || ''}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         onChange={(e) => setSettings({ ...settings, clinic_name: e.target.value })}
                       />
@@ -112,7 +166,7 @@ export function Settings({ userRole }: SettingsProps) {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                       <input
                         type="email"
-                        defaultValue={settings.clinic_email || ''}
+                        value={settings.clinic_email || ''}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         onChange={(e) => setSettings({ ...settings, clinic_email: e.target.value })}
                       />
@@ -121,14 +175,14 @@ export function Settings({ userRole }: SettingsProps) {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
                       <input
                         type="tel"
-                        defaultValue={settings.clinic_phone || ''}
+                        value={settings.clinic_phone || ''}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                         onChange={(e) => setSettings({ ...settings, clinic_phone: e.target.value })}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                      <input type="text" defaultValue={String(userRole)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" disabled />
+                      <input type="text" value={String(userRole)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50" disabled />
                     </div>
                   </div>
                 </div>
@@ -136,7 +190,9 @@ export function Settings({ userRole }: SettingsProps) {
 
               <div className="flex justify-end pt-4">
                 <button
-                  onClick={() => handleSave(settings)}
+                  onClick={async () => {
+                    await handleSave(settings);
+                  }}
                   disabled={saving}
                   className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 >
@@ -159,7 +215,7 @@ export function Settings({ userRole }: SettingsProps) {
                     { key: 'notify_sms', label: 'SMS Notifications', desc: 'Get text message alerts' },
                     { key: 'notify_inapp', label: 'In-App Notifications', desc: 'Show notifications in the app' }
                   ].map((item) => (
-                    <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div key={item.key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-blue-50/50 transition-colors cursor-pointer group">
                       <div>
                         <h3 className="font-medium text-gray-900">{item.label}</h3>
                         <p className="text-sm text-gray-600">{item.desc}</p>
@@ -169,7 +225,7 @@ export function Settings({ userRole }: SettingsProps) {
                           type="checkbox"
                           checked={settings[item.key] === 'true'}
                           className="sr-only peer"
-                          onChange={(e) => handleSave({ [item.key]: String(e.target.checked) })}
+                          onChange={(e) => handleToggle(item.key, e.target.checked)}
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
@@ -289,22 +345,37 @@ export function Settings({ userRole }: SettingsProps) {
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                     <h3 className="font-medium text-blue-900 mb-2">Help Center</h3>
                     <p className="text-sm text-blue-800 mb-3">Browse our documentation and FAQs</p>
-                    <button className="text-sm text-blue-600 hover:underline">Visit Help Center →</button>
+                    <a 
+                      href="/features" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        // In a real app, this would navigate to a dedicated help section
+                        // For now we'll show a friendly message
+                        alert('E-Clinic Help Center: Documentation is being updated for the latest version. Please contact support@eclinic.com for immediate assistance.');
+                      }}
+                      className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 font-bold"
+                    >
+                        Visit Help Center <ArrowUpRight className="w-5 h-5" />
+                    </a>
                   </div>
 
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <h3 className="font-medium text-gray-900 mb-2">Contact Support</h3>
-                    <p className="text-sm text-gray-600 mb-3">Email: support@elinic.com</p>
-                    <p className="text-sm text-gray-600 mb-3">Phone: +91 1800 123 4567</p>
+                    <p className="text-sm text-gray-600 mb-1">Email: support@eclinic.com</p>
+                    <p className="text-sm text-gray-600 mb-1">Phone: +91 1800 123 4567</p>
                     <p className="text-sm text-gray-600">Response time: Within 24 hours</p>
                   </div>
 
-                  <div>
-                    <h3 className="font-medium text-gray-900 mb-3">Raise Support Ticket</h3>
-                    <div className="space-y-3">
+                  <div className="pt-4 border-t border-gray-200">
+                    <h3 className="font-medium text-gray-900 mb-4">Raise Support Ticket</h3>
+                    <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Issue Type</label>
-                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <select 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                          value={ticketData.type}
+                          onChange={(e) => setTicketData({ ...ticketData, type: e.target.value })}
+                        >
                           <option>Technical Issue</option>
                           <option>Billing Question</option>
                           <option>Feature Request</option>
@@ -312,14 +383,31 @@ export function Settings({ userRole }: SettingsProps) {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                        <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
+                        <input 
+                          type="text" 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
+                          placeholder="What would you like assistance with?"
+                          value={ticketData.subject}
+                          onChange={(e) => setTicketData({ ...ticketData, subject: e.target.value })}
+                        />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg" rows={4}></textarea>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                        <textarea 
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg" 
+                          rows={4}
+                          placeholder="Provide as much detail as possible..."
+                          value={ticketData.description}
+                          onChange={(e) => setTicketData({ ...ticketData, description: e.target.value })}
+                        ></textarea>
                       </div>
-                      <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                      <button 
+                        onClick={handleTicketSubmit}
+                        disabled={submittingTicket}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {submittingTicket ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Submit Ticket
                       </button>
                     </div>

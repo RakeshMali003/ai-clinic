@@ -171,18 +171,18 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
             <Input id="labName" value={formData.labName} onChange={handleInputChange} /></div>
           <div><Label htmlFor="ownerName">Owner Name *</Label>
             <Input id="ownerName" value={formData.ownerName} onChange={handleInputChange} /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Lab Type</Label>
+          <div className="grid grid-cols-2 gap-6 pb-2">
+            <div className="relative z-[60]"><Label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Lab Type</Label>
               <Select onValueChange={v => handleSelectChange('labType', v)} defaultValue="pathology">
-                <SelectTrigger><SelectValue placeholder="Pathology" /></SelectTrigger>
-                <SelectContent><SelectItem value="pathology">Pathology</SelectItem><SelectItem value="radiology">Radiology</SelectItem><SelectItem value="both">Both</SelectItem></SelectContent>
+                <SelectTrigger className="h-12 rounded-2xl border-gray-100 shadow-sm focus:ring-blue-500/20"><SelectValue placeholder="Pathology" /></SelectTrigger>
+                <SelectContent className="z-[100]"><SelectItem value="pathology">Pathology</SelectItem><SelectItem value="radiology">Radiology</SelectItem><SelectItem value="both">Both</SelectItem></SelectContent>
               </Select>
             </div>
-            <div><Label htmlFor="establishedYear">Established Year</Label>
-              <Input id="establishedYear" type="number" value={formData.establishedYear} onChange={handleInputChange} /></div>
+            <div><Label htmlFor="establishedYear" className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Established Year</Label>
+              <Input id="establishedYear" type="number" value={formData.establishedYear} onChange={handleInputChange} className="h-12 rounded-2xl border-gray-100 shadow-sm" /></div>
           </div>
-          <div><Label htmlFor="registrationNumber">Registration Number</Label>
-            <Input id="registrationNumber" value={formData.registrationNumber} onChange={handleInputChange} /></div>
+          <div className="pt-2"><Label htmlFor="registrationNumber" className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Registration Number</Label>
+            <Input id="registrationNumber" value={formData.registrationNumber} onChange={handleInputChange} placeholder="Unique Lab ID" className="h-12 rounded-2xl border-gray-100 shadow-sm" /></div>
         </div>
       );
       case 2: return (
@@ -270,7 +270,7 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 flex justify-center">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-12 px-4 sm:px-6 lg:px-8 flex justify-center transition-colors duration-300">
        <Card className="w-full max-w-2xl shadow-lg border-blue-100">
            <CardHeader className="bg-blue-600 rounded-t-lg">
                <div className="flex items-center text-white">

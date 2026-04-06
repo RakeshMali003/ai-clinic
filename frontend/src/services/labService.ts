@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:5000/api/lab';
 
-const getAuthToken = () => localStorage.getItem('token');
+const getAuthToken = () => localStorage.getItem('auth_token');
 
 const labService = {
     getDashboardStats: async () => {
@@ -34,8 +34,30 @@ const labService = {
         return response.data;
     },
 
-    getStaff: async () => {
+    getStaff: async (params = {}) => {
         const response = await axios.get(`${API_URL}/staff`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` },
+            params
+        });
+        return response.data;
+    },
+
+    onboardStaff: async (staffData: any) => {
+        const response = await axios.post(`${API_URL}/staff`, staffData, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getShifts: async () => {
+        const response = await axios.get(`${API_URL}/shifts`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    createShift: async (shiftData: any) => {
+        const response = await axios.post(`${API_URL}/shifts`, shiftData, {
             headers: { Authorization: `Bearer ${getAuthToken()}` }
         });
         return response.data;
@@ -47,9 +69,93 @@ const labService = {
         });
         return response.data;
     },
+    
+    getPotentialPartners: async () => {
+        const response = await axios.get(`${API_URL}/partners`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getMappingReports: async () => {
+        const response = await axios.get(`${API_URL}/mapping-reports`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
 
     updateBookingStatus: async (orderId: string, status: string, notes?: string) => {
         const response = await axios.put(`${API_URL}/${orderId}`, { status, notes }, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getBillingReport: async () => {
+        const response = await axios.get(`${API_URL}/billing/report`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    createManualInvoice: async (data: any) => {
+        const response = await axios.post(`${API_URL}/billing/invoice`, data, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getBillingArchive: async () => {
+        const response = await axios.get(`${API_URL}/billing/archive`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getReviews: async () => {
+        const response = await axios.get(`${API_URL}/reviews`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    exportReviews: async () => {
+        const response = await axios.get(`${API_URL}/reviews/export`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    markReviewHelpful: async (id: number) => {
+        const response = await axios.put(`${API_URL}/reviews/${id}/helpful`, {}, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    flagReview: async (id: number) => {
+        const response = await axios.put(`${API_URL}/reviews/${id}/flag`, {}, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getReviewArchives: async () => {
+        const response = await axios.get(`${API_URL}/reviews/archive`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getScheduling: async () => {
+        const response = await axios.get(`${API_URL}/scheduling`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    updateScheduling: async (data: any) => {
+        const response = await axios.put(`${API_URL}/scheduling`, data, {
             headers: { Authorization: `Bearer ${getAuthToken()}` }
         });
         return response.data;

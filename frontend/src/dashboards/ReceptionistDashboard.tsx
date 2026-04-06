@@ -1,4 +1,5 @@
 import { User } from '../common/types';
+import { ThemeToggle } from '../common/ThemeToggle';
 import {
     Calendar,
     Users,
@@ -46,9 +47,12 @@ export function ReceptionistDashboard({ user }: ReceptionistDashboardProps) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Receptionist Dashboard</h1>
-                <p className="text-gray-600">Manage appointments and patient check-ins</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Receptionist Dashboard</h1>
+                    <p className="text-gray-600">Manage appointments and patient check-ins</p>
+                </div>
+                <ThemeToggle />
             </div>
 
             {/* Stats Grid - ROLE: Receptionist can view appointment stats */}

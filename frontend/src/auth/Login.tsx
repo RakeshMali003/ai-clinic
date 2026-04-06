@@ -96,11 +96,12 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
     setIsLoading(true);
 
     try {
-      // TODO: Implement OTP sending via backend API
+      await authService.sendMobileOTP(mobile);
       setOtpSent(true);
       toast.info('OTP sent to your mobile number');
     } catch (err: any) {
       setError(err.message || 'Failed to send OTP');
+      toast.error(err.message || 'Failed to send OTP');
     } finally {
       setIsLoading(false);
     }
@@ -112,11 +113,14 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
     setIsLoading(true);
 
     try {
-      // TODO: Implement OTP verification via backend API
-      // For now, this is a placeholder
-      toast.error('OTP login not implemented yet');
+      const user = await authService.loginWithMobileOTP(mobile, otp);
+      const token = localStorage.getItem('auth_token');
+      onLogin(user, token || undefined);
+      toast.success('Welcome back!');
+      setShouldNavigate(true);
     } catch (err: any) {
       setError(err.message || 'OTP verification failed');
+      toast.error(err.message || 'OTP verification failed');
     } finally {
       setIsLoading(false);
     }
@@ -125,17 +129,17 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
       <Toaster />
       <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-8">
-          <div className="flex items-center gap-4 mb-6">
-            <button onClick={onBack} className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full transition-colors">
-              <Building2 className="w-6 h-6 text-pink-600" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 p-8">
+          <div className="flex items-center gap-4 mb-8">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
+              <Building2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Elinic Healthcare</h1>
-              <p className="text-sm text-gray-600 dark:text-slate-400">Clinic Management Platform</p>
+              <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Elinic Healthcare</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400">Professional Clinic Management</p>
             </div>
           </div>
 
@@ -203,17 +207,17 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
 
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-gray-200 dark:border-slate-600"></span>
+                    <span className="w-full border-t border-slate-200 dark:border-slate-700"></span>
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white dark:bg-slate-800 px-2 text-gray-500 dark:text-slate-400">Or continue with</span>
+                    <span className="bg-white dark:bg-slate-900 px-2 text-slate-400">Or continue with</span>
                   </div>
                 </div>
 
@@ -221,7 +225,7 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
                   type="button"
                   onClick={handleGoogleLogin}
                   variant="outline"
-                  className="w-full bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-600 flex items-center justify-center gap-2"
+                  className="w-full bg-white dark:bg-slate-800 border fill-current border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 flex items-center justify-center gap-2"
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -229,7 +233,7 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                   </svg>
-                  Sign In With Google
+                  Google
                 </Button>
               </form>
             </TabsContent>
@@ -261,7 +265,7 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     Send OTP
                   </Button>
@@ -309,7 +313,7 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
                     </Button>
                     <Button
                       type="submit"
-                      className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Verify
                     </Button>
@@ -327,26 +331,26 @@ export function LoginPage({ onLogin, onBack, onRegister, initialTab = 'email' }:
 
           </Tabs>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600 mb-3">New to E-Clinic?</p>
-            <div className="flex flex-col gap-2">
+          <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 text-center">
+            <p className="text-sm text-slate-500 mb-4">New to E-Clinic?</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 onClick={() => onRegister('doctor')}
-                className="w-full py-2 px-4 border border-pink-300 text-pink-600 rounded-lg hover:bg-pink-50 transition-colors text-sm font-medium"
+                className="py-2.5 px-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-xs font-semibold"
               >
-                Register as Doctor
+                Doctor
               </button>
               <button
                 onClick={() => onRegister('clinic')}
-                className="w-full py-2 px-4 border border-purple-300 text-purple-600 rounded-lg hover:bg-purple-50 transition-colors text-sm font-medium"
+                className="py-2.5 px-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-xs font-semibold"
               >
-                Register Clinic
+                Clinic
               </button>
               <button
                 onClick={() => onRegister('lab')}
-                className="w-full py-2 px-4 border border-blue-300 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                className="py-2.5 px-3 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-xs font-semibold"
               >
-                Register as Lab / Diagnostics
+                Lab
               </button>
             </div>
           </div>

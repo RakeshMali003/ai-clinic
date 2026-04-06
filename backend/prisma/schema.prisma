@@ -1164,6 +1164,10 @@ model labs {
   clinic_lab_mapping  clinic_lab_mapping[]
   lab_orders          lab_orders[]
   lab_staff           lab_staff[]
+  lab_shifts          lab_shifts[]
+  lab_facility_hours  lab_facility_hours[]
+  lab_booking_slots   lab_booking_slots[]
+  lab_holidays        lab_holidays[]
 }
 
 model lab_staff {
@@ -1175,6 +1179,7 @@ model lab_staff {
   role          String?   @db.VarChar
   department    String?   @db.VarChar
   password_hash String?
+  security_level Int?     @default(1)
   is_active     Boolean?  @default(true)
   created_at    DateTime? @default(now()) @db.Timestamp(6)
   updated_at    DateTime? @default(now()) @db.Timestamp(6)
@@ -1182,7 +1187,23 @@ model lab_staff {
   users         users?    @relation(fields: [user_id], references: [user_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_lab_staff_user")
   labs          labs      @relation(fields: [lab_id], references: [lab_id], onDelete: Cascade, onUpdate: NoAction, map: "fk_lab_staff_lab")
 
+  lab_shifts    lab_shifts[]
+
   @@index([lab_id], map: "idx_lab_staff_lab")
+}
+
+model lab_shifts {
+  id           Int       @id @default(autoincrement())
+  lab_id       Int
+  staff_id     Int
+  shift_date   DateTime  @db.Date
+  start_time   String?   @db.VarChar
+  end_time     String?   @db.VarChar
+  status       String?   @db.VarChar
+  notes        String?
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  lab          labs      @relation(fields: [lab_id], references: [lab_id], onDelete: NoAction, onUpdate: NoAction)
+  staff        lab_staff @relation(fields: [staff_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model lab_tests {
@@ -1208,4 +1229,49 @@ model clinic_lab_mapping {
   created_at     DateTime? @default(now()) @db.Timestamp(6)
   clinics        clinics   @relation(fields: [clinic_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   labs           labs?     @relation(fields: [lab_id], references: [lab_id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model attendance {
+  id         Int      @id @default(autoincrement())
+  staff_id   String   @db.VarChar
+  check_in   DateTime @default(now()) @db.Timestamp(6)
+  method     String   @db.VarChar
+  confidence Float?
+  status     String?  @default("Present") @db.VarChar
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([staff_id], map: "idx_attendance_staff")
+}
+
+model lab_facility_hours {
+  id          Int     @id @default(autoincrement())
+  lab_id      Int
+  day_of_week String  @db.VarChar
+  is_open     Boolean @default(true)
+  open_time   String? @db.VarChar
+  close_time  String? @db.VarChar
+  labs        labs    @relation(fields: [lab_id], references: [lab_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([lab_id, day_of_week])
+}
+
+model lab_booking_slots {
+  id        Int     @id @default(autoincrement())
+  lab_id    Int
+  slot_time String  @db.VarChar
+  is_active Boolean @default(true)
+  labs      labs    @relation(fields: [lab_id], references: [lab_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([lab_id, slot_time])
+}
+
+model lab_holidays {
+  id           Int      @id @default(autoincrement())
+  lab_id       Int
+  holiday_date DateTime @db.Date
+  holiday_name String   @db.VarChar
+  holiday_type String?  @default("Public Holiday") @db.VarChar
+  labs         labs     @relation(fields: [lab_id], references: [lab_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([lab_id, holiday_date])
 }

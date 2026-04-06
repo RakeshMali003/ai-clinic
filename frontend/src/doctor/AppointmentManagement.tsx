@@ -7,15 +7,12 @@ import {
     User,
     Video,
     MapPin,
-    MoreVertical,
     MoreHorizontal,
     Filter,
     CheckCircle,
     CheckCircle2,
     XCircle,
     AlertCircle,
-    ChevronRight,
-    Stethoscope,
     Phone,
     Play,
     Eye,
@@ -31,7 +28,7 @@ interface AppointmentManagementProps {
     userRole?: string;
 }
 
-export function AppointmentManagement({ onStartAppointment, userRole }: AppointmentManagementProps) {
+export function AppointmentManagement({ onStartAppointment }: AppointmentManagementProps) {
     const { user } = useAuth();
     const [appointments, setAppointments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -206,63 +203,64 @@ export function AppointmentManagement({ onStartAppointment, userRole }: Appointm
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
             {/* Header section */}
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-200/60 pb-8">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-blue-600 font-bold text-sm tracking-wide uppercase">
-                        <Calendar className="w-4 h-4" />
-                        <span>Schedule Management</span>
+                    <div className="flex items-center gap-2 text-blue-600 font-bold text-[10px] tracking-[0.2em] uppercase">
+                        <div className="w-6 h-px bg-blue-600/30" />
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Schedule Control</span>
                     </div>
                     <h1 className="text-4xl font-black text-slate-900 tracking-tight">Appointments</h1>
-                    <p className="text-slate-500 max-w-lg font-medium">
-                        Optimize your daily workflow and patient interactions with real-time consultation tracking.
+                    <p className="text-slate-500 max-w-lg text-sm font-medium">
+                        Manage your consultations, track patient status, and optimize your daily workflow.
                     </p>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="relative w-full sm:w-80 group">
-                        <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-all duration-500" />
+                <div className="flex items-center gap-3">
+                    <div className="relative group w-full md:w-80">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                         <input
                             type="text"
-                            placeholder="Search patient, ID or info..."
+                            placeholder="Search patients..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-[1.25rem] pl-12 pr-6 py-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.03)]"
+                            className="w-full bg-white border border-slate-200 rounded-2xl pl-11 pr-5 py-3.5 text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/40 transition-all outline-none shadow-sm"
                         />
                     </div>
                 </div>
             </div>
 
             {/* Selection/Filters Bar */}
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 bg-white/80 border border-slate-200 rounded-[2rem] p-2 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex flex-wrap items-center gap-4">
-                    <div className="flex p-1.5 bg-slate-100 rounded-2xl border border-slate-200 shadow-inner">
+            <div className="flex flex-col xl:flex-row items-stretch gap-4">
+                <div className="flex-1 bg-white border border-slate-200 rounded-2xl p-2.5 shadow-sm flex flex-wrap items-center gap-5">
+                    <div className="flex p-1 bg-slate-50 rounded-xl border border-slate-200/60">
                         {['all', 'in-clinic', 'online'].map((type) => (
                             <button
                                 key={type}
                                 onClick={() => setPatientType(type)}
-                                className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-500 relative ${patientType === type
-                                    ? 'text-white'
+                                className={`px-5 py-2 rounded-lg text-xs font-bold transition-all relative ${patientType === type
+                                    ? 'text-white shadow-md shadow-blue-500/20'
                                     : 'text-slate-500 hover:text-slate-900'
                                     }`}
                             >
                                 {patientType === type && (
-                                    <div className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-600/30 z-0" />
+                                    <div className="absolute inset-0 bg-blue-600 rounded-lg z-0" />
                                 )}
                                 <span className="relative z-10">{type.charAt(0).toUpperCase() + type.slice(1).replace('-', ' ')}</span>
                             </button>
                         ))}
                     </div>
 
-                    <div className="h-10 w-px bg-slate-200 mx-1 hidden md:block" />
+                    <div className="h-8 w-px bg-slate-200 hidden md:block" />
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                         {['all', 'today', 'yesterday', 'tomorrow', 'custom'].map((d) => (
                             <button
                                 key={d}
                                 onClick={() => setDateFilter(d)}
-                                className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-500 border ${dateFilter === d
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
-                                    : 'bg-transparent border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${dateFilter === d
+                                    ? 'bg-slate-900 border-slate-900 text-white'
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                                     }`}
                             >
                                 {d}
@@ -270,44 +268,42 @@ export function AppointmentManagement({ onStartAppointment, userRole }: Appointm
                         ))}
 
                         {dateFilter === 'custom' && (
-                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-left-4 duration-500">
+                            <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-300 ml-2">
                                 <input
                                     type="date"
                                     value={customRange.from}
                                     onChange={(e) => setCustomRange({ ...customRange, from: e.target.value })}
-                                    className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:border-blue-500/50 outline-none shadow-sm"
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-900 focus:border-blue-500/50 outline-none"
                                 />
-                                <span className="text-slate-300 font-bold">/</span>
+                                <span className="text-slate-300 font-bold">-</span>
                                 <input
                                     type="date"
                                     value={customRange.to}
                                     onChange={(e) => setCustomRange({ ...customRange, to: e.target.value })}
-                                    className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-900 focus:border-blue-500/50 outline-none shadow-sm"
+                                    className="bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] text-slate-900 focus:border-blue-500/50 outline-none"
                                 />
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="xl:col-span-4 bg-white/80 border border-slate-200 rounded-[2rem] p-4 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex items-center justify-between px-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center shadow-lg shadow-blue-600/20">
-                            <Filter className="w-4 h-4 text-white" />
+                <div className="xl:w-80 bg-white border border-slate-200 rounded-2xl p-2.5 shadow-sm flex items-center justify-between px-5">
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center border border-blue-100">
+                            <Filter className="w-3.5 h-3.5 text-blue-600" />
                         </div>
-                        <span className="text-slate-600 font-bold text-xs uppercase tracking-widest">Sort viewing</span>
+                        <span className="text-slate-500 font-bold text-[10px] uppercase tracking-widest leading-none">Sort viewing</span>
                     </div>
                     <div className="relative group/select">
                         <select
                             value={sortBy}
                             onChange={(e) => setSortBy(e.target.value)}
-                            className="bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-black text-xs px-4 py-2 pr-8 appearance-none focus:ring-2 focus:ring-blue-500/30 outline-none cursor-pointer hover:border-blue-500/30 transition-all uppercase tracking-tighter"
+                            className="bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-bold text-[11px] pl-3 pr-8 py-2 appearance-none focus:ring-4 focus:ring-blue-500/50 outline-none cursor-pointer uppercase tracking-tight"
                         >
                             <option value="time">Chronological</option>
                             <option value="date">Calendar Date</option>
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                             <Clock3 className="w-3 h-3" />
-                        </div>
+                        <Clock3 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
                     </div>
                 </div>
             </div>

@@ -6,14 +6,10 @@ import {
     Plus, 
     Trash2, 
     Save, 
-    X,
-    MoreVertical,
     Clock9,
-    CheckCircle2,
     Briefcase,
     ShieldCheck,
     Coffee,
-    ArrowRight,
     Search,
     Edit2
 } from 'lucide-react';
@@ -24,20 +20,69 @@ import { Badge } from '../../common/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../common/ui/tabs';
 
 export function Scheduling() {
-    const [workingHours, setWorkingHours] = useState([
-        { day: 'Monday', isOpen: true, openTime: '09:00 AM', closeTime: '08:00 PM' },
-        { day: 'Tuesday', isOpen: true, openTime: '09:00 AM', closeTime: '08:00 PM' },
-        { day: 'Wednesday', isOpen: true, openTime: '09:00 AM', closeTime: '08:00 PM' },
-        { day: 'Thursday', isOpen: true, openTime: '09:00 AM', closeTime: '08:00 PM' },
-        { day: 'Friday', isOpen: true, openTime: '09:00 AM', closeTime: '08:00 PM' },
-        { day: 'Saturday', isOpen: true, openTime: '09:00 AM', closeTime: '05:00 PM' },
-        { day: 'Sunday', isOpen: false, openTime: 'Closed', closeTime: 'Closed' },
-    ]);
+    const [workingHours, setWorkingHours] = useState<any[]>([]);
+    const [holidays, setHolidays] = useState<any[]>([]);
+    const [slots, setSlots] = useState<string[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [systemProtection, setSystemProtection] = useState(true);
 
-    const holidays = [
-        { id: 1, date: '2024-04-10', name: 'Eid al-Fitr', type: 'Public Holiday' },
-        { id: 2, date: '2024-05-01', name: 'Labor Day', type: 'Public Holiday' },
-    ];
+    React.useEffect(() => {
+        import('../../services/labService').then(m => {
+            m.default.getScheduling?.().then(res => {
+                if (res?.success) {
+                    setWorkingHours(res.data.workingHours || []);
+                    setHolidays(res.data.holidays || []);
+                    setSlots(res.data.slots || []);
+                }
+                setLoading(false);
+            }).catch(() => setLoading(false));
+        });
+    }, []);
+
+    const handleSaveGlobal = () => {
+        import('../../services/labService').then(m => {
+            m.default.updateScheduling?.({ workingHours, holidays, slots }).then(res => {
+                if (res?.success) alert("Successfully merged scheduling changes with system engine.");
+            });
+        });
+    };
+
+    const handleEditShift = (idx: number) => {
+        const newOpen = prompt("Enter new open time (e.g. 09:00 AM) or 'Closed':", workingHours[idx].openTime);
+        if (newOpen !== null) {
+            const newClose = prompt("Enter new close time (e.g. 05:00 PM) or 'Closed':", workingHours[idx].closeTime);
+            if (newClose !== null) {
+                const updated = [...workingHours];
+                updated[idx].openTime = newOpen;
+                updated[idx].closeTime = newClose;
+                updated[idx].isOpen = newOpen.toLowerCase() !== 'closed';
+                setWorkingHours(updated);
+            }
+        }
+    };
+
+    const handleAddSlot = () => {
+        const newSlot = prompt("Enter new slot time (e.g. 02:00 PM):");
+        if (newSlot) setSlots([...slots, newSlot].sort());
+    };
+
+    const handleRemoveSlot = (slotToRemove: string) => {
+        setSlots(slots.filter(s => s !== slotToRemove));
+    };
+
+    const handleAddHoliday = () => {
+        const details = prompt("Enter exception details separated by comma (YYYY-MM-DD, Holiday Name):");
+        if (details && details.includes(',')) {
+            const [date, name] = details.split(',');
+            setHolidays([...holidays, { id: Date.now(), date: date.trim(), name: name.trim(), type: 'Public Holiday' }]);
+        }
+    };
+
+    const handleRemoveHoliday = (id: number) => {
+        setHolidays(holidays.filter(h => h.id !== id));
+    };
+
+    if (loading) return <div className="p-20 text-center text-gray-500 font-bold uppercase tracking-widest">Initializing Scheduling Engine...</div>;
 
     return (
         <div className="space-y-6">
@@ -47,7 +92,7 @@ export function Scheduling() {
                     <p className="text-gray-600 font-medium italic mb-2">Configure lab operational hours, slot availability, and technical staff shifts</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center gap-2 h-11 px-8 rounded-xl shadow-blue-100 transition-all active:scale-95">
+                    <Button onClick={handleSaveGlobal} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center gap-2 h-11 px-8 rounded-xl shadow-blue-100 transition-all active:scale-95">
                         <Save className="w-4 h-4" /> Save Global Configuration
                     </Button>
                 </div>
@@ -75,13 +120,24 @@ export function Scheduling() {
                                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter leading-none mb-0.5">{day.isOpen ? 'Active Shift' : 'Facility System'}</p>
                                          <p className={`text-xs font-black italic tracking-wider ${day.isOpen ? 'text-blue-600' : 'text-gray-400 uppercase'}`}>{day.isOpen ? `${day.openTime} - ${day.closeTime}` : 'CLOSED'}</p>
                                     </div>
-                                    <button className="p-1 hover:bg-white rounded transition-colors border-transparent border hover:border-blue-100 group-hover/item:text-blue-600 text-gray-300"><Edit2 className="w-3 h-3" /></button>
+                                    <button onClick={() => handleEditShift(idx)} className="p-1 hover:bg-white rounded transition-colors border-transparent border hover:border-blue-100 group-hover/item:text-blue-600 text-gray-300"><Edit2 className="w-3 h-3" /></button>
                                 </div>
                             </div>
                         ))}
                     </CardContent>
-                    <CardFooter className="p-4 bg-gray-50 flex flex-col items-center">
-                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-blue-500" /> Active System Protection</p>
+                    <CardFooter 
+                        className="p-4 bg-gray-50 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => setSystemProtection(!systemProtection)}
+                    >
+                        <div className={`flex items-center gap-3 px-4 py-2 rounded-full border transition-all ${systemProtection ? 'bg-green-50 border-green-200 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'bg-red-50 border-red-200 shadow-inner'}`}>
+                            <ShieldCheck className={`w-4 h-4 ${systemProtection ? 'text-green-500' : 'text-red-500'}`} />
+                            <p className={`text-[10px] font-black uppercase tracking-widest ${systemProtection ? 'text-green-700' : 'text-red-700'}`}>
+                                {systemProtection ? 'System Protection: Active' : 'Protection Disabled'}
+                            </p>
+                            <div className={`w-8 h-4 shrink-0 rounded-full flex items-center p-0.5 transition-colors duration-300 ${systemProtection ? 'bg-green-500' : 'bg-red-300'}`}>
+                                <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-300 ${systemProtection ? 'translate-x-4' : 'translate-x-0'}`} />
+                            </div>
+                        </div>
                     </CardFooter>
                 </Card>
 
@@ -103,27 +159,38 @@ export function Scheduling() {
                                      <h3 className="font-black text-xl italic uppercase text-gray-900 tracking-tight">Daily Sample Collection Capacity</h3>
                                      <p className="text-xs font-bold text-gray-400 uppercase tracking-widest italic leading-none mt-1">Configure individual time-block availability for appointments</p>
                                  </div>
-                                 <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-100 flex items-center gap-2 transform active:scale-95 transition-all text-xs font-bold uppercase py-5 px-6">
+                                 <Button onClick={handleAddSlot} className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-lg shadow-blue-100 flex items-center gap-2 transform active:scale-95 transition-all text-xs font-bold uppercase py-5 px-6">
                                      <Plus className="w-4 h-4" /> Add Bulk Slots
                                  </Button>
                              </div>
 
                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                                 {['09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'].map((time, idx) => (
+                                 {slots.map((time, idx) => (
                                      <div key={idx} className="group relative transition-all cursor-pointer">
-                                         <div className="p-5 border-2 border-dashed border-gray-100 rounded-3xl hover:border-blue-500 hover:bg-blue-50/30 transition-all text-center group-hover:scale-105">
+                                         <div className="p-5 border-2 border-dashed border-gray-100 rounded-3xl hover:border-blue-500 hover:bg-blue-50/30 transition-all text-center group-hover:scale-105 relative overflow-hidden">
                                              <p className="text-lg font-black text-gray-900 italic transform group-hover:-translate-y-1 transition-transform">{time}</p>
                                              <div className="flex items-center justify-center gap-1.5 mt-2 opacity-100 group-hover:opacity-10 transition-opacity">
                                                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
                                                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Available</span>
                                              </div>
-                                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity scale-0 group-hover:scale-100 pointer-events-none">
-                                                 <p className="text-xs font-black uppercase tracking-tight text-blue-600 items-center flex gap-1 bg-white px-3 py-1.5 rounded-full shadow-lg border border-blue-100">Modify Slot <ArrowRight className="w-3 h-3" /></p>
+                                             <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const newTime = prompt("Change block interval format:", time);
+                                                    if (newTime) {
+                                                        const updatedSlots = [...slots];
+                                                        updatedSlots[idx] = newTime;
+                                                        setSlots(updatedSlots);
+                                                    }
+                                                }}
+                                                className="absolute w-full h-full inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 backdrop-blur-sm bg-blue-50/20"
+                                             >
+                                                 <p className="text-xs font-black uppercase tracking-tight text-blue-600 items-center flex gap-1 bg-white px-3 py-1.5 rounded-full shadow-[0_0_15px_rgba(37,99,235,0.15)] border border-blue-100"><Edit2 className="w-3 h-3" /> Edit Slot</p>
                                              </div>
                                          </div>
-                                         <button className="absolute -top-1 -right-1 bg-white shadow-md border rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 className="w-3 h-3 text-red-500" /></button>
+                                         <button onClick={() => handleRemoveSlot(time)} className="absolute -top-1 -right-1 bg-white shadow-md border rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"><Trash2 className="w-3 h-3 text-red-500" /></button>
                                      </div>
-                                 ) )}
+                                 ))}
                              </div>
                         </TabsContent>
 
@@ -152,12 +219,12 @@ export function Scheduling() {
                                             </div>
                                             <div className="flex gap-2">
                                                 <Badge className="bg-white text-gray-800 border-gray-200 border uppercase font-black text-[9px] tracking-widest rounded-xl px-4 py-1.5 shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all cursor-pointer">{holiday.type}</Badge>
-                                                <button className="p-2.5 hover:bg-white rounded-2xl border border-transparent hover:border-red-100 text-gray-300 hover:text-red-500 transition-all shadow-none hover:shadow-xl"><Trash2 className="w-4 h-4" /></button>
+                                                <button onClick={() => handleRemoveHoliday(holiday.id)} className="p-2.5 hover:bg-white rounded-2xl border border-transparent hover:border-red-100 text-gray-300 hover:text-red-500 transition-all shadow-none hover:shadow-xl"><Trash2 className="w-4 h-4" /></button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="p-10 border-4 border-dashed rounded-3xl flex flex-col items-center justify-center text-center space-y-3 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all group/add">
+                                <div onClick={handleAddHoliday} className="p-10 border-4 border-dashed rounded-3xl flex flex-col items-center justify-center text-center space-y-3 cursor-pointer hover:bg-gray-50 active:scale-[0.98] transition-all group/add">
                                     <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 shadow-xl group-hover/add:scale-110 transition-all duration-500 border-4 border-white"><Calendar className="w-8 h-8" /></div>
                                     <p className="text-sm font-black text-gray-400 uppercase tracking-widest italic">Add New Facility Exception</p>
                                 </div>

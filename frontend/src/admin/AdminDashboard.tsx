@@ -41,11 +41,12 @@ import { LabDiagnostics } from '../clinic/LabDiagnostics';
 import { BillingPayments } from '../clinic/BillingPayments';
 import { PharmacyInventory } from '../clinic/PharmacyInventory';
 import { ReportsAnalytics } from '../clinic/ReportsAnalytics';
-import { AIModules } from '../public/AIModules';
+import { ClinicAIModules as AIModules } from '../clinic/ClinicAIModules';
 import { IoTIntegration } from '../clinic/IoTIntegration';
 import { Notifications } from '../clinic/Notifications';
 import { SecurityCompliance } from '../clinic/SecurityCompliance';
 import { Settings as SettingsComponent } from '../clinic/Settings';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface AdminDashboardProps {
   user: User;
@@ -147,7 +148,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       case 'prescriptions':
         return <PrescriptionRecords userRole={user.role} />;
       case 'lab':
-        return <LabDiagnostics userRole={user.role} />;
+        return <LabDiagnostics user={user} />;
       case 'billing':
         return <BillingPayments userRole={user.role} />;
       case 'pharmacy':
@@ -155,7 +156,7 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
       case 'reports':
         return <ReportsAnalytics userRole={user.role} />;
       case 'ai':
-        return <AIModules userRole={user.role} />;
+        return <AIModules user={user} onBack={() => setCurrentView('dashboard')} />;
       case 'iot':
         return <IoTIntegration userRole={user.role} />;
       case 'notifications':
@@ -403,6 +404,9 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
                   <p className="text-sm font-medium text-gray-900 truncate">{user.full_name || user.email}</p>
                   <p className="text-xs text-gray-600 capitalize">{user.role}</p>
                 </div>
+              </div>
+              <div className="flex justify-center mb-4 border-t border-gray-100 pt-3">
+                 <ThemeToggle />
               </div>
               <button
                 onClick={handleLogout}

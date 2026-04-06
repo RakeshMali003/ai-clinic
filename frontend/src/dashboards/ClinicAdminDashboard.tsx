@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ThemeToggle } from '../common/ThemeToggle';
 import { User } from '../common/types';
 import {
     Users,
@@ -11,6 +12,8 @@ import {
     Shield
 } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Switch } from '../common/ui/switch';
+import { Label } from '../common/ui/label';
 
 interface ClinicAdminDashboardProps {
     user: User;
@@ -43,6 +46,13 @@ const mockStaffPerformance = [
 ];
 
 export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
+    const [isDemoMode, setIsDemoMode] = useState(false);
+
+    // Filter display data based on demo mode
+    const displayRevenue = isDemoMode ? mockRevenueData : [];
+    const displayDepartment = isDemoMode ? mockDepartmentData : [];
+    const displayStaff = isDemoMode ? mockStaffPerformance : [];
+
     const stats = [
         { label: 'Total Revenue', value: '₹3,66,000', change: '+18%', icon: DollarSign, color: 'green' },
         { label: 'Active Doctors', value: '12', change: '+2', icon: Stethoscope, color: 'blue' },
@@ -53,9 +63,20 @@ export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Clinic Admin Dashboard</h1>
-                <p className="text-gray-600">Complete clinic management and oversight</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Clinic Admin Dashboard</h1>
+                    <p className="text-gray-600">Complete clinic management and oversight</p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <ThemeToggle />
+                  <div className="flex items-center space-x-2 bg-white p-2 rounded-lg border border-gray-200">
+                      <Switch id="demo-mode" checked={isDemoMode} onCheckedChange={setIsDemoMode} />
+                      <Label htmlFor="demo-mode" className="text-sm cursor-pointer select-none">
+                         Demo Mode
+                      </Label>
+                  </div>
+                </div>
             </div>
 
             {/* Stats Grid - ROLE: Admin can view ALL clinic stats */}
@@ -94,21 +115,27 @@ export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
                             <span>+18%</span>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <LineChart data={mockRevenueData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Line
-                                type="monotone"
-                                dataKey="revenue"
-                                stroke="#10b981"
-                                strokeWidth={2}
-                                dot={{ fill: '#10b981', r: 4 }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    {displayRevenue.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <LineChart data={displayRevenue}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                                <YAxis tick={{ fontSize: 12 }} />
+                                <Tooltip />
+                                <Line
+                                    type="monotone"
+                                    dataKey="revenue"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    dot={{ fill: '#10b981', r: 4 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[250px] text-gray-400 text-sm">
+                            Enable Demo Mode to view sample revenue data.
+                        </div>
+                    )}
                 </div>
 
                 {/* Department Performance */}
@@ -119,15 +146,21 @@ export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
                             <p className="text-sm text-gray-600">Patient distribution</p>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={mockDepartmentData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                            <XAxis dataKey="dept" tick={{ fontSize: 12 }} />
-                            <YAxis tick={{ fontSize: 12 }} />
-                            <Tooltip />
-                            <Bar dataKey="patients" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {displayDepartment.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <BarChart data={displayDepartment}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                <XAxis dataKey="dept" tick={{ fontSize: 12 }} />
+                                <YAxis tick={{ fontSize: 12 }} />
+                                <Tooltip />
+                                <Bar dataKey="patients" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="flex items-center justify-center h-[250px] text-gray-400 text-sm">
+                            No department data available.
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -155,28 +188,36 @@ export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {mockStaffPerformance.map((doctor, index) => (
-                                <tr key={index} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 text-sm text-gray-900">{doctor.name}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{doctor.patients}</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">
-                                        <span className="flex items-center gap-1">
-                                            ⭐ {doctor.rating}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${doctor.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                            {doctor.status.charAt(0).toUpperCase() + doctor.status.slice(1).replace('-', ' ')}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {/* ROLE: Admin can edit/manage doctors */}
-                                        <button className="text-sm text-blue-600 hover:underline mr-3">Edit</button>
-                                        <button className="text-sm text-gray-600 hover:underline">View</button>
+                            {displayStaff.length > 0 ? (
+                                displayStaff.map((doctor, index) => (
+                                    <tr key={index} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 text-sm text-gray-900">{doctor.name}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">{doctor.patients}</td>
+                                        <td className="px-6 py-4 text-sm text-gray-600">
+                                            <span className="flex items-center gap-1">
+                                                ⭐ {doctor.rating}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${doctor.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                {doctor.status.charAt(0).toUpperCase() + doctor.status.slice(1).replace('-', ' ')}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {/* ROLE: Admin can edit/manage doctors */}
+                                            <button className="text-sm text-blue-600 hover:underline mr-3">Edit</button>
+                                            <button className="text-sm text-gray-600 hover:underline">View</button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+                                        No staff performance data available
                                     </td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>

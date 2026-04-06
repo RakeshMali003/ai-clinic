@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "../common/ui/button";
 import { Input } from "../common/ui/input";
 import { Card } from "../common/ui/card";
@@ -8,10 +8,11 @@ import { Footer } from "../common/Footer";
 import { useCart } from "../contexts/CartContext";
 import {
   Search, Upload, ShoppingCart, Filter, Star, Pill,
-  Heart, TrendingUp, Clock, CheckCircle, X, Plus, Minus,
+  Heart, TrendingUp, Clock, CheckCircle, X,
   FileText, Zap, ShieldCheck
 } from "lucide-react";
 import type { PageView } from "../common/types";
+import api from "../lib/api";
 
 interface MedicineEnhancedProps {
   onNavigate: (view: PageView) => void;
@@ -27,7 +28,46 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [extractedMedicines, setExtractedMedicines] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [dbMedicines, setDbMedicines] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Removed the mandatory redirect for viewing. We will just enforce login on checkout/add-to-cart.
+
+  // Fetch true medicines from database
+  useEffect(() => {
+    const fetchMedicines = async () => {
+      try {
+        const response = await api.get('/medicines');
+        const medData = Array.isArray(response) ? response : (response.data || []);
+        
+        // Map backend schema to frontend representation
+        const mappedMedicines = (Array.isArray(medData) ? medData : []).map((med: any) => ({
+          id: med.medicine_id || Math.random().toString(),
+          name: med.medicine_name || 'Unknown Medicine',
+          genericName: med.composition || med.description || 'Generic',
+          manufacturer: med.manufacturer || 'General Pharma',
+          price: med.price || med.cost || 50,
+          mrp: (med.price || med.cost || 50) + 10,
+          category: med.category?.toLowerCase() || 'fever',
+          rating: 4.5,
+          reviews: Math.floor(Math.random() * 500) + 50,
+          stock: (med.stock_quantity > 0 || med.stock > 0) ? "In Stock" : "Available",
+          prescriptionRequired: med.prescription_required === true,
+          image: "💊",
+          benefits: med.category ? [med.category] : ["Health", "Wellness"],
+          pack: med.pack_size || "1 Strip"
+        }));
+        
+        setDbMedicines(mappedMedicines);
+      } catch (error) {
+        console.error("Failed to fetch medicines from DB:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMedicines();
+  }, [user]);
 
   const categories = [
     { id: "all", name: "All Medicines", icon: <Pill /> },
@@ -38,106 +78,7 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
     { id: "chronic", name: "Chronic Care", icon: "❤️‍🩹" },
   ];
 
-  const medicines = [
-    {
-      id: "med1",
-      name: "Paracetamol 500mg",
-      genericName: "Acetaminophen",
-      manufacturer: "XYZ Pharma",
-      price: 45,
-      mrp: 60,
-      category: "fever",
-      rating: 4.5,
-      reviews: 234,
-      stock: "In Stock",
-      prescriptionRequired: false,
-      image: "💊",
-      benefits: ["Fever", "Headache", "Body Pain"],
-      pack: "Strip of 15 tablets"
-    },
-    {
-      id: "med2",
-      name: "Cetrizine 10mg",
-      genericName: "Cetirizine",
-      manufacturer: "ABC Pharmaceuticals",
-      price: 25,
-      mrp: 35,
-      category: "cold",
-      rating: 4.7,
-      reviews: 189,
-      stock: "In Stock",
-      prescriptionRequired: false,
-      image: "💊",
-      benefits: ["Allergy", "Cold", "Sneezing"],
-      pack: "Strip of 10 tablets"
-    },
-    {
-      id: "med3",
-      name: "Vitamin D3 60K",
-      genericName: "Cholecalciferol",
-      manufacturer: "HealthCare Ltd",
-      price: 85,
-      mrp: 100,
-      category: "vitamins",
-      rating: 4.8,
-      reviews: 456,
-      stock: "In Stock",
-      prescriptionRequired: false,
-      image: "💊",
-      benefits: ["Bone Health", "Immunity", "Vitamin D"],
-      pack: "Strip of 4 capsules"
-    },
-    {
-      id: "med4",
-      name: "Amoxicillin 500mg",
-      genericName: "Amoxicillin",
-      manufacturer: "MedPlus",
-      price: 120,
-      mrp: 150,
-      category: "chronic",
-      rating: 4.6,
-      reviews: 112,
-      stock: "In Stock",
-      prescriptionRequired: true,
-      image: "💊",
-      benefits: ["Bacterial Infection", "Antibiotic"],
-      pack: "Strip of 10 capsules"
-    },
-    {
-      id: "med5",
-      name: "Omeprazole 20mg",
-      genericName: "Omeprazole",
-      manufacturer: "Gastro Pharma",
-      price: 65,
-      mrp: 80,
-      category: "digestive",
-      rating: 4.5,
-      reviews: 298,
-      stock: "In Stock",
-      prescriptionRequired: false,
-      image: "💊",
-      benefits: ["Acidity", "GERD", "Ulcer"],
-      pack: "Strip of 15 capsules"
-    },
-    {
-      id: "med6",
-      name: "Crocin Advance",
-      genericName: "Paracetamol",
-      manufacturer: "GSK",
-      price: 35,
-      mrp: 45,
-      category: "fever",
-      rating: 4.6,
-      reviews: 567,
-      stock: "In Stock",
-      prescriptionRequired: false,
-      image: "💊",
-      benefits: ["Fast Relief", "Fever", "Pain"],
-      pack: "Strip of 10 tablets"
-    },
-  ];
-
-  const filteredMedicines = medicines.filter(med => {
+  const filteredMedicines = dbMedicines.filter(med => {
     const matchesSearch = med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       med.genericName.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === "all" || med.category === selectedCategory;
@@ -158,7 +99,7 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
   };
 
   // Mock OCR processing - In real app, use Tesseract.js or backend API
-  const processOCR = async (file: File) => {
+  const processOCR = async (_file: File) => {
     setIsProcessing(true);
 
     // Simulate OCR processing
@@ -201,6 +142,8 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
 
     alert(`✅ ${medicine.name} added to cart!`);
   };
+
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -371,8 +314,14 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
           </Button>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMedicines.map((medicine) => (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+             <div className="animate-spin rounded-full h-12 w-12 border-4 border-pink-600 border-t-transparent mb-4"></div>
+             <p className="text-muted-foreground font-medium">Loading pharmacy inventory...</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMedicines.map((medicine) => (
             <Card key={medicine.id} className="p-6 hover:shadow-xl transition-all">
               <div className="flex items-start justify-between mb-4">
                 <div className="text-5xl">{medicine.image}</div>
@@ -393,7 +342,7 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
               <p className="text-xs text-muted-foreground mb-3">{medicine.pack}</p>
 
               <div className="flex items-center gap-2 mb-3">
-                {medicine.benefits.slice(0, 2).map((benefit, idx) => (
+                {medicine.benefits.slice(0, 2).map((benefit: string, idx: number) => (
                   <Badge key={idx} variant="outline" className="text-xs">
                     {benefit}
                   </Badge>
@@ -425,9 +374,10 @@ export function MedicineEnhanced({ onNavigate, user, onLoginRequired }: Medicine
               </Button>
             </Card>
           ))}
-        </div>
+          </div>
+        )}
 
-        {filteredMedicines.length === 0 && (
+        {!loading && filteredMedicines.length === 0 && (
           <div className="text-center py-16">
             <Pill className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <h3 className="text-xl mb-2">No medicines found</h3>

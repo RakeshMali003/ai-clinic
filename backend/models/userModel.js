@@ -42,6 +42,31 @@ class User {
         return user;
     }
 
+    static async findByMobile(mobile) {
+        const contactRecord = await prisma.contact_numbers.findFirst({
+            where: { phone_number: mobile },
+            include: {
+                users: {
+                    include: {
+                        emails: {
+                            where: { is_primary: true }
+                        },
+                        roles: true
+                    }
+                }
+            }
+        });
+        if (contactRecord && contactRecord.users) {
+            const user = contactRecord.users;
+            if (user.emails && user.emails.length > 0) {
+                user.email = user.emails[0].email;
+            }
+            user.role = user.role || user.roles?.role_name || null;
+            return user;
+        }
+        return null;
+    }
+
     static async findByEmail(email) {
         const emailRecord = await prisma.emails.findUnique({
             where: { email },

@@ -585,6 +585,46 @@ class ClinicService {
         }
     }
 
+    // 15. Support
+    async submitTicket(ticketData: { type: string; subject: string; description: string }): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/support/ticket`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(ticketData),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Ticket submission failed');
+            return true;
+        } catch (error) {
+            console.error('Error submitting ticket:', error);
+            return false;
+        }
+    }
+
+    // 16. Send Notification
+    async sendNotification(data: {
+        channel: string;
+        category: string;
+        recipient: string;
+        title: string;
+        message: string;
+    }): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/notifications`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(data),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || 'Broadcast failed');
+            return true;
+        } catch (error) {
+            console.error('Error sending notification:', error);
+            return false;
+        }
+    }
+
     // Pharmacy & Inventory (Medicines)
     async getMedicines(mineOnly: boolean = false): Promise<any[]> {
         try {

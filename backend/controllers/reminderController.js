@@ -1,6 +1,7 @@
 const prisma = require('../config/database');
 const ResponseHandler = require('../utils/responseHandler');
 const Patient = require('../models/patientModel');
+const { createNotification } = require('../utils/notificationHelper');
 
 async function getPatientId(req) {
     const userId = req.user.user_id;
@@ -46,6 +47,18 @@ exports.createReminder = async (req, res, next) => {
                 reminder_time: new Date(`1970-01-01T${reminder_time}`)
             }
         });
+
+        // Notify patient
+        try {
+            await createNotification({
+                userId: req.user.user_id,
+                type: 'MEDICINE',
+                title: 'Medicine Reminder Set',
+                message: `New reminder for ${medicine_name} (${dosage}) at ${reminder_time}`
+            });
+        } catch (err) {
+            console.error('Error sending reminder notification:', err);
+        }
 
         ResponseHandler.created(res, reminder, 'Reminder set successfully');
     } catch (error) {

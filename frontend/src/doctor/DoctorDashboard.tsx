@@ -25,6 +25,7 @@ import { Notifications } from './Notifications';
 import { PatientDocuments } from './PatientDocuments';
 import { Settings } from './Settings';
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeToggle } from '../common/ThemeToggle';
 
 interface DoctorDashboardProps {
   user: User;
@@ -147,6 +148,11 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
             );
           })}
         </nav>
+        
+        <div className="px-6 py-4 border-t border-slate-100 flex justify-center">
+          <ThemeToggle />
+        </div>
+
         <div className="p-6 border-t border-slate-100 bg-slate-50/50">
           <button
             onClick={handleLogout}

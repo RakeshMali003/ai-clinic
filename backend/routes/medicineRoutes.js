@@ -4,7 +4,7 @@ const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', protect, medicineController.getAllMedicines);
-router.get('/:id', protect, medicineController.getMedicineById);
+router.get('/', medicineController.getAllMedicines);
+router.get('/:id', medicineController.getMedicineById);
 
 module.exports = router;

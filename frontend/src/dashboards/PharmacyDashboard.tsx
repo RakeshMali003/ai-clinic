@@ -1,4 +1,5 @@
 import { User } from '../common/types';
+import { ThemeToggle } from '../common/ThemeToggle';
 import {
     Pill,
     DollarSign,
@@ -58,9 +59,12 @@ export function PharmacyDashboard({ user }: PharmacyDashboardProps) {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Pharmacy Dashboard</h1>
-                <p className="text-gray-600">Medicine inventory and prescription management</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Pharmacy Dashboard</h1>
+                    <p className="text-gray-600">Medicine inventory and prescription management</p>
+                </div>
+                <ThemeToggle />
             </div>
 
             {/* Stats Grid - ROLE: Pharmacist can view pharmacy stats */}

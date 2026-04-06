@@ -1,5 +1,7 @@
 const Prescription = require('../models/prescriptionModel');
 const ResponseHandler = require('../utils/responseHandler');
+const prisma = require('../config/database');
+const { createNotification } = require('../utils/notificationHelper');
 
 exports.createPrescription = async (req, res, next) => {
     try {
@@ -22,6 +24,25 @@ exports.createPrescription = async (req, res, next) => {
         };
 
         const newPrescription = await Prescription.create(prescriptionData, medicines || [], lab_tests || []);
+
+        // Notify patient
+        try {
+            const patientRecord = await prisma.patients.findUnique({
+                where: { patient_id: patient_id },
+                select: { user_id: true }
+            });
+            if (patientRecord?.user_id) {
+                await createNotification({
+                    userId: patientRecord.user_id,
+                    type: 'PRESCRIPTION',
+                    title: 'New Prescription Added',
+                    message: `Dr. has added a new prescription for your diagnosis: ${diagnosis}.`
+                });
+            }
+        } catch (err) {
+            console.error('Error sending prescription notification:', err);
+        }
+
         ResponseHandler.created(res, newPrescription, 'Prescription metrics recorded and validated');
     } catch (error) {
         next(error);

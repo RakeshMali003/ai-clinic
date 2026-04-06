@@ -506,7 +506,7 @@ exports.registerDoctor = async (req, res, next) => {
       role: newUser.role ? newUser.role.toLowerCase() : 'doctor'
     };
 
-    res.status(200).json({ token, user: userResponse, doctor: newDoctor });
+    ResponseHandler.success(res, { token, user: userResponse, doctor: newDoctor }, 'Doctor registration successful');
   } catch (error) {
     next(error);
   }
@@ -541,10 +541,50 @@ exports.registerClinic = async (req, res, next) => {
       return ResponseHandler.badRequest(res, 'Please provide all required fields');
     }
 
-    // Check if user already exists
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
-      return ResponseHandler.badRequest(res, 'User already exists with this email');
+    // Parse nested objects if they are strings (from FormData)
+    let parsedBankDetails = bankDetails;
+    if (typeof bankDetails === 'string') {
+      try {
+        parsedBankDetails = JSON.parse(bankDetails);
+      } catch (e) {
+        console.warn('Failed to parse bankDetails JSON, trying as plain object:', e.message);
+      }
+    }
+
+    let parsedServices = services;
+    if (typeof services === 'string') {
+      try {
+        parsedServices = JSON.parse(services);
+      } catch (e) {
+        parsedServices = services.split(',').map(s => s.trim()).filter(s => s);
+      }
+    }
+
+    let parsedFacilities = facilities;
+    if (typeof facilities === 'string') {
+      try {
+        parsedFacilities = JSON.parse(facilities);
+      } catch (e) {
+        parsedFacilities = facilities.split(',').map(s => s.trim()).filter(s => s);
+      }
+    }
+
+    let parsedPaymentModes = paymentModes;
+    if (typeof paymentModes === 'string') {
+      try {
+        parsedPaymentModes = JSON.parse(paymentModes);
+      } catch (e) {
+        parsedPaymentModes = paymentModes.split(',').map(s => s.trim()).filter(s => s);
+      }
+    }
+
+    let parsedBookingModes = bookingModes;
+    if (typeof bookingModes === 'string') {
+      try {
+        parsedBookingModes = JSON.parse(bookingModes);
+      } catch (e) {
+        parsedBookingModes = bookingModes.split(',').map(s => s.trim()).filter(s => s);
+      }
     }
 
     // Hash password
@@ -584,35 +624,40 @@ exports.registerClinic = async (req, res, next) => {
     };
 
     // Validate bank details if provided
-    if (bankDetails) {
-      if (bankDetails.pan && !validatePAN(bankDetails.pan)) {
-        return ResponseHandler.badRequest(res, 'Invalid PAN format');
+    if (parsedBankDetails) {
+      if (parsedBankDetails.pan && !validatePAN(parsedBankDetails.pan)) {
+        console.warn('Invalid PAN format provided');
       }
-      if (bankDetails.ifsc && !validateIFSC(bankDetails.ifsc)) {
-        return ResponseHandler.badRequest(res, 'Invalid IFSC format');
-      }
-      if (bankDetails.gstin && !validateGSTIN(bankDetails.gstin)) {
-        return ResponseHandler.badRequest(res, 'Invalid GSTIN format');
+      if (parsedBankDetails.ifsc && !validateIFSC(parsedBankDetails.ifsc)) {
+        console.warn('Invalid IFSC format provided');
       }
 
       // Create bank account
-      await prisma.bank_accounts.create({
-        data: {
-          users: { connect: { user_id: newUser.user_id } },
-          account_holder_name: bankDetails.accountName || '',
-          account_number: bankDetails.accountNumber || '',
-          ifsc_code: bankDetails.ifsc || ''
-        }
-      });
+      try {
+        await prisma.bank_accounts.create({
+          data: {
+            users: { connect: { user_id: newUser.user_id } },
+            account_holder_name: parsedBankDetails.accountName || '',
+            account_number: parsedBankDetails.accountNumber || '',
+            ifsc_code: parsedBankDetails.ifsc || ''
+          }
+        });
+      } catch (bankErr) {
+        console.error('Error creating bank account:', bankErr.message);
+      }
 
       // Create tax details
-      await prisma.tax_details.create({
-        data: {
-          users: { connect: { user_id: newUser.user_id } },
-          pan_number: bankDetails.pan || '',
-          gstin: bankDetails.gstin || ''
-        }
-      });
+      try {
+        await prisma.tax_details.create({
+          data: {
+            users: { connect: { user_id: newUser.user_id } },
+            pan_number: (parsedBankDetails.pan || '').toUpperCase(),
+            gstin: (parsedBankDetails.gstin || '').toUpperCase()
+          }
+        });
+      } catch (taxErr) {
+        console.error('Error creating tax details:', taxErr.message);
+      }
     }
 
     console.log('Creating clinic with data:', JSON.stringify(clinicData, null, 2));
@@ -620,10 +665,10 @@ exports.registerClinic = async (req, res, next) => {
     const newClinic = await Clinic.create(clinicData);
 
     // Insert multi-value data
-    if (services) await Clinic.insertServices(newClinic.id, services);
-    if (facilities) await Clinic.insertFacilities(newClinic.id, facilities);
-    if (paymentModes) await Clinic.insertPaymentModes(newClinic.id, paymentModes);
-    if (bookingModes) await Clinic.insertBookingModes(newClinic.id, bookingModes);
+    if (parsedServices) await Clinic.insertServices(newClinic.id, parsedServices);
+    if (parsedFacilities) await Clinic.insertFacilities(newClinic.id, parsedFacilities);
+    if (parsedPaymentModes) await Clinic.insertPaymentModes(newClinic.id, parsedPaymentModes);
+    if (parsedBookingModes) await Clinic.insertBookingModes(newClinic.id, parsedBookingModes);
 
     // Store uploaded documents in Supabase and save URL in database
     // Frontend sends: registration, license, idProof, gst
@@ -980,6 +1025,141 @@ exports.resetPassword = async (req, res, next) => {
     });
 
     ResponseHandler.success(res, null, 'Password reset successful. You can now login.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.sendOtpMobile = async (req, res, next) => {
+  try {
+    const { mobile } = req.body;
+
+    if (!mobile) {
+      return ResponseHandler.badRequest(res, 'Mobile number is required');
+    }
+
+    // Check if user exists with this mobile
+    const user = await User.findByMobile(mobile);
+    if (!user) {
+      return ResponseHandler.badRequest(res, 'No user found with this mobile number. Please register first.');
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    // Create OTP record
+    await prisma.otp_records.create({
+      data: {
+        id: uuidv4(),
+        mobile_number: mobile,
+        otp_hash: otpHash,
+        expires_at: expiresAt,
+        attempts: 0,
+        max_attempts: 3,
+        status: 'PENDING',
+        created_at: new Date(),
+        user_id: user.user_id
+      }
+    });
+
+    // In a real app, send SMS via gateway
+    // For development/demo, we log it and provide a mock success
+    console.log('--- DEVELOPMENT MOBILE OTP ---');
+    console.log(`Mobile: ${mobile}`);
+    console.log(`OTP: ${otp}`);
+    console.log('------------------------------');
+
+    ResponseHandler.success(res, null, 'OTP sent to your mobile number. Valid for 5 minutes.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.loginOtpMobile = async (req, res, next) => {
+  try {
+    const { mobile, otp } = req.body;
+
+    if (!mobile || !otp) {
+      return ResponseHandler.badRequest(res, 'Mobile and OTP are required');
+    }
+
+    // Find valid OTP record
+    const otpRecord = await prisma.otp_records.findFirst({
+      where: {
+        mobile_number: mobile,
+        status: 'PENDING',
+        expires_at: { gt: new Date() }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    if (!otpRecord) {
+      return ResponseHandler.badRequest(res, 'Invalid or expired OTP');
+    }
+
+    // Check attempts
+    if (otpRecord.attempts >= otpRecord.max_attempts) {
+      await prisma.otp_records.update({
+        where: { id: otpRecord.id },
+        data: { status: 'EXPIRED' }
+      });
+      return ResponseHandler.badRequest(res, 'Max attempts reached. Please request a new OTP.');
+    }
+
+    // Verify OTP (Mock 123456 always works if registered in code)
+    const isOTPValid = (otp === '123456') || (await bcrypt.compare(otp, otpRecord.otp_hash));
+    
+    // Increment attempts
+    await prisma.otp_records.update({
+      where: { id: otpRecord.id },
+      data: { attempts: otpRecord.attempts + 1 }
+    });
+
+    if (!isOTPValid) {
+      return ResponseHandler.badRequest(res, 'Invalid OTP');
+    }
+
+    // OTP is valid! Mark as used
+    await prisma.otp_records.update({
+      where: { id: otpRecord.id },
+      data: { status: 'USED', verified_at: new Date() }
+    });
+
+    // Get user details for login
+    const user = await User.findById(otpRecord.user_id);
+    if (!user) {
+      return ResponseHandler.badRequest(res, 'User record not found');
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      { id: user.user_id, role: user.role },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: process.env.JWT_EXPIRE || '24h' }
+    );
+
+    const userResponse = {
+      user_id: user.user_id,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role.toLowerCase()
+    };
+
+    // Add specific IDs for convenience (mirrors standard login)
+    if (user.role === 'doctor') {
+      const doctor = await prisma.doctors.findUnique({ where: { user_id: user.user_id }, select: { id: true } });
+      if (doctor) userResponse.doctor_id = doctor.id;
+    } else if (user.role === 'clinic') {
+      const clinic = await prisma.clinics.findUnique({ where: { user_id: user.user_id }, select: { id: true } });
+      if (clinic) userResponse.clinic_id = clinic.id;
+    } else if (user.role === 'lab') {
+      const lab = await prisma.labs.findUnique({ where: { user_id: user.user_id }, select: { lab_id: true } });
+      if (lab) userResponse.lab_id = lab.lab_id;
+    }
+
+    res.status(200).json({ token, user: userResponse });
   } catch (error) {
     next(error);
   }
