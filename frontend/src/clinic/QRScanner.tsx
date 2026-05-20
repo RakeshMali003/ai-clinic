@@ -113,7 +113,7 @@ export function QRScanner({ onScanSuccess, onClose, scannerType, scannerID }: QR
 
     // Simulate QR detection after 2 seconds
     setTimeout(() => {
-      const mockQRData = "https://eclinic.com/patient/view/PAT-20250113-000123-4567";
+      const mockQRData = "https://ihealthclinic.com/patient/view/PAT-20250113-000123-4567";
       handleScannedData(mockQRData);
     }, 2000);
   };
@@ -199,7 +199,7 @@ export function QRScanner({ onScanSuccess, onClose, scannerType, scannerID }: QR
 
   const handleManualSubmit = () => {
     if (manualID.trim()) {
-      handleScannedData(`https://eclinic.com/patient/view/${manualID}`);
+      handleScannedData(`https://ihealthclinic.com/patient/view/${manualID}`);
     }
   };
 

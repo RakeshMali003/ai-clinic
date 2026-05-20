@@ -80,7 +80,7 @@ export const textToSpeechTool = ai.defineTool(
   },
   async ({textToSpeak}) => {
     const {media} = await ai.generate({
-      model: 'googleai/gemini-2.0-flash-exp-tts', // Corrected to a valid model
+      model: 'googleai/gemini-2.5-flash-preview-tts', // Corrected model to match available key capabilities
       config: {
         responseModalities: ['AUDIO'],
         speechConfig: {
@@ -109,6 +109,7 @@ export const chatTool = ai.defineTool(
   },
   async ({history, prompt}) => {
     const {text} = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
       history: history as any[],
       prompt: `Based on our previous analysis, answer this question: ${prompt}`,
     });
@@ -154,6 +155,7 @@ export const hindiXrayAnalysisFlow = ai.defineFlow(
   },
   async ({xrayImage}) => {
     const {output} = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
       prompt: [
         {text: hindiXrayAnalysisPrompt},
         {media: {url: xrayImage}},

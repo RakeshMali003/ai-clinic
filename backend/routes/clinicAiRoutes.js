@@ -26,11 +26,4 @@ router.post('/scan-text', clinicAiController.scanDocument);
 // 7. Treatment Recommendation
 router.post('/treatment', clinicAiController.recommendTreatment);
 
-// 8. Feedback Sentiment Analyzer
-router.post('/feedback', clinicAiController.analyzeFeedback);
-
-// 9. Face Recognition Attendance
-router.post('/face', clinicAiController.markFaceAttendance);
-router.get('/attendance-history', clinicAiController.getAttendanceHistory);
-
 module.exports = router;

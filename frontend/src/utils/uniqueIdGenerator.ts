@@ -1,4 +1,4 @@
-// Unique Health ID Generator for E-Clinic System
+// Unique Health ID Generator for I Health Clinic System
 // Generates unique IDs for Patients, Doctors, and Clinics
 
 export type UserType = 'patient' | 'doctor' | 'clinic';

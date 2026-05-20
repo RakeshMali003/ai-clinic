@@ -49,7 +49,7 @@ export function Plus({ onNavigate }: PlusProps) {
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full mb-6">
                 <Crown className="w-10 h-10 text-white" />
               </div>
-              <h1 className="text-5xl mb-6 font-bold text-foreground">E-Clinic PLUS</h1>
+              <h1 className="text-5xl mb-6 font-bold text-foreground">I Health Clinic PLUS</h1>
               <p className="text-xl text-foreground/80 mb-8 font-medium">
                 Premium membership with exclusive benefits, unlimited access, and VIP healthcare experience
               </p>
@@ -140,7 +140,7 @@ export function Plus({ onNavigate }: PlusProps) {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl mb-4 text-foreground font-bold">Free vs PLUS</h2>
-            <p className="text-xl text-foreground/80 font-medium">See what you get with E-Clinic PLUS</p>
+            <p className="text-xl text-foreground/80 font-medium">See what you get with I Health Clinic PLUS</p>
           </div>
 
           <Card className="overflow-hidden">
@@ -244,7 +244,7 @@ export function Plus({ onNavigate }: PlusProps) {
                 <span className="text-green-600 font-semibold text-xl">₹375+</span>
               </div>
               <div className="flex justify-between items-center pt-4 bg-yellow-900/20 p-4 rounded-lg border border-yellow-800/30">
-                <span className="font-semibold">E-Clinic PLUS Cost</span>
+                <span className="font-semibold">I Health Clinic PLUS Cost</span>
                 <span className="font-semibold text-xl">₹999</span>
               </div>
               <div className="flex justify-between items-center bg-green-900/20 p-4 rounded-lg border border-green-800/30">
@@ -269,7 +269,7 @@ export function Plus({ onNavigate }: PlusProps) {
           <Crown className="w-16 h-16 mx-auto mb-6" />
           <h2 className="text-4xl mb-4">Ready to Upgrade?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Start your 30-day free trial of E-Clinic PLUS today
+            Start your 30-day free trial of I Health Clinic PLUS today
           </p>
           <Button size="lg" variant="secondary" onClick={() => onNavigate("login")}>
             <Crown className="w-5 h-5 mr-2" />

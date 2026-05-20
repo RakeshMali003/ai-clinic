@@ -1,4 +1,4 @@
-// QR Code Generator for E-Clinic Patient Data Sharing System
+// QR Code Generator for I Health Clinic Patient Data Sharing System
 // Generates QR codes for patients that can be scanned by doctors/clinics
 
 export interface PatientQRData {
@@ -29,7 +29,7 @@ export interface QRCodeOptions {
  * This URL will be encoded in the QR code
  */
 export function generatePatientQRURL(uniqueID: string): string {
-  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://eclinic.com';
+  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://ihealthclinic.com';
   return `${baseURL}/patient/view/${uniqueID}`;
 }
 
@@ -69,14 +69,14 @@ export const defaultQROptions: QRCodeOptions = {
 };
 
 /**
- * Branded QR options with E-Clinic colors
+ * Branded QR options with I Health Clinic colors
  */
 export const brandedQROptions: QRCodeOptions = {
   size: 300,
   errorCorrectionLevel: 'H',
   margin: 4,
   color: {
-    dark: '#ec4899', // Pink-500 from E-Clinic theme
+    dark: '#ec4899', // Pink-500 from I Health Clinic theme
     light: '#FFFFFF'
   }
 };
@@ -212,7 +212,7 @@ export function generateAppointmentQR(appointmentData: {
   dateTime: string;
   tokenNumber?: string;
 }): string {
-  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://eclinic.com';
+  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://ihealthclinic.com';
   return `${baseURL}/appointment/verify/${appointmentData.appointmentID}`;
 }
 
@@ -226,7 +226,7 @@ export function generatePrescriptionQR(prescriptionData: {
   issueDate: string;
   validUntil: string;
 }): string {
-  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://eclinic.com';
+  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://ihealthclinic.com';
   return `${baseURL}/prescription/verify/${prescriptionData.prescriptionID}`;
 }
 
@@ -239,7 +239,7 @@ export function generateLabReportQR(reportData: {
   testType: string;
   reportDate: string;
 }): string {
-  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://eclinic.com';
+  const baseURL = process.env.NEXT_PUBLIC_APP_URL || 'https://ihealthclinic.com';
   return `${baseURL}/lab/report/${reportData.reportID}`;
 }
 

@@ -293,7 +293,7 @@ export function AIFeaturesEnhanced({ onNavigate }: AIFeaturesEnhancedProps) {
             <Button size="lg" variant="secondary" onClick={() => onNavigate("login")}>
               Start Free Trial
             </Button>
-            <Button size="lg" variant="outline" className="bg-white/10 border-white text-white hover:bg-white/20">
+            <Button size="lg" variant="outline" className="bg-white/10 border-white text-white hover:bg-white/20" onClick={() => onNavigate("contact")}>
               Schedule Demo
             </Button>
           </div>

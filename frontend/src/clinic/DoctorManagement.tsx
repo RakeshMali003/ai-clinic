@@ -28,7 +28,10 @@ export function DoctorManagement({ user, onNavigate, onBack }: DoctorManagementP
   }, [user.clinic_id]);
 
   const fetchDoctors = async () => {
-    if (!user?.clinic_id) return;
+    if (!user?.clinic_id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const data = await doctorService.getDoctors({ clinic_id: user.clinic_id });

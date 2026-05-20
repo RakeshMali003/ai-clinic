@@ -50,7 +50,7 @@ export function Navigation({ onNavigate, cartCount = 0 }: NavigationProps) {
             <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-fuchsia-500 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg group-hover:scale-105 transition-all duration-300">
               <Heart className="w-6 h-6 text-white animate-pulse" />
             </div>
-            <span className="text-xl text-foreground font-semibold group-hover:text-primary transition-colors duration-300">E-Clinic</span>
+            <span className="text-xl text-foreground font-semibold group-hover:text-primary transition-colors duration-300">I Health Clinic</span>
           </div>
 
           {/* Desktop Main Menu */}
@@ -92,7 +92,7 @@ export function Navigation({ onNavigate, cartCount = 0 }: NavigationProps) {
             <Button
               variant="ghost"
               size="icon"
-              className="hidden sm:flex text-foreground relative"
+              className="flex text-foreground relative"
               onClick={() => onNavigate("cart")}
             >
               <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5" />

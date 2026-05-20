@@ -32,6 +32,7 @@ export async function summarizeMedicalRecord(
 
 const summarizeMedicalRecordPrompt = ai.definePrompt({
   name: 'summarizeMedicalRecordPrompt',
+  model: 'googleai/gemini-2.5-flash',
   input: {schema: SummarizeMedicalRecordInputSchema},
   output: {schema: SummarizeMedicalRecordOutputSchema},
   prompt: `You are an AI assistant that summarizes medical records for doctors. Given the following medical record, provide a concise and informative summary:

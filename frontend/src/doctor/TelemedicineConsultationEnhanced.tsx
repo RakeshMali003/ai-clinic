@@ -385,7 +385,7 @@ export function TelemedicineConsultationEnhanced({ onClose, appointmentId }: Tel
                 <Phone className="w-10 h-10 text-green-600" />
               </div>
               <h2 className="text-3xl mb-4">Consultation Completed</h2>
-              <p className="text-muted-foreground mb-6">Thank you for using E-Clinic's telemedicine service</p>
+              <p className="text-muted-foreground mb-6">Thank you for using I Health Clinic's telemedicine service</p>
 
               <div className="bg-muted rounded-2xl p-6 mb-6">
                 <div className="grid grid-cols-3 gap-4 text-center">

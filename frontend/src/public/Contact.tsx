@@ -101,8 +101,8 @@ export function Contact({ onNavigate }: ContactProps) {
                     </div>
                     <div>
                       <h3 className="mb-1">Email</h3>
-                      <a href="mailto:contact@eclinic.com" className="text-pink-600 hover:underline">
-                        contact@eclinic.com
+                      <a href="mailto:contact@ihealthclinic.com" className="text-pink-600 hover:underline">
+                        contact@ihealthclinic.com
                       </a>
                     </div>
                   </div>

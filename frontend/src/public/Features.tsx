@@ -158,7 +158,7 @@ export function Features({ onNavigate }: FeaturesProps) {
       <section className="py-20 bg-gradient-to-br from-pink-900/10 to-purple-900/10 border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl mb-4 text-foreground font-bold">Why Healthcare Providers Choose E-Clinic</h2>
+            <h2 className="text-4xl mb-4 text-foreground font-bold">Why Healthcare Providers Choose I Health Clinic</h2>
             <p className="text-xl text-muted-foreground">Join thousands of satisfied healthcare professionals</p>
           </div>
 
@@ -288,7 +288,7 @@ export function Features({ onNavigate }: FeaturesProps) {
               {
                 name: "Dr. Priya Sharma",
                 role: "Cardiologist, Mumbai",
-                content: "E-Clinic's AI features have transformed how I practice. Patient summaries save me 30 minutes per consultation!",
+                content: "I Health Clinic's AI features have transformed how I practice. Patient summaries save me 30 minutes per consultation!",
                 rating: 5
               },
               {

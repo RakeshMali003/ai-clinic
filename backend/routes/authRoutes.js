@@ -32,6 +32,9 @@ router.post('/register/lab', upload.fields([
 // Email/password login
 router.post('/login', authController.login);
 
+// Provider Login (Supabase bridge)
+router.post('/provider-login', authController.providerLogin);
+
 // Google OAuth routes - use passport.authenticate directly in routes
 const passport = require('passport');
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));

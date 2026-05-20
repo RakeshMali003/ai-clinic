@@ -6,6 +6,7 @@ import { useNavigation } from '../contexts/NavigationContext';
 import { Home } from "../public/Home";
 import { LoginPage as Login } from "../auth/Login";
 import { ForgotPassword } from "../auth/ForgotPassword";
+import { PatientRegistration } from "../auth/PatientRegistration";
 import { Features } from "../public/Features";
 import { HowItWorks } from "../public/HowItWorks";
 import { Pricing } from "../public/Pricing";
@@ -45,7 +46,6 @@ import { PrescriptionRecords } from "../clinic/PrescriptionRecords";
 import { QueueManagement } from "../clinic/QueueManagement";
 import { ReportsAnalytics } from "../clinic/ReportsAnalytics";
 import { IoTIntegration } from "../clinic/IoTIntegration";
-import { SecurityCompliance } from "../clinic/SecurityCompliance";
 import { Settings } from "../clinic/Settings";
 import { Notifications } from "../clinic/Notifications";
 
@@ -81,6 +81,68 @@ export const AppRouter: React.FC = () => {
         });
     }, [currentView, user, loading]);
 
+    // Update dynamic page title in format: "Page Name | I Health Clinic"
+    useEffect(() => {
+        const viewTitles: Record<string, string> = {
+            home: "Home",
+            login: "Login",
+            "forgot-password": "Forgot Password",
+            "register-clinic": "Clinic Registration",
+            "register-doctor": "Doctor Registration",
+            "register-lab": "Lab Registration",
+            "register-patient": "Patient Registration",
+            features: "Features",
+            "how-it-works": "How It Works",
+            pricing: "Pricing",
+            "ai-features": "AI Health Suite",
+            medicine: "Pharmacy",
+            healthcare: "Healthcare Solutions",
+            "doctor-consult": "Doctor Consultations",
+            "lab-tests": "Lab Diagnostics",
+            plus: "Plus Benefits",
+            "health-insights": "Health Insights",
+            offers: "Special Offers",
+            contact: "Contact Us",
+            cart: "Shopping Cart",
+            "patient-book-appointment": "Book Appointment",
+            "patient-appointments": "My Appointments",
+            "patient-prescriptions": "My Prescriptions",
+            "patient-reports": "My Health Reports",
+            "patient-billing": "My Invoices",
+            "patient-profile": "My Profile",
+            "patient-medicine-store": "Pharmacy Store",
+            "patient-video-consult": "Telemedicine",
+            "patient-ai-tools": "AI Medical Intelligence Suite",
+            "patient-xray-analysis": "AI Chest X-Ray Analyzer",
+            "clinic-appointments": "Appointments Management",
+            "clinic-doctors": "Doctors Directory",
+            "clinic-patients": "Patients Records",
+            "clinic-staff": "Staff Roster",
+            "clinic-billing": "Invoicing & Revenue",
+            "clinic-pharmacy": "Pharmacy Inventory",
+            "clinic-lab": "Lab Orders",
+            "clinic-prescriptions": "Prescription Analytics",
+            "clinic-queue": "Patient Flow Management",
+            "clinic-reports": "Operations Analytics",
+            "clinic-iot": "Smart Device Sync",
+            "clinic-settings": "Clinic Control Panel",
+            "clinic-notifications": "Announcements",
+            "clinic-profile": "Clinic Public Profile",
+            dashboard: "Dashboard",
+            "patient-dashboard": "Patient Portal",
+            "doctor-dashboard": "Doctor Portal",
+            "clinic-dashboard": "Clinic Portal",
+            "reception-dashboard": "Reception Desk",
+            "nurse-dashboard": "Nursing Station",
+            "lab-dashboard": "Diagnostics Lab",
+            "pharmacy-dashboard": "Pharmacy Desk",
+            "admin-dashboard": "System Administration",
+        };
+
+        const pageName = viewTitles[currentView] || "Welcome";
+        document.title = `${pageName} | I Health Clinic`;
+    }, [currentView]);
+
     // Auto-redirect authenticated users from home to dashboard
     useEffect(() => {
         if (!loading && user && currentView === "home") {
@@ -94,13 +156,15 @@ export const AppRouter: React.FC = () => {
         navigateTo("login");
     };
 
-    const handleRegister = (role: "doctor" | "clinic" | "lab") => {
+    const handleRegister = (role: "doctor" | "clinic" | "lab" | "patient") => {
         if (role === "clinic") {
             navigateTo("register-clinic");
         } else if (role === "doctor") {
             navigateTo("register-doctor");
         } else if (role === "lab") {
             navigateTo("register-lab");
+        } else if (role === "patient") {
+            navigateTo("register-patient");
         }
     };
 
@@ -113,7 +177,7 @@ export const AppRouter: React.FC = () => {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
-                <p className="mt-4 text-slate-500 font-medium">Initializing E-Clinic...</p>
+                <p className="mt-4 text-slate-500 font-medium">Initializing I Health Clinic...</p>
             </div>
         );
     }
@@ -126,6 +190,7 @@ export const AppRouter: React.FC = () => {
     if (currentView === "register-clinic") return <ClinicRegistration onSuccess={handleRegistrationComplete} onBack={() => navigateTo("login")} />;
     if (currentView === "register-doctor") return <DoctorRegistration onSuccess={handleRegistrationComplete} onBack={() => navigateTo("login")} />;
     if (currentView === "register-lab") return <LabRegistration onSuccess={handleRegistrationComplete} onBack={() => navigateTo("login")} />;
+    if (currentView === "register-patient") return <PatientRegistration onSuccess={handleRegistrationComplete} onBack={() => navigateTo("home")} onLogin={() => navigateTo("login")} />;
 
     // Public Feature Pages
     if (currentView === "features") return <Features onNavigate={navigateTo} />;
@@ -166,7 +231,6 @@ export const AppRouter: React.FC = () => {
     if (currentView === "clinic-queue") return <QueueManagement userRole={user?.role as any} />;
     if (currentView === "clinic-reports") return <ReportsAnalytics userRole={user?.role as any} />;
     if (currentView === "clinic-iot") return <IoTIntegration userRole={user?.role as any} />;
-    if (currentView === "clinic-security") return <SecurityCompliance userRole={user?.role as any} />;
     if (currentView === "clinic-settings") return <Settings userRole={user?.role as any} />;
     if (currentView === "clinic-notifications") return <Notifications userRole={user?.role as any} />;
     if (currentView === "clinic-profile") return <ClinicProfile user={user} onBack={() => navigateTo("dashboard")} />;

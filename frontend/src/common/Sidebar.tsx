@@ -48,7 +48,6 @@ const menuItems: MenuItem[] = [
   { id: 'ai-modules', label: 'AI Modules', icon: Sparkles, roles: ['admin', 'doctor', 'reception'] },
   { id: 'iot', label: 'IoT & Wearables', icon: Activity, roles: ['admin', 'doctor', 'nurse'] },
   { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['admin', 'doctor', 'reception', 'nurse', 'lab', 'pharmacy'] },
-  { id: 'security', label: 'Security', icon: Shield, roles: ['admin'] },
   { id: 'settings', label: 'Settings', icon: SettingsIcon, roles: ['admin', 'doctor', 'reception', 'nurse', 'lab', 'pharmacy'] },
 ];
 
@@ -63,7 +62,7 @@ export function Sidebar({ currentPage, onPageChange, userRole }: SidebarProps) {
             <Building2 className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg text-gray-900 dark:text-white">Elinic</h1>
+            <h1 className="font-bold text-lg text-gray-900 dark:text-white">I Health Clinic</h1>
             <p className="text-xs text-gray-500 dark:text-slate-400">Healthcare Platform</p>
           </div>
         </div>

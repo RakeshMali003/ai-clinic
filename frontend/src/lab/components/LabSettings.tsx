@@ -167,7 +167,7 @@ export function LabSettings() {
                             <TabsContent value="security" className="mt-0 animate-in slide-in-from-right duration-700">
                                  <div className="max-w-md mx-auto space-y-10 py-10">
                                      <div className="text-center space-y-2">
-                                          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 mx-auto border-4 border-white shadow-xl shadow-orange-100 mb-4 animate-bounce duration-[2000ms]"><Lock className="w-10 h-10" /></div>
+                                          <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center text-orange-600 mx-auto border-4 border-white shadow-xl shadow-orange-100 mb-4 animate-bounce duration-1000"><Lock className="w-10 h-10" /></div>
                                           <h4 className="text-2xl font-black italic uppercase text-gray-900 tracking-tighter shadow-sm mb-1">Authorization Matrix Control</h4>
                                           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest italic leading-none transition-colors hover:text-orange-600 cursor-cell">Identity verification and credential rotation</p>
                                      </div>

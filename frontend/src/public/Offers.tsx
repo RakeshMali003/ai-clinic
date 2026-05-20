@@ -213,7 +213,7 @@ export function Offers({ onNavigate }: OffersProps) {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <Trophy className="w-16 h-16 text-yellow-500 mb-6" />
-              <h2 className="text-4xl mb-4 text-foreground font-bold">E-Clinic Loyalty Program</h2>
+              <h2 className="text-4xl mb-4 text-foreground font-bold">I Health Clinic Loyalty Program</h2>
               <p className="text-xl text-foreground/80 mb-6 font-medium">
                 Earn points on every purchase and unlock exclusive rewards
               </p>
@@ -270,11 +270,11 @@ export function Offers({ onNavigate }: OffersProps) {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl mb-6">Want More Exclusive Offers?</h2>
           <p className="text-xl mb-8 text-pink-100">
-            Subscribe to E-Clinic PLUS for additional 5% savings on all orders plus early access to special deals
+            Subscribe to I Health Clinic PLUS for additional 5% savings on all orders plus early access to special deals
           </p>
           <div className="flex gap-4 justify-center">
             <Button size="lg" variant="secondary" onClick={() => onNavigate("plus")}>
-              Get E-Clinic PLUS
+              Get I Health Clinic PLUS
             </Button>
             <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10" onClick={() => onNavigate("pricing")}>
               View All Plans

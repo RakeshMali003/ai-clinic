@@ -121,7 +121,7 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
               <Activity className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-black tracking-tighter text-slate-900 uppercase italic">E-Clinic</h2>
+            <h2 className="text-xl font-black tracking-tighter text-slate-900 uppercase italic">I Health Clinic</h2>
           </div>
           <p className="text-sm text-slate-500 font-medium truncate">{user.name}</p>
           <div className="mt-2 flex items-center gap-2">

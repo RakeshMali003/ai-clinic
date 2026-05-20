@@ -42,7 +42,7 @@ export function PatientSidebar({ currentPage, onPageChange }: PatientSidebarProp
         <div className="flex items-center gap-2">
           <Activity className="size-8 text-pink-600" />
           <div>
-            <h1 className="font-bold text-gray-900">Elinic</h1>
+            <h1 className="font-bold text-gray-900">I Health Clinic</h1>
             <p className="text-xs text-gray-600">Patient Portal</p>
           </div>
         </div>

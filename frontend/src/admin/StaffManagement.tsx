@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { UserRole } from '../common/types';
-import { Users, UserPlus, Clock, CheckCircle, Camera, Calendar, Loader2, AlertCircle } from 'lucide-react';
+import { Users, UserPlus, Clock, CheckCircle, Camera, Calendar, Loader2, AlertCircle, CalendarClock } from 'lucide-react';
 import { clinicService } from '../services/clinicService';
+import { toast } from 'sonner';
 
 interface StaffManagementProps {
     userRole: UserRole;
@@ -179,20 +180,46 @@ export function StaffManagement({ userRole }: StaffManagementProps) {
                 </div>
             </div>
 
-            {/* Face Recognition Attendance */}
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-6">
+            {/* Staff Attendance Modalities */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
                 <div className="flex items-start gap-4">
-                    <div className="p-3 bg-purple-600 rounded-lg">
-                        <Camera className="w-6 h-6 text-white" />
+                    <div className="p-3 bg-blue-600 rounded-lg shadow-md">
+                        <CalendarClock className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="font-semibold text-purple-900 mb-1">AI Face Recognition Attendance</h3>
-                        <p className="text-sm text-purple-800 mb-3">
-                            Automated attendance tracking using facial recognition technology. Staff can check in/out instantly with face verification.
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-gray-900">Staff Attendance Modalities</h3>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">MVP Options Active</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1 mb-4">
+                            Configure alternative high-reliability check-in methods. Replaces face recognition to eliminate privacy concerns.
                         </p>
-                        <button className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium">
-                            Enable Face Recognition
-                        </button>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="bg-white border border-blue-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-900">QR Check-In</p>
+                                    <p className="text-[10px] text-gray-500">Scan code via mobile</p>
+                                </div>
+                                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_#10b981]"></span>
+                            </div>
+                            
+                            <div className="bg-white border border-blue-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-900">Staff PIN Login</p>
+                                    <p className="text-[10px] text-gray-500">4-digit security code</p>
+                                </div>
+                                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_#10b981]"></span>
+                            </div>
+
+                            <div className="bg-white border border-blue-100 rounded-xl p-3 flex items-center justify-between shadow-sm">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-900">Manual Attendance</p>
+                                    <p className="text-[10px] text-gray-500">Admin-approved override</p>
+                                </div>
+                                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-[0_0_8px_#10b981]"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

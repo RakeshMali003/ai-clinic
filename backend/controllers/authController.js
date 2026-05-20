@@ -1161,6 +1161,85 @@ exports.loginOtpMobile = async (req, res, next) => {
 
     res.status(200).json({ token, user: userResponse });
   } catch (error) {
+  }
+};
+
+exports.providerLogin = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return ResponseHandler.badRequest(res, 'No provider token supplied');
+    }
+
+    // Verify token with Supabase Auth
+    const { createClient } = require('@supabase/supabase-js');
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+    const { data: { user: sbUser }, error } = await supabase.auth.getUser(token);
+
+    if (error || !sbUser) {
+      return ResponseHandler.unauthorized(res, 'Invalid provider token');
+    }
+
+    // Find or create user in our DB
+    const email = sbUser.email;
+    let user = await User.findByEmail(email);
+    let role = sbUser.user_metadata?.role || 'patient';
+
+    if (!user) {
+      // Create new user since they signed up via provider
+      user = await User.create({
+        full_name: sbUser.user_metadata?.full_name || email.split('@')[0],
+        email: email,
+        password_hash: await bcrypt.hash(crypto.randomBytes(16).toString('hex'), 10), // Random dummy password
+        role: role
+      });
+
+      if (role === 'patient') {
+        try {
+          await prisma.patients.create({
+            data: {
+              patient_id: `PAT-${Date.now()}`,
+              full_name: user.full_name,
+              user_id: user.user_id
+            }
+          });
+        } catch (patientError) {
+          console.error('Error creating patient profile:', patientError);
+        }
+      }
+    }
+
+    // Create our custom JWT token
+    const customToken = jwt.sign(
+      { id: user.user_id, role: user.role },
+      process.env.JWT_SECRET || 'fallback-secret',
+      { expiresIn: process.env.JWT_EXPIRE || '24h' }
+    );
+
+    const userResponse = {
+      user_id: user.user_id,
+      full_name: user.full_name,
+      email: user.email || user.emails?.[0]?.email,
+      role: user.role ? user.role.toLowerCase() : 'patient'
+    };
+
+    // Include role-specific IDs
+    if (user.role === 'doctor') {
+      const doctor = await prisma.doctors.findUnique({ where: { user_id: user.user_id }, select: { id: true } });
+      if (doctor) userResponse.doctor_id = doctor.id;
+    } else if (user.role === 'patient') {
+      const patient = await prisma.patients.findFirst({ where: { user_id: user.user_id }, select: { patient_id: true } });
+      if (patient) userResponse.patient_id = patient.patient_id;
+    } else if (user.role === 'clinic') {
+      const clinic = await prisma.clinics.findUnique({ where: { user_id: user.user_id }, select: { id: true } });
+      if (clinic) userResponse.clinic_id = clinic.id;
+    } else if (user.role === 'lab') {
+      const lab = await prisma.labs.findUnique({ where: { user_id: user.user_id }, select: { lab_id: true } });
+      if (lab) userResponse.lab_id = lab.lab_id;
+    }
+
+    res.status(200).json({ token: customToken, user: userResponse });
+  } catch (error) {
     next(error);
   }
 };

@@ -401,7 +401,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
                   <div className="flex items-start gap-2">
                     <MapPin className="size-4 text-gray-600 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Elinic Healthcare Center</p>
+                      <p className="text-sm font-medium text-gray-900">I Health Clinic Center</p>
                       <p className="text-xs text-gray-600">Andheri West, Mumbai - 400053</p>
                     </div>
                   </div>
@@ -636,7 +636,7 @@ export function BookAppointment({ patient }: BookAppointmentProps) {
                     <div className="size-8 bg-blue-600 rounded-lg flex items-center justify-center">
                       <CalendarIcon className="size-4 text-white" />
                     </div>
-                    <span className="font-bold text-gray-900">E Clinic Receipt</span>
+                    <span className="font-bold text-gray-900">I Health Clinic Receipt</span>
                   </div>
                   <Badge variant="outline" className="text-green-600 border-green-200">Payment Confirmed</Badge>
                 </div>

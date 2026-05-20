@@ -351,7 +351,7 @@ export function Settings({ userRole }: SettingsProps) {
                         e.preventDefault();
                         // In a real app, this would navigate to a dedicated help section
                         // For now we'll show a friendly message
-                        alert('E-Clinic Help Center: Documentation is being updated for the latest version. Please contact support@eclinic.com for immediate assistance.');
+                        alert('I Health Clinic Help Center: Documentation is being updated for the latest version. Please contact support@ihealthclinic.com for immediate assistance.');
                       }}
                       className="text-sm text-blue-600 hover:underline inline-flex items-center gap-1 font-bold"
                     >
@@ -361,7 +361,7 @@ export function Settings({ userRole }: SettingsProps) {
 
                   <div className="p-4 border border-gray-200 rounded-lg">
                     <h3 className="font-medium text-gray-900 mb-2">Contact Support</h3>
-                    <p className="text-sm text-gray-600 mb-1">Email: support@eclinic.com</p>
+                    <p className="text-sm text-gray-600 mb-1">Email: support@ihealthclinic.com</p>
                     <p className="text-sm text-gray-600 mb-1">Phone: +91 1800 123 4567</p>
                     <p className="text-sm text-gray-600">Response time: Within 24 hours</p>
                   </div>

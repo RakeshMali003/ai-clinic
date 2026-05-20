@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User } from '../common/types';
-import { Search, Plus, FlaskConical, Upload, Download, Clock, CheckCircle, AlertCircle, X, ChevronLeft } from 'lucide-react';
+import { Search, Plus, FlaskConical, Upload, Download, Clock, CheckCircle, AlertCircle, X, ChevronLeft, Info } from 'lucide-react';
 import { clinicService } from '../services/clinicService';
 import { toast } from 'sonner';
 
@@ -182,6 +182,7 @@ export function LabDiagnostics({ user, onBack }: LabDiagnosticsProps) {
             <div className="p-3 rounded-lg bg-blue-50">
               <FlaskConical className="w-6 h-6 text-blue-600" />
             </div>
+            <Info className="w-5 h-5 text-blue-600 cursor-help" title="Total cumulative lab tests ordered" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{labOrders.length}</p>
           <p className="text-sm text-gray-600">Total Tests</p>
@@ -192,7 +193,7 @@ export function LabDiagnostics({ user, onBack }: LabDiagnosticsProps) {
             <div className="p-3 rounded-lg bg-yellow-50">
               <Clock className="w-6 h-6 text-yellow-600" />
             </div>
-            <AlertCircle className="w-5 h-5 text-yellow-600" />
+            <AlertCircle className="w-5 h-5 text-yellow-600 cursor-help" title="Lab orders currently pending or in processing" />
           </div>
           <p className="text-2xl font-bold text-yellow-600">{pendingCount}</p>
           <p className="text-sm text-gray-600">Pending/Processing</p>
@@ -203,6 +204,7 @@ export function LabDiagnostics({ user, onBack }: LabDiagnosticsProps) {
             <div className="p-3 rounded-lg bg-green-50">
               <CheckCircle className="w-6 h-6 text-green-600" />
             </div>
+            <Info className="w-5 h-5 text-green-600 cursor-help" title="Lab tests successfully completed today" />
           </div>
           <p className="text-2xl font-bold text-green-600">{completedToday}</p>
           <p className="text-sm text-gray-600">Completed Today</p>
@@ -213,6 +215,7 @@ export function LabDiagnostics({ user, onBack }: LabDiagnosticsProps) {
             <div className="p-3 rounded-lg bg-purple-50">
               <FlaskConical className="w-6 h-6 text-purple-600" />
             </div>
+            <Info className="w-5 h-5 text-purple-600 cursor-help" title="Distinct test protocols currently offered by the clinic" />
           </div>
           <p className="text-2xl font-bold text-gray-900">{testTypes.length}</p>
           <p className="text-sm text-gray-600">Test Types Available</p>

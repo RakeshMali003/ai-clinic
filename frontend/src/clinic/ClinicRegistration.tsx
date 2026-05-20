@@ -226,56 +226,51 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
 
   const validateAllRequiredFields = () => {
     const errors: Record<string, string> = {};
+    let stepWithError = 0;
 
-    // Required field checks
-    if (!formData.clinicName) errors.clinicName = "Clinic Name is required";
-    else if (formData.clinicName.length > 150) errors.clinicName = "Clinic Name must be less than 150 characters";
+    // Required field checks (Step 1)
+    if (!formData.clinicName) { errors.clinicName = "Clinic Name is required"; if (!stepWithError) stepWithError = 1; }
+    else if (formData.clinicName.length > 150) { errors.clinicName = "Clinic Name must be less than 150 characters"; if (!stepWithError) stepWithError = 1; }
+    if (!formData.clinicType) { errors.clinicType = "Clinic Type is required"; if (!stepWithError) stepWithError = 1; }
+    if (!formData.establishedYear) { errors.establishedYear = "Established Year is required"; if (!stepWithError) stepWithError = 1; }
+    if (!formData.description) { errors.description = "Description is required"; if (!stepWithError) stepWithError = 1; }
+    else if (formData.description.length > 500) { errors.description = "Description must be less than 500 characters"; if (!stepWithError) stepWithError = 1; }
+    if (!formData.password) { errors.password = "Password is required"; if (!stepWithError) stepWithError = 1; }
+    if (formData.tagline && formData.tagline.length > 200) { errors.tagline = "Tagline must be less than 200 characters"; if (!stepWithError) stepWithError = 1; }
 
-    if (!formData.clinicType) errors.clinicType = "Clinic Type is required";
+    // Step 2
+    if (!formData.address) { errors.address = "Address is required"; if (!stepWithError) stepWithError = 2; }
+    if (!formData.pinCode) { errors.pinCode = "PIN Code is required"; if (!stepWithError) stepWithError = 2; }
+    else if (formData.pinCode.length !== 6) { errors.pinCode = "PIN Code must be exactly 6 digits"; if (!stepWithError) stepWithError = 2; }
+    if (!formData.city) { errors.city = "City is required"; if (!stepWithError) stepWithError = 2; }
+    else if (formData.city.length > 100) { errors.city = "City must be less than 100 characters"; if (!stepWithError) stepWithError = 2; }
+    if (!formData.state) { errors.state = "State is required"; if (!stepWithError) stepWithError = 2; }
+    else if (formData.state.length > 100) { errors.state = "State must be less than 100 characters"; if (!stepWithError) stepWithError = 2; }
+    if (!formData.mobile) { errors.mobile = "Contact Number is required"; if (!stepWithError) stepWithError = 2; }
+    else if (formData.mobile.length !== 10) { errors.mobile = "Mobile Number must be exactly 10 digits"; if (!stepWithError) stepWithError = 2; }
+    if (!formData.email) { errors.email = "Email is required"; if (!stepWithError) stepWithError = 2; }
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) { errors.email = "Invalid email format"; if (!stepWithError) stepWithError = 2; }
+    else if (formData.email.length > 150) { errors.email = "Email must be less than 150 characters"; if (!stepWithError) stepWithError = 2; }
+    if (!formData.medicalCouncilRegNo) { errors.medicalCouncilRegNo = "Medical Council Reg No is required"; if (!stepWithError) stepWithError = 2; }
+    else if (formData.medicalCouncilRegNo.length > 100) { errors.medicalCouncilRegNo = "Medical Council Reg No must be less than 100 characters"; if (!stepWithError) stepWithError = 2; }
+    if (formData.website && formData.website.length > 200) { errors.website = "Website must be less than 200 characters"; if (!stepWithError) stepWithError = 2; }
 
-    if (!formData.establishedYear) errors.establishedYear = "Established Year is required";
-
-    if (!formData.description) errors.description = "Description is required";
-    else if (formData.description.length > 500) errors.description = "Description must be less than 500 characters";
-
-    if (!formData.password) errors.password = "Password is required";
-
-    if (!formData.address) errors.address = "Address is required";
-
-    if (!formData.pinCode) errors.pinCode = "PIN Code is required";
-    else if (formData.pinCode.length !== 6) errors.pinCode = "PIN Code must be exactly 6 digits";
-
-    if (!formData.city) errors.city = "City is required";
-    else if (formData.city.length > 100) errors.city = "City must be less than 100 characters";
-
-    if (!formData.state) errors.state = "State is required";
-    else if (formData.state.length > 100) errors.state = "State must be less than 100 characters";
-
-    if (!formData.mobile) errors.mobile = "Contact Number is required";
-    else if (formData.mobile.length !== 10) errors.mobile = "Mobile Number must be exactly 10 digits";
-
-    if (!formData.email) errors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) errors.email = "Invalid email format";
-    else if (formData.email.length > 150) errors.email = "Email must be less than 150 characters";
-
-    if (!formData.medicalCouncilRegNo) errors.medicalCouncilRegNo = "Medical Council Reg No is required";
-    else if (formData.medicalCouncilRegNo.length > 100) errors.medicalCouncilRegNo = "Medical Council Reg No must be less than 100 characters";
-
-    // Optional field length checks
-    if (formData.tagline && formData.tagline.length > 200) errors.tagline = "Tagline must be less than 200 characters";
-    if (formData.website && formData.website.length > 200) errors.website = "Website must be less than 200 characters";
-
-    // Bank details length checks - only validate if not empty
-    if (formData.accountName && formData.accountName.length > 150) errors.accountName = "Account Holder Name must be less than 150 characters";
-    if (formData.accountNumber && formData.accountNumber.length > 50) errors.accountNumber = "Account Number must be less than 50 characters";
-    if (formData.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc)) errors.ifsc = "Invalid IFSC format";
-    if (formData.pan && formData.pan.trim() !== '' && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) errors.pan = "Invalid PAN format";
-    if (formData.gstin && formData.gstin.trim() !== '' && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(formData.gstin.toUpperCase())) errors.gstin = "Invalid GSTIN format";
+    // Bank details length checks - only validate if not empty (Step 6)
+    if (formData.accountName && formData.accountName.length > 150) { errors.accountName = "Account Holder Name must be less than 150 characters"; if (!stepWithError) stepWithError = 6; }
+    if (formData.accountNumber && formData.accountNumber.length > 50) { errors.accountNumber = "Account Number must be less than 50 characters"; if (!stepWithError) stepWithError = 6; }
+    if (formData.ifsc && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(formData.ifsc)) { errors.ifsc = "Invalid IFSC format"; if (!stepWithError) stepWithError = 6; }
+    if (formData.pan && formData.pan.trim() !== '' && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan.toUpperCase())) { errors.pan = "Invalid PAN format"; if (!stepWithError) stepWithError = 6; }
+    if (formData.gstin && formData.gstin.trim() !== '' && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(formData.gstin.toUpperCase())) { errors.gstin = "Invalid GSTIN format"; if (!stepWithError) stepWithError = 6; }
 
     if (Object.keys(errors).length > 0) {
       console.error('Validation errors:', errors);
       console.log('Form data:', formData);
       setErrors(errors);
+      
+      // Navigate to the step containing the first error
+      if (stepWithError > 0 && stepWithError !== currentStep) {
+        setCurrentStep(stepWithError);
+      }
 
       // Show the first error in detail
       const firstError = Object.entries(errors)[0];
@@ -676,23 +671,66 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
               <CardContent className="space-y-4">
                 <div>
                   <Label>Dr. Full Name</Label>
-                  <Input placeholder="Dr. Full Name" className="mt-2" />
+                  <Input 
+                    placeholder="Dr. Full Name" 
+                    className="mt-2" 
+                    value={doctor.name}
+                    onChange={(e) => {
+                      const newDocs = [...doctors];
+                      newDocs[index].name = e.target.value;
+                      setDoctors(newDocs);
+                    }}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Degrees</Label>
-                    <Input placeholder="MBBS, MD, BDS, etc." className="mt-2" />
+                    <Input 
+                      placeholder="MBBS, MD, BDS, etc." 
+                      className="mt-2" 
+                      value={doctor.degrees}
+                      onChange={(e) => {
+                        const newDocs = [...doctors];
+                        newDocs[index].degrees = e.target.value;
+                        setDoctors(newDocs);
+                      }}
+                    />
                   </div>
                   <div>
                     <Label>MCI / State Council No.</Label>
-                    <Input placeholder="Registration number" className="mt-2" />
+                    <Input 
+                      placeholder="Registration number" 
+                      className="mt-2" 
+                      value={doctor.registration}
+                      onChange={(e) => {
+                        const newDocs = [...doctors];
+                        newDocs[index].registration = e.target.value;
+                        setDoctors(newDocs);
+                      }}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <Label>Years of Experience</Label>
-                  <Input placeholder="e.g., 10" type="number" className="mt-2" />
+                  <Select 
+                    value={doctor.experience} 
+                    onValueChange={(v) => {
+                      const newDocs = [...doctors];
+                      newDocs[index].experience = v;
+                      setDoctors(newDocs);
+                    }}
+                  >
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Select Experience" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 51 }, (_, i) => i).map(exp => (
+                        <SelectItem key={exp} value={exp.toString()}>{exp} {exp === 1 ? 'Year' : 'Years'}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -701,10 +739,16 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
                     {specializations.map((spec) => (
                       <div
                         key={spec}
-                        onClick={() =>
-                          toggleSelection(spec, selectedSpecializations, setSelectedSpecializations)
-                        }
-                        className={`p-2 border rounded-lg cursor-pointer text-center transition-colors ${selectedSpecializations.includes(spec)
+                        onClick={() => {
+                          const newDocs = [...doctors];
+                          if (newDocs[index].specializations.includes(spec)) {
+                            newDocs[index].specializations = newDocs[index].specializations.filter((s: string) => s !== spec);
+                          } else {
+                            newDocs[index].specializations.push(spec);
+                          }
+                          setDoctors(newDocs);
+                        }}
+                        className={`p-2 border rounded-lg cursor-pointer text-center transition-colors ${doctor.specializations.includes(spec)
                           ? 'bg-pink-600 text-white border-pink-600'
                           : 'bg-white border-gray-300 hover:border-pink-400'
                           }`}
@@ -713,10 +757,14 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
                       </div>
                     ))}
                     {/* Custom Specializations Display */}
-                    {selectedSpecializations.filter(s => !specializations.includes(s)).map((spec) => (
+                    {doctor.specializations.filter((s: string) => !specializations.includes(s)).map((spec: string) => (
                       <div
                         key={spec}
-                        onClick={() => toggleSelection(spec, selectedSpecializations, setSelectedSpecializations)}
+                        onClick={() => {
+                          const newDocs = [...doctors];
+                          newDocs[index].specializations = newDocs[index].specializations.filter((s: string) => s !== spec);
+                          setDoctors(newDocs);
+                        }}
                         className="p-2 border rounded-lg cursor-pointer text-center transition-colors bg-pink-600 text-white border-pink-600"
                       >
                         <p className="text-xs font-medium">{spec}</p>
@@ -739,7 +787,18 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
                           placeholder="Type specialization..."
                           className="h-6 text-xs"
                         />
-                        <Button size="sm" onClick={handleAddCustomSpecialization} className="h-6 w-6 p-0 bg-pink-600">
+                        <Button size="sm" onClick={() => {
+                          if (customSpecialization.trim()) {
+                            const newDocs = [...doctors];
+                            if (!newDocs[index].specializations.includes(customSpecialization.trim())) {
+                              newDocs[index].specializations.push(customSpecialization.trim());
+                            }
+                            setDoctors(newDocs);
+                            setCustomSpecialization('');
+                            setShowCustomSpecializationInput(false);
+                            toast.success("Custom specialization added!");
+                          }
+                        }} className="h-6 w-6 p-0 bg-pink-600">
                           <CheckCircle className="size-3" />
                         </Button>
                       </div>
@@ -753,8 +812,16 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
                     {languages.map((lang) => (
                       <div
                         key={lang}
-                        onClick={() => toggleSelection(lang, selectedLanguages, setSelectedLanguages)}
-                        className={`p-2 border rounded-lg cursor-pointer text-center transition-colors ${selectedLanguages.includes(lang)
+                        onClick={() => {
+                          const newDocs = [...doctors];
+                          if (newDocs[index].languages.includes(lang)) {
+                            newDocs[index].languages = newDocs[index].languages.filter((l: string) => l !== lang);
+                          } else {
+                            newDocs[index].languages.push(lang);
+                          }
+                          setDoctors(newDocs);
+                        }}
+                        className={`p-2 border rounded-lg cursor-pointer text-center transition-colors ${doctor.languages.includes(lang)
                           ? 'bg-purple-600 text-white border-purple-600'
                           : 'bg-white border-gray-300 hover:border-purple-400'
                           }`}
@@ -763,10 +830,14 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
                       </div>
                     ))}
                     {/* Custom Languages Display */}
-                    {selectedLanguages.filter(l => !languages.includes(l)).map((lang) => (
+                    {doctor.languages.filter((l: string) => !languages.includes(l)).map((lang: string) => (
                       <div
                         key={lang}
-                        onClick={() => toggleSelection(lang, selectedLanguages, setSelectedLanguages)}
+                        onClick={() => {
+                          const newDocs = [...doctors];
+                          newDocs[index].languages = newDocs[index].languages.filter((l: string) => l !== lang);
+                          setDoctors(newDocs);
+                        }}
                         className="p-2 border rounded-lg cursor-pointer text-center transition-colors bg-purple-600 text-white border-purple-600"
                       >
                         <p className="text-xs font-medium">{lang}</p>
@@ -789,7 +860,18 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
                           placeholder="Type language..."
                           className="h-6 text-xs"
                         />
-                        <Button size="sm" onClick={handleAddCustomLanguage} className="h-6 w-6 p-0 bg-purple-600">
+                        <Button size="sm" onClick={() => {
+                          if (customLanguage.trim()) {
+                            const newDocs = [...doctors];
+                            if (!newDocs[index].languages.includes(customLanguage.trim())) {
+                              newDocs[index].languages.push(customLanguage.trim());
+                            }
+                            setDoctors(newDocs);
+                            setCustomLanguage('');
+                            setShowCustomLanguageInput(false);
+                            toast.success("Custom language added!");
+                          }
+                        }} className="h-6 w-6 p-0 bg-purple-600">
                           <CheckCircle className="size-3" />
                         </Button>
                       </div>
@@ -1046,7 +1128,7 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
           <div className="flex items-start gap-3">
             <Checkbox id="terms" />
             <label htmlFor="terms" className="text-sm text-gray-700 cursor-pointer">
-              I accept the Terms & Conditions and Privacy Policy of E-Clinic
+              I accept the Terms & Conditions and Privacy Policy of I Health Clinic
             </label>
           </div>
 
@@ -1054,7 +1136,7 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
             <Checkbox id="accurate" defaultChecked />
             <label htmlFor="accurate" className="text-sm text-gray-700 cursor-pointer">
               ✅ I confirm that all the information provided is true and accurate. I understand that
-              E-Clinic is not meant for collecting PII or securing sensitive data beyond what is
+              I Health Clinic is not meant for collecting PII or securing sensitive data beyond what is
               necessary for healthcare services.
             </label>
           </div>
@@ -1067,7 +1149,7 @@ export function ClinicRegistration({ onBack, onSuccess }: ClinicRegistrationProp
           <li>• Our verification team will review your documents (24-48 hours)</li>
           <li>• You'll receive email/SMS updates on verification status</li>
           <li>• Once approved, you'll get a "✅ Verified Clinic" badge</li>
-          <li>• Your clinic profile will go live on E-Clinic platform</li>
+          <li>• Your clinic profile will go live on I Health Clinic platform</li>
         </ul>
       </div>
     </div>

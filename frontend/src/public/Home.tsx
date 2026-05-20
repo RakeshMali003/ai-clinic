@@ -138,7 +138,7 @@ export function Home({ onGetStarted, onNavigate }: HomeProps) {
           <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
             <h2 className="text-4xl mb-4">Ready to Transform Healthcare?</h2>
             <p className="text-xl mb-8 text-pink-100">
-              Join thousands of healthcare providers already using E-Clinic
+              Join thousands of healthcare providers already using I Health Clinic
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Button size="lg" variant="secondary" onClick={onGetStarted}>

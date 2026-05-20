@@ -68,7 +68,6 @@ type ViewType =
   | 'ai'
   | 'iot'
   | 'notifications'
-  | 'security'
   | 'settings'
   | 'clinic-register-doctor';
 
@@ -122,7 +121,6 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
     { id: 'ai' as ViewType, label: 'AI Modules', icon: Brain },
     { id: 'iot' as ViewType, label: 'IoT & Wearables', icon: Watch },
     { id: 'notifications' as ViewType, label: 'Notifications', icon: Bell },
-    { id: 'security' as ViewType, label: 'Security', icon: Shield },
     { id: 'settings' as ViewType, label: 'Settings', icon: Settings },
   ];
 
@@ -161,8 +159,6 @@ export function AdminDashboard({ user }: AdminDashboardProps) {
         return <IoTIntegration userRole={user.role} />;
       case 'notifications':
         return <Notifications userRole={user.role} />;
-      case 'security':
-        return <SecurityCompliance userRole={user.role} />;
       case 'settings':
         return <SettingsComponent userRole={user.role} />;
       case 'dashboard':

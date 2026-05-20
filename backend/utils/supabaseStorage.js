@@ -62,37 +62,49 @@ const uploadToSupabase = async (fileBuffer, fileName, folder = 'files') => {
     }
 
     try {
-        // Get the actual bucket name (handles case-insensitive lookup)
-        const bucketName = await getActualBucketName();
-        
-        // Generate unique filename with timestamp
-        const timestamp = Date.now();
-        const randomNum = Math.floor(Math.random() * 1000000);
-        const extension = fileName.split('.').pop();
-        const newFileName = `${folder}/${timestamp}-${randomNum}.${extension}`;
+        // Create a 10 second timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => {
+                reject(new Error('Supabase request timed out after 10 seconds'));
+            }, 10000);
+        });
 
-        // Upload file to Supabase Storage
-        const { data, error } = await supabase.storage
-            .from(bucketName)
-            .upload(newFileName, fileBuffer, {
-                contentType: getMimeType(extension),
-                upsert: false
-            });
+        // The actual upload logic
+        const uploadTask = async () => {
+            // Get the actual bucket name (handles case-insensitive lookup)
+            const bucketName = await getActualBucketName();
+            
+            // Generate unique filename with timestamp
+            const timestamp = Date.now();
+            const randomNum = Math.floor(Math.random() * 1000000);
+            const extension = fileName.split('.').pop();
+            const newFileName = `${folder}/${timestamp}-${randomNum}.${extension}`;
 
-        if (error) {
-            console.error('Supabase upload error:', error);
-            return { success: false, error: error.message };
-        }
+            // Upload file to Supabase Storage
+            const { data, error } = await supabase.storage
+                .from(bucketName)
+                .upload(newFileName, fileBuffer, {
+                    contentType: getMimeType(extension),
+                    upsert: false
+                });
 
-        // Get public URL
-        const { data: urlData } = supabase.storage
-            .from(bucketName)
-            .getPublicUrl(newFileName);
+            if (error) {
+                throw new Error(error.message);
+            }
 
-        return { 
-            success: true, 
-            url: urlData.publicUrl 
+            // Get public URL
+            const { data: urlData } = supabase.storage
+                .from(bucketName)
+                .getPublicUrl(newFileName);
+
+            return { 
+                success: true, 
+                url: urlData.publicUrl 
+            };
         };
+
+        // Race the upload against the timeout
+        return await Promise.race([uploadTask(), timeoutPromise]);
     } catch (error) {
         console.error('Supabase upload exception:', error);
         return { success: false, error: error.message };

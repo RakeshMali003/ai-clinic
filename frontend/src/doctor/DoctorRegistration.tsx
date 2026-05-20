@@ -980,7 +980,7 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
             />
             <div className="grid gap-1.5 leading-none">
               <label htmlFor="verificationConsent" className="text-sm font-medium text-gray-700 cursor-pointer">
-                ✅ I consent to E-Clinic verifying my uploaded documents and credentials *
+                ✅ I consent to I Health Clinic verifying my uploaded documents and credentials *
               </label>
               {errors.verificationConsent && <p className="text-xs text-red-500">{errors.verificationConsent}</p>}
             </div>
@@ -994,7 +994,7 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
           <li>• Documents reviewed by verification team (24-48 hours)</li>
           <li>• Email/SMS updates on verification status</li>
           <li>• Once verified → "✅ Verified Doctor" badge on profile</li>
-          <li>• Your profile goes live on E-Clinic platform</li>
+          <li>• Your profile goes live on I Health Clinic platform</li>
         </ul>
       </div>
     </div>
@@ -1006,7 +1006,7 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="font-bold text-gray-900 mb-2">Doctor Registration</h1>
-          <p className="text-sm text-gray-600">Join E-Clinic as a verified medical practitioner</p>
+          <p className="text-sm text-gray-600">Join I Health Clinic as a verified medical practitioner</p>
         </div>
 
         {/* Steps */}

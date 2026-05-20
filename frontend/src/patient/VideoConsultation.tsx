@@ -393,7 +393,7 @@ export function VideoConsultation({ patient }: VideoConsultationProps) {
           </div>
           <h2 className="font-semibold text-gray-900 mb-2">Consultation Completed</h2>
           <p className="text-sm text-gray-600 mb-6">
-            Thank you for using E-Clinic's telemedicine service
+            Thank you for using I Health Clinic's telemedicine service
           </p>
 
           <div className="grid grid-cols-3 gap-4 mb-6 p-6 bg-pink-50 rounded-lg">

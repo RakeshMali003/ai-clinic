@@ -18,7 +18,7 @@ export function Footer({ onNavigate }: FooterProps) {
               <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-pink-600 rounded-lg flex items-center justify-center">
                 <Heart className="w-5 h-5 text-white" />
               </div>
-              <span className="text-white">E-Clinic</span>
+              <span className="text-white">I Health Clinic</span>
             </div>
             <p className="text-sm mb-4">
               Your health, our priority. Digitally.
@@ -77,10 +77,10 @@ export function Footer({ onNavigate }: FooterProps) {
             <ul className="space-y-2 text-sm">
               <li>
                 <a
-                  href="mailto:contact@eclinic.com"
+                  href="mailto:contact@ihealthclinic.com"
                   className="hover:text-pink-400 transition-colors"
                 >
-                  contact@eclinic.com
+                  contact@ihealthclinic.com
                 </a>
               </li>
               <li>
@@ -110,7 +110,7 @@ export function Footer({ onNavigate }: FooterProps) {
         </div>
 
         <div className="border-t border-gray-800 pt-8 text-center text-sm">
-          <p>&copy; 2025 MediChain. All rights reserved.</p>
+          <p>&copy; 2026 I Health Clinic. All rights reserved.</p>
         </div>
       </div>
     </footer>

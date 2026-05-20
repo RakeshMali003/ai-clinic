@@ -23,7 +23,7 @@ const gemini = async (prompt, fallbackData = '') => {
         throw new Error('AI instance not properly initialized or missing generate method.');
     }
     try {
-        const response = await ai.generate({ prompt });
+        const response = await ai.generate({ model: 'googleai/gemini-2.5-flash', prompt });
         return response.text;
     } catch (error) {
         console.warn('AI Generation failed (likely API quota or model error), using fallback heuristic:', error.message);
@@ -176,85 +176,3 @@ exports.recommendTreatment = async (req, res, next) => {
     }
 };
 
-// ─── 8. Feedback Sentiment Analyzer ──────────────────────────────────────────
-exports.analyzeFeedback = async (req, res, next) => {
-    try {
-        const { feedback } = req.body;
-        let analysis = { sentiment: 'Neutral', score: 50, key_topics: [], summary: 'Analysis in progress...', actionable_improvements: [] };
-        try {
-            const raw = await gemini(
-                `Analyze this patient feedback and return ONLY valid JSON (no markdown or code blocks):
-{
-  "sentiment": "Positive" | "Neutral" | "Negative",
-  "score": 0-100,
-  "key_topics": ["topic1", "topic2"],
-  "summary": "Brief summary",
-  "actionable_improvements": ["improvement1"]
-}
-
-Feedback: "${feedback}"`,
-                JSON.stringify(analysis)
-            );
-
-            // Robust JSON extraction
-            const match = raw.match(/\{[\s\S]*\}/);
-            if (match) {
-                const parsed = JSON.parse(match[0]);
-                analysis = { ...analysis, ...parsed };
-            } else {
-                 analysis.summary = raw;
-            }
-        } catch (err) {
-            console.error('Sentiment analysis parse error:', err);
-            analysis.summary = "Internal analysis error. Sentiment appears neutral based on available telemetry.";
-        }
-
-        ResponseHandler.success(res, analysis, 'Feedback analyzed');
-    } catch (error) {
-        console.error('Feedback analysis outer error:', error);
-        ResponseHandler.serverError(res, error.message || 'Feedback analysis failed');
-    }
-};
-
-// ─── 9. Face Recognition Attendance (BETA) ───────────────────────────────────
-exports.markFaceAttendance = async (req, res, next) => {
-    try {
-        const { studentId, confidence } = req.body;
-        
-        // Store record in DB
-        const dbRecord = await prisma.attendance.create({
-            data: {
-                staff_id: studentId,
-                check_in: new Date(),
-                method: 'face',
-                confidence: parseFloat(confidence) || 0.95,
-                status: 'Present'
-            }
-        });
-
-        ResponseHandler.success(res, {
-            status: 'Marked',
-            studentId,
-            timestamp: dbRecord.check_in,
-            confidence: dbRecord.confidence,
-            dbStored: true
-        }, 'Attendance marked successfully');
-    } catch (error) {
-        next(error);
-    }
-};
-
-// ─── 10. Get Attendance History ─────────────────────────────────────────────
-exports.getAttendanceHistory = async (req, res, next) => {
-    try {
-        const { staff_id } = req.query;
-        const history = await prisma.attendance.findMany({
-            where: staff_id ? { staff_id } : {},
-            orderBy: { check_in: 'desc' },
-            take: 50
-        });
-        ResponseHandler.success(res, history, 'Attendance history fetched');
-    } catch (error) {
-        next(error);
-    }
-};

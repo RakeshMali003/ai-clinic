@@ -242,7 +242,7 @@ export function LabTests({ onNavigate }: LabTestsProps) {
 
           <div className="grid md:grid-cols-3 gap-8">
             {packages.map((pkg) => (
-              <Card key={pkg.id} className={`p-6 hover:shadow-xl transition-all ${pkg.popular ? 'border-2 border-pink-600' : ''} bg-card border-border`}>
+              <Card key={pkg.id} className={`p-6 hover:shadow-xl transition-all flex flex-col h-full ${pkg.popular ? 'border-2 border-pink-600' : ''} bg-card border-border`}>
                 {pkg.popular && (
                   <Badge className="mb-4 bg-pink-600">MOST POPULAR</Badge>
                 )}
@@ -282,7 +282,7 @@ export function LabTests({ onNavigate }: LabTestsProps) {
                   </div>
                 </div>
 
-                <Button className="w-full" onClick={() => onNavigate("login")}>
+                <Button className="w-full mt-auto" onClick={() => onNavigate("login")}>
                   <Calendar className="w-4 h-4 mr-2" />
                   Book Package
                 </Button>
@@ -372,7 +372,7 @@ export function LabTests({ onNavigate }: LabTestsProps) {
       <section className="py-16 bg-gradient-to-br from-pink-900/10 to-purple-900/10 border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl mb-4 text-foreground font-bold">Why Book Lab Tests with E-Clinic?</h2>
+            <h2 className="text-4xl mb-4 text-foreground font-bold">Why Book Lab Tests with I Health Clinic?</h2>
             <p className="text-xl text-foreground/80 font-medium">Trusted by thousands for reliable lab services</p>
           </div>
 

@@ -54,6 +54,7 @@ export const analyzeSymptoms = async (req: Request, res: Response, next: NextFun
                Include possibleConditions, severityLevel (Low/Medium/High), recommendedSpecialist, and basicAdvice.`;
 
         const { output } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
             prompt: `Symptoms: ${symptoms}\n\n${systemPrompt}`,
             output: { schema: SymptomsOutputSchema },
         });
@@ -99,6 +100,7 @@ export const analyzeDocument = async (req: Request, res: Response, next: NextFun
         }
 
         const { output } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
             prompt: parts,
             output: { schema: DocumentAnalysisOutputSchema },
         });
@@ -138,6 +140,7 @@ export const scanPrescription = async (req: Request, res: Response, next: NextFu
         Respond ONLY in valid JSON with a "medicines" array containing the strings of detected medicine names.`;
 
         const { output } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
             prompt: [
                 { text: systemPrompt },
                 { media: { url: fileDataUri } }
@@ -158,6 +161,7 @@ export const analyzeSentiment = async (req: Request, res: Response, next: NextFu
         if (!feedback) return (ResponseHandler as any).badRequest(res, 'Feedback is required');
 
         const { output } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
             prompt: `Analyze the following patient feedback:\n"${feedback}"`,
             output: { schema: SentimentAnalysisSchema },
         });
@@ -220,6 +224,7 @@ export const handleChat = async (req: Request, res: Response, next: NextFunction
         finalMessages.push({ role: 'user', content: [{ text: prompt }] });
 
         const { text } = await ai.generate({
+            model: 'googleai/gemini-2.5-flash',
             messages: finalMessages
         });
 

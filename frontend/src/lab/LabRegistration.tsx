@@ -168,14 +168,18 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
       case 1: return (
         <div className="space-y-4">
           <div><Label htmlFor="labName">Lab Name *</Label>
-            <Input id="labName" value={formData.labName} onChange={handleInputChange} /></div>
+            <Input id="labName" value={formData.labName} onChange={handleInputChange} className={_errors.labName ? 'border-red-500' : ''} />
+            {_errors.labName && <p className="text-red-500 text-xs mt-1">{_errors.labName}</p>}
+          </div>
           <div><Label htmlFor="ownerName">Owner Name *</Label>
-            <Input id="ownerName" value={formData.ownerName} onChange={handleInputChange} /></div>
+            <Input id="ownerName" value={formData.ownerName} onChange={handleInputChange} className={_errors.ownerName ? 'border-red-500' : ''} />
+            {_errors.ownerName && <p className="text-red-500 text-xs mt-1">{_errors.ownerName}</p>}
+          </div>
           <div className="grid grid-cols-2 gap-6 pb-2">
             <div className="relative z-[60]"><Label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Lab Type</Label>
               <Select onValueChange={v => handleSelectChange('labType', v)} defaultValue="pathology">
                 <SelectTrigger className="h-12 rounded-2xl border-gray-100 shadow-sm focus:ring-blue-500/20"><SelectValue placeholder="Pathology" /></SelectTrigger>
-                <SelectContent className="z-[100]"><SelectItem value="pathology">Pathology</SelectItem><SelectItem value="radiology">Radiology</SelectItem><SelectItem value="both">Both</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="pathology">Pathology</SelectItem><SelectItem value="radiology">Radiology</SelectItem><SelectItem value="both">Both</SelectItem></SelectContent>
               </Select>
             </div>
             <div><Label htmlFor="establishedYear" className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Established Year</Label>
@@ -189,15 +193,23 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div><Label htmlFor="mobile">Mobile Number *</Label>
-              <Input id="mobile" value={formData.mobile} onChange={handleInputChange} maxLength={10} /></div>
+              <Input id="mobile" value={formData.mobile} onChange={handleInputChange} maxLength={10} className={_errors.mobile ? 'border-red-500' : ''} />
+              {_errors.mobile && <p className="text-red-500 text-xs mt-1">{_errors.mobile}</p>}
+            </div>
             <div><Label htmlFor="email">Email *</Label>
-              <Input id="email" type="email" value={formData.email} onChange={handleInputChange} /></div>
+              <Input id="email" type="email" value={formData.email} onChange={handleInputChange} className={_errors.email ? 'border-red-500' : ''} />
+              {_errors.email && <p className="text-red-500 text-xs mt-1">{_errors.email}</p>}
+            </div>
           </div>
           <div><Label htmlFor="address">Address *</Label>
-            <Textarea id="address" value={formData.address} onChange={handleInputChange} /></div>
+            <Textarea id="address" value={formData.address} onChange={handleInputChange} className={_errors.address ? 'border-red-500' : ''} />
+            {_errors.address && <p className="text-red-500 text-xs mt-1">{_errors.address}</p>}
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <div><Label htmlFor="city">City *</Label>
-              <Input id="city" value={formData.city} onChange={handleInputChange} /></div>
+              <Input id="city" value={formData.city} onChange={handleInputChange} className={_errors.city ? 'border-red-500' : ''} />
+              {_errors.city && <p className="text-red-500 text-xs mt-1">{_errors.city}</p>}
+            </div>
             <div><Label htmlFor="state">State</Label>
               <Input id="state" value={formData.state} onChange={handleInputChange} /></div>
             <div><Label htmlFor="pinCode">PIN Code</Label>
@@ -208,7 +220,9 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
       case 3: return (
         <div className="space-y-4">
           <div><Label htmlFor="licenseNumber">Lab License Number *</Label>
-            <Input id="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} /></div>
+            <Input id="licenseNumber" value={formData.licenseNumber} onChange={handleInputChange} className={_errors.licenseNumber ? 'border-red-500' : ''} />
+            {_errors.licenseNumber && <p className="text-red-500 text-xs mt-1">{_errors.licenseNumber}</p>}
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div><Label htmlFor="certification">NABL/ISO Certification</Label>
               <Input id="certification" value={formData.certification} onChange={handleInputChange} placeholder="Optional" /></div>
@@ -258,9 +272,13 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
       case 5: return (
         <div className="space-y-4">
           <div><Label htmlFor="username">Username *</Label>
-            <Input id="username" value={formData.username} onChange={handleInputChange} /></div>
+            <Input id="username" value={formData.username} onChange={handleInputChange} className={_errors.username ? 'border-red-500' : ''} />
+            {_errors.username && <p className="text-red-500 text-xs mt-1">{_errors.username}</p>}
+          </div>
           <div><Label htmlFor="password">Password *</Label>
-            <Input id="password" type="password" value={formData.password} onChange={handleInputChange} /></div>
+            <Input id="password" type="password" value={formData.password} onChange={handleInputChange} className={_errors.password ? 'border-red-500' : ''} />
+            {_errors.password && <p className="text-red-500 text-xs mt-1">{_errors.password}</p>}
+          </div>
           <div className="p-4 bg-blue-50 rounded text-blue-800 text-sm mt-4 text-center border border-blue-200">
              Your role will be securely created as <strong>LAB_ADMIN</strong>.
           </div>
@@ -274,7 +292,7 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
        <Card className="w-full max-w-2xl shadow-lg border-blue-100">
            <CardHeader className="bg-blue-600 rounded-t-lg">
                <div className="flex items-center text-white">
-                  <Button variant="ghost" className="text-white hover:text-white/80" onClick={onBack}>
+                   <Button variant="ghost" className="text-white hover:bg-blue-700 hover:text-white" onClick={onBack}>
                       <ChevronLeft className="w-5 h-5 mr-1" /> Back
                   </Button>
                   <CardTitle className="ml-auto flex items-center gap-2">
@@ -304,7 +322,7 @@ export function LabRegistration({ onBack, onSuccess }: LabRegistrationProps) {
                </div>
 
                <div className="flex justify-between pt-4 border-t">
-                  <Button disabled={currentStep === 1} onClick={() => setCurrentStep(p => p - 1)} variant="outline">Back</Button>
+                  <Button onClick={() => currentStep === 1 ? onBack() : setCurrentStep(p => p - 1)} variant="outline">Back</Button>
                   <Button onClick={currentStep === steps.length ? handleSubmit : handleNext} className="bg-blue-600 hover:bg-blue-700 text-white">
                       {currentStep === steps.length ? (loading ? 'Submitting...' : 'Register Lab') : 'Next'} <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>

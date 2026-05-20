@@ -224,7 +224,7 @@ export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
             </div>
 
             {/* Quick Actions - ROLE: Admin specific actions */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
                     <Stethoscope className="w-8 h-8 text-blue-600 mb-3" />
                     <h3 className="font-semibold text-gray-900 mb-1">Manage Doctors</h3>
@@ -249,15 +249,6 @@ export function ClinicAdminDashboard({ user }: ClinicAdminDashboardProps) {
                     <p className="text-sm text-gray-600 mb-3">Update clinic information</p>
                     <button className="text-sm text-purple-600 hover:underline font-medium">
                         Update →
-                    </button>
-                </div>
-
-                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
-                    <Shield className="w-8 h-8 text-orange-600 mb-3" />
-                    <h3 className="font-semibold text-gray-900 mb-1">Security Settings</h3>
-                    <p className="text-sm text-gray-600 mb-3">Manage access and permissions</p>
-                    <button className="text-sm text-orange-600 hover:underline font-medium">
-                        Configure →
                     </button>
                 </div>
             </div>

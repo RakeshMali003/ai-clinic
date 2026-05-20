@@ -10,13 +10,13 @@ const transporter = nodemailer.createTransport({
 
 exports.sendOTP = async (email, otp) => {
   const mailOptions = {
-    from: `"E-Clinic" <${process.env.EMAIL_USER}>`,
+    from: `"I Health Clini" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: 'Your Password Reset OTP',
     text: `Your OTP for password reset is: ${otp}. It will expire in 2 minutes.`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
-        <h2 style="color: #2c3e50; text-align: center;">E-Clinic Password Reset</h2>
+        <h2 style="color: #2c3e50; text-align: center;">I Health Clini Password Reset</h2>
         <p style="font-size: 16px; color: #34495e;">Hello,</p>
         <p style="font-size: 16px; color: #34495e;">We received a request to reset your password. Use the following 6-digit OTP to proceed:</p>
         <div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-radius: 5px; margin: 20px 0;">

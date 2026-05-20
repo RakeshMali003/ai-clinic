@@ -64,9 +64,9 @@ export function HowItWorks({ onNavigate }: HowItWorksProps) {
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-pink-900/20 to-purple-900/20 py-20 border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-5xl mb-6 text-foreground font-bold">How E-Clinic Works</h1>
+          <h1 className="text-5xl mb-6 text-foreground font-bold">How I Health Clinic Works</h1>
           <p className="text-xl text-foreground/80 max-w-3xl mx-auto font-medium">
-            From registration to continuous care - see how E-Clinic transforms the healthcare journey
+            From registration to continuous care - see how I Health Clinic transforms the healthcare journey
           </p>
         </div>
       </section>
@@ -113,10 +113,10 @@ export function HowItWorks({ onNavigate }: HowItWorksProps) {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-4xl mb-6 text-foreground font-bold">See It In Action</h2>
           <p className="text-xl text-foreground/80 mb-8 font-medium">
-            Watch how E-Clinic simplifies healthcare management
+            Watch how I Health Clinic simplifies healthcare management
           </p>
           <Card className="overflow-hidden shadow-2xl aspect-video bg-gray-900 flex items-center justify-center">
-            <Button size="lg" variant="secondary">
+            <Button size="lg" variant="secondary" onClick={() => alert("Demo video coming soon!")}>
               <Video className="w-5 h-5 mr-2" />
               Watch Demo Video
             </Button>
@@ -128,7 +128,7 @@ export function HowItWorks({ onNavigate }: HowItWorksProps) {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-4xl mb-4">Why Choose E-Clinic?</h2>
+            <h2 className="text-4xl mb-4">Why Choose I Health Clinic?</h2>
             <p className="text-xl text-muted-foreground">The complete healthcare platform trusted by thousands</p>
           </div>
 
@@ -300,7 +300,7 @@ export function HowItWorks({ onNavigate }: HowItWorksProps) {
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-4xl mb-4">Ready to Transform Your Practice?</h2>
           <p className="text-xl mb-8 text-pink-100">
-            Join thousands of healthcare providers already using E-Clinic
+            Join thousands of healthcare providers already using I Health Clinic
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Button size="lg" variant="secondary" onClick={() => onNavigate("login")}>

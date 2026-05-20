@@ -36,6 +36,7 @@ export async function analyzeXray(
 
 const xrayAnalysisPrompt = ai.definePrompt({
   name: 'xrayAnalysisPrompt',
+  model: 'googleai/gemini-2.5-flash',
   input: {schema: AnalyzeXrayInputSchema},
   output: {schema: AnalyzeXrayOutputSchema},
   prompt: `You are a medical image assistant. Your task is to analyze the uploaded X-ray image and provide a complete, medical-style summary in patient-friendly language.

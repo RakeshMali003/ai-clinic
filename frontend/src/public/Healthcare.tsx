@@ -320,7 +320,7 @@ export function Healthcare({ onNavigate }: HealthcareProps) {
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8 relative z-10">
           <h2 className="text-5xl mb-4 text-white font-bold">Ready to Get Started?</h2>
           <p className="text-xl mb-8 text-pink-100">
-            Join 50,000+ patients experiencing better healthcare with E-Clinic
+            Join 50,000+ patients experiencing better healthcare with I Health Clinic
           </p>
           <div className="flex items-center justify-center gap-4">
             <Button size="lg" variant="secondary" onClick={() => onNavigate("login")} className="text-lg px-8">
