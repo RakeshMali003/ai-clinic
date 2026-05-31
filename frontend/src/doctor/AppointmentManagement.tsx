@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { doctorService } from '../services/doctorService';
 import { useAuth } from '../contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface AppointmentManagementProps {
     onStartAppointment: (appointment: any) => void;

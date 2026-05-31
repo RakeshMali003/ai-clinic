@@ -1,11 +1,18 @@
 const prisma = require('../config/database');
 const ResponseHandler = require('../utils/responseHandler');
+const cache = require('../utils/cache');
 
 exports.getDashboardStats = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
         const userRole = req.user.role;
         const doctorId = req.user.doctor_id;
+
+        const cacheKey = `dashboard_stats_${userId}_${userRole}_${doctorId || ''}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            return ResponseHandler.success(res, cachedData, 'Dashboard stats retrieved successfully (cached)');
+        }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -70,7 +77,7 @@ exports.getDashboardStats = async (req, res, next) => {
                 }
             });
 
-            const totalRev = doctorRevenue.reduce((sum, row) => sum + (row.amount || 0), 0);
+            const totalRev = doctorRevenue.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
             const pendingCount = doctorRevenue.filter(row => row.payout_status === 'Pending').length;
 
             stats.totalRevenue = `₹${totalRev.toLocaleString()}`;
@@ -89,12 +96,15 @@ exports.getDashboardStats = async (req, res, next) => {
                 }
             });
 
-            const totalRev = revenueData.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+            const totalRev = revenueData.reduce((sum, inv) => sum + (Number(inv.total_amount) || 0), 0);
             const pendingCount = revenueData.filter(inv => inv.status === 'Pending').length;
 
             stats.totalRevenue = `₹${totalRev.toLocaleString()}`;
             stats.pendingPayments = pendingCount || 0;
         }
+
+        // Cache the dashboard stats for 5 minutes
+        cache.set(cacheKey, stats, 300);
 
         ResponseHandler.success(res, stats, 'Dashboard stats retrieved successfully');
     } catch (error) {
@@ -107,6 +117,12 @@ exports.getAppointmentData = async (req, res, next) => {
         const userId = req.user.user_id;
         const userRole = req.user.role;
         const doctorId = req.user.doctor_id;
+
+        const cacheKey = `appointment_data_${userId}_${userRole}_${doctorId || ''}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            return ResponseHandler.success(res, cachedData, 'Appointment data retrieved successfully (cached)');
+        }
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -133,10 +149,8 @@ exports.getAppointmentData = async (req, res, next) => {
         // Ensure we have data for all time slots (9 AM to 4 PM)
         const timeSlots = ['9 AM', '10 AM', '11 AM', '12 PM', '2 PM', '3 PM', '4 PM'];
         const filledData = timeSlots.map(slot => {
-            // Very simple time matching - in real app would parse actual time
             const count = appointmentData.filter(a => {
                 if (!a.appointment_time) return false;
-                // Convert time to string format for matching
                 const timeStr = a.appointment_time.toISOString().split('T')[1].substring(0, 5); // HH:MM
                 const hour = parseInt(timeStr.split(':')[0]);
                 const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -148,6 +162,9 @@ exports.getAppointmentData = async (req, res, next) => {
             return { time: slot, count };
         });
 
+        // Cache the distribution data for 5 minutes
+        cache.set(cacheKey, filledData, 300);
+
         ResponseHandler.success(res, filledData, 'Appointment data retrieved successfully');
     } catch (error) {
         next(error);
@@ -158,8 +175,14 @@ exports.getRevenueData = async (req, res, next) => {
     try {
         const userRole = req.user.role;
         const doctorId = req.user.doctor_id;
-        const last6Days = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
 
+        const cacheKey = `revenue_data_${userRole}_${doctorId || ''}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            return ResponseHandler.success(res, cachedData, 'Revenue data retrieved successfully (cached)');
+        }
+
+        const last6Days = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
         let revenueRows;
 
         if (userRole === 'doctor' && doctorId) {
@@ -204,10 +227,13 @@ exports.getRevenueData = async (req, res, next) => {
                     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
                     return dayName === day;
                 })
-                .reduce((sum, row) => sum + (row.amount || 0), 0);
+                .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
             return { day, revenue: dayRevenue };
         });
+
+        // Cache the revenue data for 5 minutes
+        cache.set(cacheKey, filledData, 300);
 
         ResponseHandler.success(res, filledData, 'Revenue data retrieved successfully');
     } catch (error) {
@@ -220,6 +246,12 @@ exports.getRecentAppointments = async (req, res, next) => {
         const userId = req.user.user_id;
         const userRole = req.user.role;
         const doctorId = req.user.doctor_id;
+
+        const cacheKey = `recent_appointments_${userRole}_${doctorId || ''}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            return ResponseHandler.success(res, cachedData, 'Recent appointments retrieved successfully (cached)');
+        }
 
         let whereClause = {};
 
@@ -289,8 +321,19 @@ exports.getRecentAppointments = async (req, res, next) => {
             status: a.status
         }));
 
+        // Cache the recent appointments for 5 minutes
+        cache.set(cacheKey, formattedAppts, 300);
+
         ResponseHandler.success(res, formattedAppts, 'Recent appointments retrieved successfully');
     } catch (error) {
         next(error);
     }
+};
+
+// Invalidation helper for dashboard caches
+exports.invalidateDashboardCache = () => {
+    cache.delByPrefix('dashboard_stats_');
+    cache.delByPrefix('appointment_data_');
+    cache.delByPrefix('revenue_data_');
+    cache.delByPrefix('recent_appointments_');
 };

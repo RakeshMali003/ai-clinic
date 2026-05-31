@@ -11,12 +11,14 @@ export const aiIntelligenceService = {
      * @param language The language for analysis
      */
     analyzeReport: async (fileDataUri: string, fileName: string, language: string = 'en') => {
+        const token = localStorage.getItem('auth_token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
         const response = await axios.post(`${API_BASE_URL}/ai/analyze-document`, {
             fileDataUri,
             fileName,
             fileType: fileName.split('.').pop(),
             language
-        });
+        }, { headers });
         
         // Return in format expected by UI or adjust UI
         return response.data;
@@ -28,10 +30,12 @@ export const aiIntelligenceService = {
      * @param language 
      */
     checkSymptoms: async (symptoms: string, language: string = 'en') => {
+        const token = localStorage.getItem('auth_token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
         const response = await axios.post(`${API_BASE_URL}/ai/analyze-symptoms`, {
             symptoms,
             language
-        });
+        }, { headers });
         
         // The backend returns a structured object, but the old code expected a string.
         // We'll format the structured object into a pretty string for the UI.

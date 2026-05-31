@@ -21,7 +21,12 @@ exports.getLabs = async (req, res, next) => {
     try {
         const clinicId = req.user.clinic_id;
         const labs = await prisma.lab_test_types.findMany({
-            where: { clinic_id: clinicId }
+            where: {
+                OR: [
+                    { clinic_id: clinicId },
+                    { clinic_id: null }
+                ]
+            }
         });
         ResponseHandler.success(res, labs, 'Diagnostic protocols retrieved');
     } catch (error) {
@@ -38,8 +43,8 @@ exports.addLab = async (req, res, next) => {
             data: {
                 clinic_id: clinicId,
                 test_name,
-                price,
-                tat_hours
+                price: parseFloat(price),
+                tat_hours: parseInt(tat_hours)
             }
         });
 
@@ -57,12 +62,29 @@ exports.getLabOrders = async (req, res, next) => {
             include: {
                 patient: true,
                 doctor: true,
-                lab_test_types: true,
-                lab_test_results: true
+                lab_test_results: true,
+                labs: true,
+                lab_order_items: {
+                    include: {
+                        lab_test_types: true
+                    }
+                }
             },
             orderBy: { order_date: 'desc' }
         });
-        ResponseHandler.success(res, orders, 'Lab orders synchronized');
+
+        // Flatten to make it backward compatible with the frontend
+        const mappedOrders = orders.map(order => {
+            const firstItem = order.lab_order_items?.[0];
+            return {
+                ...order,
+                test_type_id: firstItem ? firstItem.test_type_id : null,
+                price: firstItem ? (firstItem.price ? parseFloat(firstItem.price.toString()) : 0) : 0,
+                lab_test_types: firstItem ? firstItem.lab_test_types : null
+            };
+        });
+
+        ResponseHandler.success(res, mappedOrders, 'Lab orders synchronized');
     } catch (error) {
         next(error);
     }
@@ -71,7 +93,7 @@ exports.getLabOrders = async (req, res, next) => {
 exports.createLabOrder = async (req, res, next) => {
     try {
         const clinicId = req.user.clinic_id;
-        const { patient_id, doctor_id, test_type_id, priority, notes } = req.body;
+        const { patient_id, doctor_id, test_type_id, priority, notes, lab_id } = req.body;
 
         const labOrderId = `LAB-${Date.now()}`;
 
@@ -85,20 +107,149 @@ exports.createLabOrder = async (req, res, next) => {
                 lab_order_id: labOrderId,
                 patient_id,
                 doctor_id: parseInt(doctor_id),
-                test_type_id: parseInt(test_type_id),
                 priority: priority || 'Normal',
                 notes,
                 clinic_id: clinicId,
                 status: 'pending',
-                price: testType?.price || 0
+                lab_id: lab_id ? parseInt(lab_id) : null,
+                lab_order_items: {
+                    create: {
+                        test_type_id: parseInt(test_type_id),
+                        price: testType?.price || 0
+                    }
+                }
+            },
+            include: {
+                patient: true,
+                doctor: true,
+                lab_order_items: {
+                    include: {
+                        lab_test_types: true
+                    }
+                }
             }
         });
 
-        ResponseHandler.created(res, newOrder, 'Lab order protocol initiated');
+        const flattenedOrder = {
+            ...newOrder,
+            test_type_id: parseInt(test_type_id),
+            price: testType ? (testType.price ? parseFloat(testType.price.toString()) : 0) : 0,
+            lab_test_types: testType
+        };
+
+        ResponseHandler.created(res, flattenedOrder, 'Lab order protocol initiated');
     } catch (error) {
         next(error);
     }
 };
+
+// Connected Labs Endpoints
+exports.getConnectedLabs = async (req, res, next) => {
+    try {
+        const clinicId = req.user.clinic_id;
+        const mappings = await prisma.clinic_lab_mapping.findMany({
+            where: { clinic_id: clinicId },
+            include: { labs: true }
+        });
+        ResponseHandler.success(res, mappings, 'Connected labs retrieved');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.getSystemLabs = async (req, res, next) => {
+    try {
+        const labs = await prisma.labs.findMany({
+            include: { address: true }
+        });
+        ResponseHandler.success(res, labs, 'System-provided labs retrieved');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.connectSystemLab = async (req, res, next) => {
+    try {
+        const clinicId = req.user.clinic_id;
+        const { lab_id } = req.body;
+
+        if (!lab_id) {
+            return ResponseHandler.badRequest(res, 'Lab ID is required');
+        }
+
+        // Check if already mapped
+        const existing = await prisma.clinic_lab_mapping.findFirst({
+            where: { clinic_id: clinicId, lab_id: parseInt(lab_id) }
+        });
+
+        if (existing) {
+            return ResponseHandler.badRequest(res, 'This lab is already connected to your clinic');
+        }
+
+        const mapping = await prisma.clinic_lab_mapping.create({
+            data: {
+                clinic_id: clinicId,
+                lab_id: parseInt(lab_id),
+                mapping_type: 'system'
+            },
+            include: { labs: true }
+        });
+
+        ResponseHandler.created(res, mapping, 'System lab connection established');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.connectManualLab = async (req, res, next) => {
+    try {
+        const clinicId = req.user.clinic_id;
+        const { name, contact, address, tests } = req.body;
+
+        if (!name) {
+            return ResponseHandler.badRequest(res, 'Lab name is required');
+        }
+
+        const mapping = await prisma.clinic_lab_mapping.create({
+            data: {
+                clinic_id: clinicId,
+                manual_name: name,
+                manual_contact: contact,
+                manual_address: address,
+                manual_tests: tests,
+                mapping_type: 'manual'
+            }
+        });
+
+        ResponseHandler.created(res, mapping, 'Manual lab connection established');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.disconnectLab = async (req, res, next) => {
+    try {
+        const clinicId = req.user.clinic_id;
+        const { id } = req.params;
+
+        const mapping = await prisma.clinic_lab_mapping.findFirst({
+            where: { id: parseInt(id), clinic_id: clinicId }
+        });
+
+        if (!mapping) {
+            return ResponseHandler.notFound(res, 'Connection mapping not found');
+        }
+
+        await prisma.clinic_lab_mapping.delete({
+            where: { id: parseInt(id) }
+        });
+
+        ResponseHandler.success(res, null, 'Lab connection terminated');
+    } catch (error) {
+        next(error);
+    }
+};
+
 
 // Requirement 10: Billing & Payments
 exports.getBilling = async (req, res, next) => {

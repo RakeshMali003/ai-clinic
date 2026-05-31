@@ -10,7 +10,10 @@ import {
   Activity,
   Bell,
   Settings as SettingsIcon,
-  LogOut
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  User as UserIcon
 } from 'lucide-react';
 import { Dashboard } from './Dashboard';
 import { AppointmentManagement } from './AppointmentManagement';
@@ -61,6 +64,7 @@ const menuItems = [
 export function DoctorDashboard({ user }: DoctorDashboardProps) {
   const [currentView, setCurrentView] = useState<DoctorView>('dashboard');
   const [activeAppointment, setActiveAppointment] = useState<any>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const { logout } = useAuth();
 
   const handleStartAppointment = (appointment: any) => {
@@ -112,23 +116,33 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
     }
   };
 
+  // Get first letter of name for profile avatar fallback
+  const avatarFallback = user.name ? user.name.charAt(0).toUpperCase() : 'D';
+
   return (
-    <div className="flex h-screen bg-[#F0F2F5] text-slate-900 selection:bg-blue-600/10">
+    <div className="flex h-screen bg-[#F0F2F5] dark:bg-[#0a0d14] text-slate-900 dark:text-slate-100 selection:bg-blue-600/10 transition-colors duration-300 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-72 bg-white border-r border-slate-200 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20">
-        <div className="p-8 border-b border-slate-100">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20">
+      <div className={`h-full bg-white dark:bg-[#111625] border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] z-20 transition-all duration-300 shrink-0 ${isSidebarCollapsed ? 'w-20' : 'w-72'}`}>
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+          <div className={`flex items-center gap-3 mb-2 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-600/20 shrink-0">
               <Activity className="w-5 h-5 text-white" />
             </div>
-            <h2 className="text-xl font-black tracking-tighter text-slate-900 uppercase italic">I Health Clinic</h2>
+            {!isSidebarCollapsed && (
+              <h2 className="text-xl font-black tracking-tighter text-slate-900 dark:text-slate-100 uppercase italic truncate">I Health</h2>
+            )}
           </div>
-          <p className="text-sm text-slate-500 font-medium truncate">{user.name}</p>
-          <div className="mt-2 flex items-center gap-2">
-             <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-             <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">Medical Pro</span>
-          </div>
+          {!isSidebarCollapsed && (
+            <>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium truncate">{user.name}</p>
+              <div className="mt-2 flex items-center gap-2">
+                 <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                 <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Medical Pro</span>
+              </div>
+            </>
+          )}
         </div>
+        
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => {
             const Icon = item.icon;
@@ -137,41 +151,90 @@ export function DoctorDashboard({ user }: DoctorDashboardProps) {
               <button
                 key={item.id}
                 onClick={() => setCurrentView(item.id)}
-                className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all duration-300 relative group ${isActive
+                title={isSidebarCollapsed ? item.label : undefined}
+                className={`w-full flex items-center transition-all duration-300 relative group ${
+                  isSidebarCollapsed ? 'justify-center p-3 rounded-xl' : 'px-4 py-3.5 rounded-2xl gap-4'
+                } ${isActive
                   ? 'bg-blue-600 text-white shadow-xl shadow-blue-600/20'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/40'
                   }`}
               >
                 <Icon className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
-                <span className="font-bold text-sm tracking-wide">{item.label}</span>
+                {!isSidebarCollapsed && (
+                  <span className="font-bold text-sm tracking-wide truncate">{item.label}</span>
+                )}
               </button>
             );
           })}
         </nav>
         
-        <div className="px-6 py-4 border-t border-slate-100 flex justify-center">
-          <ThemeToggle />
-        </div>
-
-        <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+        {/* Collapse Sidebar Button at Bottom */}
+        <div className="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-center">
           <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl text-rose-500 hover:bg-rose-50 transition-all font-bold group"
+            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+            className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/80 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-all border border-slate-100 dark:border-slate-800"
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
-            <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="text-sm">Secure Sign Out</span>
+            {isSidebarCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-y-auto bg-[#F0F2F5] relative custom-scrollbar">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/[0.03] rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/[0.03] rounded-full blur-[120px] pointer-events-none" />
-        
-        <div className="p-10 relative z-10 max-w-[1600px] mx-auto">
-          {renderContent()}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Sticky Top Header */}
+        <header className="h-20 bg-white/95 dark:bg-[#111625]/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-10 shrink-0 z-10 shadow-sm transition-colors duration-300">
+          <div>
+            <h1 className="text-xl font-extrabold text-slate-800 dark:text-slate-100 tracking-tight">
+              {menuItems.find(item => item.id === currentView)?.label || 'Doctor Portal'}
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            {/* Dark Mode Toggle */}
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+              <ThemeToggle />
+            </div>
+            
+            <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
+            
+            {/* User Profile Badge */}
+            <button 
+              onClick={() => setCurrentView('settings')}
+              className="flex items-center gap-3 group text-left"
+            >
+              <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black shadow-md shadow-blue-500/5 group-hover:scale-105 transition-transform border border-blue-200 dark:border-blue-800/30">
+                {avatarFallback}
+              </div>
+              <div className="hidden sm:block">
+                <p className="font-extrabold text-slate-800 dark:text-slate-200 text-sm leading-none group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{user.name}</p>
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mt-1">Medical Specialist</p>
+              </div>
+            </button>
+
+            <div className="w-[1px] h-6 bg-slate-200 dark:bg-slate-800" />
+
+            {/* Logout Button */}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-all font-bold group border border-transparent hover:border-rose-100 dark:hover:border-rose-900/30"
+              title="Secure Sign Out"
+            >
+              <LogOut className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <span className="text-xs hidden md:inline">Sign Out</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Scrollable Page Body */}
+        <div className="flex-1 overflow-y-auto relative custom-scrollbar bg-[#F0F2F5] dark:bg-[#0a0d14] transition-colors duration-300">
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/[0.03] rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/[0.03] rounded-full blur-[120px] pointer-events-none" />
+          
+          <div className="p-10 relative z-10 max-w-[1600px] mx-auto">
+            {renderContent()}
+          </div>
         </div>
       </div>
     </div>

@@ -6,7 +6,6 @@ import {
   MapPin,
   Calendar,
   Heart,
-  Activity,
   Edit,
   Save,
   Shield,
@@ -14,13 +13,12 @@ import {
   File,
   Eye,
   X,
-  Plus,
   Droplet,
-  AlertTriangle,
-  Pill,
   Download,
-  Camera
+  Camera,
+  Navigation
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/ui/card';
 import { Button } from '../common/ui/button';
 import { Input } from '../common/ui/input';
@@ -52,15 +50,13 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
     insurance_id: initialPatient.insuranceId || '',
     date_of_birth: initialPatient.dob 
       ? (typeof initialPatient.dob === 'string' ? initialPatient.dob.split('T')[0] : initialPatient.dob.toISOString().split('T')[0])
-      : ''
+      : '',
+    emergency_contact: initialPatient.emergencyContact || ''
   });
-  // Initialize medical data from patient prop or default to empty arrays
   const [allergies, setAllergies] = useState<string[]>(initialPatient.allergies || []);
   const [medications, setMedications] = useState<string[]>(initialPatient.currentMedications || []);
   const [chronicDiseases, setChronicDiseases] = useState<string[]>(initialPatient.chronicDiseases || []);
-  const [newAllergy, setNewAllergy] = useState('');
-  const [newMedication, setNewMedication] = useState('');
-  const [newDisease, setNewDisease] = useState('');
+  const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
@@ -68,6 +64,186 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
   const [docType, setDocType] = useState('Medical Record');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [leafletLoaded, setLeafletLoaded] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const [mapCoordinates, setMapCoordinates] = useState<{ lat: string; lng: string }>({ lat: '', lng: '' });
+
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
+
+  // Helper to parse coordinates from the profile address string
+  const parseCoordinates = (addressText: string) => {
+    if (!addressText) return null;
+    const regex = /\(Lat:\s*([-\d.]+),\s*Lng:\s*([-\d.]+)\)/i;
+    const match = addressText.match(regex);
+    if (match) {
+      return {
+        lat: parseFloat(match[1]),
+        lng: parseFloat(match[2])
+      };
+    }
+    return null;
+  };
+
+  const updateAddressFromCoords = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      const data = await response.json();
+      if (data.display_name) {
+        setFormData(prev => ({
+          ...prev,
+          address: `${data.display_name} (Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)})`
+        }));
+        setMapCoordinates({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
+      }
+    } catch (error) {
+      console.error('Error reverse geocoding:', error);
+    }
+  };
+
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    setIsLocating(true);
+
+    const handleSuccess = async (position: GeolocationPosition) => {
+      const { latitude, longitude } = position.coords;
+      await updateAddressFromCoords(latitude, longitude);
+      setIsLocating(false);
+    };
+
+    const handleIPFallback = async () => {
+      try {
+        const ipResponse = await fetch('https://ipapi.co/json/');
+        const ipData = await ipResponse.json();
+        if (ipData.latitude && ipData.longitude) {
+          const lat = ipData.latitude;
+          const lng = ipData.longitude;
+          const street = ipData.org || ipData.city || '';
+          const parts = [street, ipData.city, ipData.region, ipData.postal].filter(Boolean).join(', ');
+          setFormData(prev => ({
+            ...prev,
+            address: `${parts} (Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)})`
+          }));
+          setMapCoordinates({ lat: lat.toFixed(6), lng: lng.toFixed(6) });
+          toast.success('Auto-located approximately via IP!');
+          setIsLocating(false);
+          return;
+        }
+      } catch (ipErr) {
+        console.error('IP fallback failed:', ipErr);
+      }
+      alert('Failed to get your location. Please verify browser location permissions or enter address manually.');
+      setIsLocating(false);
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      handleSuccess,
+      async (error) => {
+        console.error('High accuracy geolocation error:', error);
+        if (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE) {
+          console.log('Attempting geolocation with low accuracy...');
+          navigator.geolocation.getCurrentPosition(
+            handleSuccess,
+            async (lowAccError) => {
+              console.error('Low accuracy geolocation error:', lowAccError);
+              await handleIPFallback();
+            },
+            { enableHighAccuracy: false, timeout: 10000, maximumAge: 0 }
+          );
+        } else {
+          await handleIPFallback();
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  useEffect(() => {
+    if (!isEditing) {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      markerRef.current = null;
+      setLeafletLoaded(false);
+      return;
+    }
+
+    // Dynamically load Leaflet CDN
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(link);
+
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.async = true;
+    script.onload = () => {
+      setLeafletLoaded(true);
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      try {
+        document.head.removeChild(link);
+        document.head.removeChild(script);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!leafletLoaded || !isEditing) return;
+    const L = (window as any).L;
+    if (!L) return;
+
+    // Parse coordinates from address
+    const coords = parseCoordinates(formData.address) || { lat: 28.6139, lng: 77.2090 };
+    const startLat = mapCoordinates.lat ? parseFloat(mapCoordinates.lat) : coords.lat;
+    const startLng = mapCoordinates.lng ? parseFloat(mapCoordinates.lng) : coords.lng;
+
+    if (!mapRef.current) {
+      const container = document.getElementById('profile-leaflet-map');
+      if (!container) return;
+
+      // Fix default Leaflet icon paths in React/CDN
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+
+      const initialZoom = (startLat !== 28.6139 || startLng !== 77.2090) ? 16 : 13;
+      mapRef.current = L.map('profile-leaflet-map').setView([startLat, startLng], initialZoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapRef.current);
+
+      markerRef.current = L.marker([startLat, startLng], { draggable: true }).addTo(mapRef.current);
+
+      markerRef.current.on('dragend', async () => {
+        const position = markerRef.current.getLatLng();
+        await updateAddressFromCoords(position.lat, position.lng);
+      });
+    } else {
+      const currentCenter = mapRef.current.getCenter();
+      if (currentCenter.lat.toFixed(4) !== startLat.toFixed(4) || currentCenter.lng.toFixed(4) !== startLng.toFixed(4)) {
+        const currentZoom = mapRef.current.getZoom();
+        const targetZoom = (currentZoom <= 13 && (startLat !== 28.6139 || startLng !== 77.2090)) ? 16 : currentZoom;
+        mapRef.current.setView([startLat, startLng], targetZoom);
+      }
+      const markerPos = markerRef.current.getLatLng();
+      if (markerPos.lat.toFixed(4) !== startLat.toFixed(4) || markerPos.lng.toFixed(4) !== startLng.toFixed(4)) {
+        markerRef.current.setLatLng([startLat, startLng]);
+      }
+    }
+  }, [leafletLoaded, isEditing, mapCoordinates.lat, mapCoordinates.lng]);
 
   useEffect(() => {
     setPatient(initialPatient);
@@ -83,7 +259,8 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
       insurance_id: initialPatient.insuranceId || '',
       date_of_birth: initialPatient.dob 
         ? (typeof initialPatient.dob === 'string' ? initialPatient.dob.split('T')[0] : initialPatient.dob.toISOString().split('T')[0])
-        : ''
+        : '',
+      emergency_contact: initialPatient.emergencyContact || ''
     });
     // Sync medical data from patient prop
     setAllergies(initialPatient.allergies || []);
@@ -130,6 +307,15 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
   };
 
   const handleSave = async () => {
+    setFormError('');
+    if (!formData.full_name.trim()) {
+      setFormError('Full name is required');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setFormError('Phone number is required');
+      return;
+    }
     try {
       setSaving(true);
       // Include medical data in the update to database
@@ -145,7 +331,8 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
         date_of_birth: formData.date_of_birth ? new Date(formData.date_of_birth) : undefined,
         allergies: allergies,
         chronicDiseases: chronicDiseases,
-        currentMedications: medications
+        currentMedications: medications,
+        emergency_contact: formData.emergency_contact
       });
       if (updated) {
         setIsEditing(false);
@@ -163,7 +350,8 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
           dob: updated.date_of_birth || patient.dob,
           allergies: updated.allergies || allergies,
           chronicDiseases: updated.chronicDiseases || chronicDiseases,
-          currentMedications: updated.currentMedications || medications
+          currentMedications: updated.currentMedications || medications,
+          emergencyContact: updated.emergency_contact || patient.emergencyContact
         };
         setPatient(updatedPatient);
         // Notify parent component about the update
@@ -178,25 +366,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
     }
   };
 
-  const handleAddItem = (
-    value: string,
-    setValue: (v: string) => void,
-    items: string[],
-    setItems: (items: string[]) => void
-  ) => {
-    if (value.trim()) {
-      setItems([...items, value.trim()]);
-      setValue('');
-    }
-  };
 
-  const handleRemoveItem = (
-    index: number,
-    items: string[],
-    setItems: (items: string[]) => void
-  ) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -231,10 +401,15 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
 
   return (
     <div className="p-6 space-y-6">
+      {formError && (
+        <div className="p-3 mb-4 bg-red-100 text-red-700 rounded-md border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800">
+          {formError}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-semibold text-gray-900 mb-1">My Profile</h1>
-          <p className="text-sm text-gray-600">Manage your personal and medical information</p>
+          <h1 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">My Profile</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Manage your personal and medical information</p>
         </div>
         <div className="flex gap-2">
           {isEditing ? (
@@ -256,7 +431,8 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                     insurance_id: patient.insuranceId || '',
                     date_of_birth: patient.dob
                       ? (typeof patient.dob === 'string' ? patient.dob.split('T')[0] : patient.dob.toISOString().split('T')[0])
-                      : ''
+                      : '',
+                    emergency_contact: patient.emergencyContact || ''
                   });
                   setAllergies(patient.allergies || []);
                   setMedications(patient.currentMedications || []);
@@ -288,7 +464,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
             <Button
               onClick={() => setIsEditing(true)}
               variant="outline"
-              className="border-pink-300 text-pink-700 hover:bg-pink-50"
+              className="border-pink-300 dark:border-pink-700/50 text-pink-700 dark:text-pink-300 hover:bg-pink-50 dark:bg-pink-900/20"
             >
               <Edit className="size-4 mr-2" />
               Edit Profile
@@ -299,7 +475,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Profile Card */}
-        <Card className="lg:col-span-1 border-pink-200">
+        <Card className="lg:col-span-1 border-pink-200 dark:border-pink-800/30">
           <CardContent className="pt-6">
             <div className="flex flex-col items-center text-center">
               <Avatar className="size-24 mb-4">
@@ -311,31 +487,31 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                   </AvatarFallback>
                 )}
               </Avatar>
-              <h2 className="font-semibold text-gray-900">{patient.name}</h2>
-              <p className="text-sm text-gray-600 mb-4">{patient.email}</p>
+              <h2 className="font-semibold text-gray-900 dark:text-gray-100">{patient.name}</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{patient.email}</p>
 
               {patient.abhaId && (
-                <div className="w-full p-3 bg-pink-50 rounded-lg mb-4 border border-pink-200">
+                <div className="w-full p-3 bg-pink-50 dark:bg-pink-900/20 rounded-lg mb-4 border border-pink-200 dark:border-pink-800/30">
                   <div className="flex items-center justify-center gap-2 mb-1">
-                    <Shield className="size-4 text-pink-600" />
-                    <p className="text-xs font-medium text-pink-900">ABHA ID</p>
+                    <Shield className="size-4 text-pink-600 dark:text-pink-400" />
+                    <p className="text-xs font-medium text-pink-900 dark:text-pink-100">ABHA ID</p>
                   </div>
-                  <p className="text-sm font-mono text-pink-700">{patient.abhaId}</p>
+                  <p className="text-sm font-mono text-pink-700 dark:text-pink-300">{patient.abhaId}</p>
                 </div>
               )}
 
               <div className="w-full space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="size-4 text-gray-400" />
-                  <span className="text-gray-700">{patient.phone}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{patient.phone}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Calendar className="size-4 text-gray-400" />
-                  <span className="text-gray-700">{patient.age} years old</span>
+                  <span className="text-gray-700 dark:text-gray-300">{patient.age} years old</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <MapPin className="size-4 text-gray-400" />
-                  <span className="text-gray-700">{patient.address || 'Location N/A'}</span>
+                  <span className="text-gray-700 dark:text-gray-300">{patient.address || 'Location N/A'}</span>
                 </div>
               </div>
 
@@ -373,9 +549,9 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
         </Card>
 
         {/* Details Card */}
-        <Card className="lg:col-span-2 border-pink-200">
+        <Card className="lg:col-span-2 border-pink-200 dark:border-pink-800/30">
           <CardHeader>
-            <CardTitle className="text-pink-900">Personal Information</CardTitle>
+            <CardTitle className="text-pink-900 dark:text-pink-100">Personal Information</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="personal" className="w-full">
@@ -409,7 +585,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                       value={formData.full_name}
                       onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                       disabled={!isEditing}
-                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50'}`}
+                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50 dark:bg-gray-900'}`}
                       placeholder="Enter your full name"
                     />
                   </div>
@@ -420,7 +596,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                       type="email"
                       value={formData.email}
                       disabled={true}
-                      className="mt-2 bg-gray-100 text-gray-500 cursor-not-allowed"
+                      className="mt-2 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -430,7 +606,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       disabled={!isEditing}
-                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50'}`}
+                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50 dark:bg-gray-900'}`}
                       placeholder="Enter phone number"
                     />
                   </div>
@@ -442,7 +618,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                       value={formData.age}
                       onChange={(e) => setFormData({ ...formData, age: Number(e.target.value) })}
                       disabled={!isEditing}
-                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50'}`}
+                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50 dark:bg-gray-900'}`}
                       placeholder="Enter age"
                     />
                   </div>
@@ -453,14 +629,14 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                         id="gender"
                         value={formData.gender}
                         onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                        className="mt-2 w-full h-10 px-3 rounded-md border border-pink-400 ring-1 ring-pink-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        className="mt-2 w-full h-10 px-3 rounded-md border border-pink-400 ring-1 ring-pink-300 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                       >
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
                         <option value="Other">Other</option>
                       </select>
                     ) : (
-                      <Input id="gender" value={formData.gender} disabled className="mt-2 bg-gray-50" />
+                      <Input id="gender" value={formData.gender} disabled className="mt-2 bg-gray-50 dark:bg-gray-900" />
                     )}
                   </div>
                   <div>
@@ -470,14 +646,14 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                         id="bloodGroup"
                         value={formData.blood_group}
                         onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
-                        className="mt-2 w-full h-10 px-3 rounded-md border border-pink-400 ring-1 ring-pink-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        className="mt-2 w-full h-10 px-3 rounded-md border border-pink-400 ring-1 ring-pink-300 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500"
                       >
                         {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
                           <option key={bg} value={bg}>{bg}</option>
                         ))}
                       </select>
                     ) : (
-                      <Input id="bloodGroup" value={formData.blood_group} disabled className="mt-2 bg-gray-50" />
+                      <Input id="bloodGroup" value={formData.blood_group} disabled className="mt-2 bg-gray-50 dark:bg-gray-900" />
                     )}
                   </div>
                   <div>
@@ -488,29 +664,71 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                       value={formData.date_of_birth}
                       onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                       disabled={!isEditing}
-                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50'}`}
+                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50 dark:bg-gray-900'}`}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="emergencyContact">Emergency Contact</Label>
+                    <Input
+                      id="emergencyContact"
+                      value={formData.emergency_contact}
+                      onChange={(e) => setFormData({ ...formData, emergency_contact: e.target.value })}
+                      disabled={!isEditing}
+                      className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50 dark:bg-gray-900'}`}
+                      placeholder="Enter emergency contact number"
                     />
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="address">Residential Address</Label>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="address">Residential Address</Label>
+                    {isEditing && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={getCurrentLocation}
+                        disabled={isLocating}
+                        className="border-pink-200 text-pink-600 dark:border-pink-850 dark:text-pink-400 hover:bg-pink-50"
+                      >
+                        {isLocating ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-pink-600 mr-2"></div>
+                        ) : (
+                          <Navigation className="size-4 mr-2" />
+                        )}
+                        Use Current Location
+                      </Button>
+                    )}
+                  </div>
                   <Textarea
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     disabled={!isEditing}
                     rows={3}
-                    className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50'}`}
+                    className={`mt-2 ${isEditing ? 'border-pink-400 ring-1 ring-pink-300' : 'bg-gray-50 dark:bg-gray-900'}`}
                     placeholder="Enter your full address"
                   />
+                  {isEditing && (
+                    <div className="mt-4 space-y-2">
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 block">
+                        Locate on Map (Drag marker to adjust)
+                      </span>
+                      <div
+                        id="profile-leaflet-map"
+                        style={{ height: '250px', width: '100%' }}
+                        className="rounded-lg border border-pink-200 dark:border-pink-850 my-2 z-0"
+                      />
+                    </div>
+                  )}
                 </div>
               </TabsContent>
 
               <TabsContent value="medical" className="space-y-6 mt-4">
-                <Card className="border-pink-200 bg-pink-50">
+                <Card className="border-pink-200 dark:border-pink-800/30 bg-pink-50 dark:bg-pink-900/20">
                   <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
-                      <Shield className="size-5 text-pink-600" />
+                      <Shield className="size-5 text-pink-600 dark:text-pink-400" />
                       Medical Information
                     </CardTitle>
                   </CardHeader>
@@ -523,7 +741,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                           value={formData.abha_id}
                           onChange={(e) => setFormData({ ...formData, abha_id: e.target.value })}
                           disabled={!isEditing}
-                          className="font-mono bg-white"
+                          className="font-mono bg-white dark:bg-gray-800"
                         />
                         <Badge className="bg-green-600">Verified</Badge>
                       </div>
@@ -535,7 +753,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                         value={formData.insurance_id}
                         onChange={(e) => setFormData({ ...formData, insurance_id: e.target.value })}
                         disabled={!isEditing}
-                        className="mt-2 bg-white"
+                        className="mt-2 bg-white dark:bg-gray-800"
                         placeholder="Enter your Insurance ID"
                       />
                     </div>
@@ -543,156 +761,15 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                     {/* Blood Group */}
                     <div>
                       <Label className="flex items-center gap-2">
-                        <Droplet className="size-4 text-pink-600" />
+                        <Droplet className="size-4 text-pink-600 dark:text-pink-400" />
                         Blood Group
                       </Label>
                       <Input
                         value={formData.blood_group}
                         onChange={(e) => setFormData({ ...formData, blood_group: e.target.value })}
                         disabled={!isEditing}
-                        className="mt-2 bg-white"
+                        className="mt-2 bg-white dark:bg-gray-800"
                       />
-                    </div>
-
-                    {/* Allergies */}
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <AlertTriangle className="size-4 text-orange-600" />
-                        Allergies
-                      </Label>
-                      <div className="mt-2 space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {allergies.map((allergy, index) => (
-                            <Badge key={index} variant="outline" className="bg-white">
-                              {allergy}
-                              {isEditing && (
-                                <button
-                                  onClick={() => handleRemoveItem(index, allergies, setAllergies)}
-                                  className="ml-2 hover:text-red-600"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </Badge>
-                          ))}
-                        </div>
-                        {isEditing && (
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Add allergy"
-                              value={newAllergy}
-                              onChange={(e) => setNewAllergy(e.target.value)}
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddItem(newAllergy, setNewAllergy, allergies, setAllergies);
-                                }
-                              }}
-                              className="bg-white"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => handleAddItem(newAllergy, setNewAllergy, allergies, setAllergies)}
-                            >
-                              <Plus className="size-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Current Medications */}
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <Pill className="size-4 text-blue-600" />
-                        Current Medications
-                      </Label>
-                      <div className="mt-2 space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {medications.map((medication, index) => (
-                            <Badge key={index} variant="outline" className="bg-white">
-                              {medication}
-                              {isEditing && (
-                                <button
-                                  onClick={() => handleRemoveItem(index, medications, setMedications)}
-                                  className="ml-2 hover:text-red-600"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </Badge>
-                          ))}
-                        </div>
-                        {isEditing && (
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Add medication"
-                              value={newMedication}
-                              onChange={(e) => setNewMedication(e.target.value)}
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddItem(newMedication, setNewMedication, medications, setMedications);
-                                }
-                              }}
-                              className="bg-white"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => handleAddItem(newMedication, setNewMedication, medications, setMedications)}
-                            >
-                              <Plus className="size-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Chronic Diseases */}
-                    <div>
-                      <Label className="flex items-center gap-2">
-                        <Activity className="size-4 text-purple-600" />
-                        Chronic Diseases
-                      </Label>
-                      <div className="mt-2 space-y-2">
-                        <div className="flex flex-wrap gap-2">
-                          {chronicDiseases.map((disease, index) => (
-                            <Badge key={index} variant="outline" className="bg-white">
-                              {disease}
-                              {isEditing && (
-                                <button
-                                  onClick={() => handleRemoveItem(index, chronicDiseases, setChronicDiseases)}
-                                  className="ml-2 hover:text-red-600"
-                                >
-                                  <X className="size-3" />
-                                </button>
-                              )}
-                            </Badge>
-                          ))}
-                        </div>
-                        {isEditing && (
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Add chronic disease and press Enter"
-                              value={newDisease}
-                              onChange={(e) => setNewDisease(e.target.value)}
-                              onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleAddItem(newDisease, setNewDisease, chronicDiseases, setChronicDiseases);
-                                }
-                              }}
-                              className="bg-white"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() => handleAddItem(newDisease, setNewDisease, chronicDiseases, setChronicDiseases)}
-                            >
-                              <Plus className="size-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -711,23 +788,23 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
 
               <TabsContent value="documents" className="space-y-6 mt-4">
                 {/* Upload Section */}
-                <Card className="border-2 border-dashed border-pink-300 bg-pink-50">
+                <Card className="border-2 border-dashed border-pink-300 dark:border-pink-700/50 bg-pink-50 dark:bg-pink-900/20">
                   <CardContent className="p-8">
                     <div className="text-center">
                       <div className="flex justify-center mb-4">
                         <div className="p-4 bg-pink-100 rounded-full">
-                          <Upload className="size-8 text-pink-600" />
+                          <Upload className="size-8 text-pink-600 dark:text-pink-400" />
                         </div>
                       </div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Upload Documents</h3>
-                      <p className="text-sm text-gray-600 mb-4">
+                      <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">Upload Documents</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                         Upload Medical Records, Insurance Card, or other documents
                       </p>
                       <div className="flex items-center justify-center gap-2 mb-4">
                         <select
                           value={docType}
                           onChange={e => setDocType(e.target.value)}
-                          className="border border-pink-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-pink-400"
+                          className="border border-pink-200 dark:border-pink-800/30 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-400"
                         >
                           {['Medical Record', 'Insurance', 'Lab Report', 'Prescription', 'Other'].map(t => (
                             <option key={t} value={t}>{t}</option>
@@ -749,7 +826,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                           {docUploading ? 'Uploading...' : 'Choose File'}
                         </Button>
                       </div>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
                         Supported formats: PDF, JPG, PNG (Max 10MB)
                       </p>
                     </div>
@@ -762,16 +839,16 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                     <p className="text-sm text-gray-400 italic text-center py-4">No documents uploaded yet.</p>
                   ) : (
                     documents.map((doc) => (
-                      <Card key={doc.id} className="border-pink-200 hover:shadow-md transition-shadow">
+                      <Card key={doc.id} className="border-pink-200 dark:border-pink-800/30 hover:shadow-md transition-shadow">
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="p-2 bg-pink-100 rounded-lg">
-                                <File className="size-5 text-pink-600" />
+                                <File className="size-5 text-pink-600 dark:text-pink-400" />
                               </div>
                               <div>
-                                <h4 className="font-medium text-gray-900">{doc.file_name}</h4>
-                                <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
+                                <h4 className="font-medium text-gray-900 dark:text-gray-100">{doc.file_name}</h4>
+                                <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-gray-400 mt-1">
                                   <Badge variant="outline" className="text-xs">
                                     {doc.document_type}
                                   </Badge>
@@ -789,7 +866,7 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
                               )}
                               {doc.file_url && (
                                 <a href={doc.file_url} download={doc.file_name}>
-                                  <Button size="sm" variant="outline" className="bg-pink-50 border-pink-300 text-pink-600 hover:bg-pink-100">
+                                  <Button size="sm" variant="outline" className="bg-pink-50 dark:bg-pink-900/20 border-pink-300 dark:border-pink-700/50 text-pink-600 dark:text-pink-400 hover:bg-pink-100">
                                     <Download className="size-4 mr-1" />
                                     Download
                                   </Button>
@@ -818,3 +895,4 @@ export function PatientProfile({ patient: initialPatient, onProfileUpdate }: Pat
     </div>
   );
 }
+

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowLeft, Save, Plus, Trash2, User, FileText, Pill, Clock, Info } from 'lucide-react';
 import { doctorService } from '../services/doctorService';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface PrescriptionProps {
     appointment: any;

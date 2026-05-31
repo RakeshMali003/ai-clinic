@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { doctorService } from '../services/doctorService';
 import { patientService } from '../services/patientService';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { Card, CardContent } from '../common/ui/card';
 import { Badge } from '../common/ui/badge';
 

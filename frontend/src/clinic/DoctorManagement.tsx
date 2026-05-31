@@ -101,22 +101,22 @@ export function DoctorManagement({ user, onNavigate, onBack }: DoctorManagementP
   );
 
   return (
-    <div className="p-6 space-y-8 bg-white min-h-screen">
+    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-4">
           <button 
             onClick={onBack}
-            className="p-3 bg-gray-50 text-gray-500 rounded-2xl hover:bg-gray-100 transition-all border border-gray-100 md:hidden"
+            className="p-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-xl transition-colors shadow-sm md:hidden"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-300" />
           </button>
           <div>
-            <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3">
-              <Users className="w-8 h-8 text-blue-600" />
+            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Users className="w-8 h-8 text-blue-600 dark:text-blue-500" />
               Clinic Doctor Management
             </h1>
-            <p className="text-gray-500 mt-1 font-medium italic">
+            <p className="text-gray-500 dark:text-slate-400 mt-1 font-medium">
               Manage doctors associated with your clinic
             </p>
           </div>

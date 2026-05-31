@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { patientService } from '../services/patientService';
 import api from '../lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Search,
   Filter,

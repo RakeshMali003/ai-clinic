@@ -24,7 +24,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          ui: ['@radix-ui/react-dialog', 'lucide-react', 'framer-motion']
+          ui: ['@radix-ui/react-dialog', 'lucide-react']
         }
       }
     },

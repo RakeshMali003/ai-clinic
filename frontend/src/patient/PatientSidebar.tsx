@@ -37,13 +37,13 @@ const menuItems = [
 
 export function PatientSidebar({ currentPage, onPageChange }: PatientSidebarProps) {
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
-      <div className="p-6 border-b border-gray-200">
+    <aside className="w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-800 flex flex-col">
+      <div className="p-6 border-b border-gray-200 dark:border-slate-800">
         <div className="flex items-center gap-2">
-          <Activity className="size-8 text-pink-600" />
+          <Activity className="size-8 text-pink-600 dark:text-pink-500" />
           <div>
-            <h1 className="font-bold text-gray-900">I Health Clinic</h1>
-            <p className="text-xs text-gray-600">Patient Portal</p>
+            <h1 className="font-bold text-gray-900 dark:text-slate-100">I Health Clinic</h1>
+            <p className="text-xs text-gray-600 dark:text-slate-400">Patient Portal</p>
           </div>
         </div>
       </div>
@@ -61,8 +61,8 @@ export function PatientSidebar({ currentPage, onPageChange }: PatientSidebarProp
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors',
                     isActive
-                      ? 'bg-gradient-to-r from-pink-50 to-purple-50 text-pink-600 border border-pink-200'
-                      : 'text-gray-700 hover:bg-pink-50'
+                      ? 'bg-gradient-to-r from-pink-50 to-purple-50 dark:from-slate-800 dark:to-slate-800/50 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-slate-700'
+                      : 'text-gray-700 dark:text-slate-300 hover:bg-pink-50 dark:hover:bg-slate-800'
                   )}
                 >
                   <Icon className="size-5" />
@@ -74,10 +74,10 @@ export function PatientSidebar({ currentPage, onPageChange }: PatientSidebarProp
         </ul>
       </nav>
 
-      <div className="p-4 border-t border-gray-200">
-        <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 border border-pink-200">
-          <p className="text-xs font-medium text-pink-900 mb-1">Need Help?</p>
-          <p className="text-xs text-pink-700 mb-3">Contact our support team</p>
+      <div className="p-4 border-t border-gray-200 dark:border-slate-800">
+        <div className="bg-gradient-to-r from-pink-50 to-purple-50 dark:from-slate-800 dark:to-slate-800/50 rounded-lg p-4 border border-pink-200 dark:border-slate-700">
+          <p className="text-xs font-medium text-pink-900 dark:text-pink-400 mb-1">Need Help?</p>
+          <p className="text-xs text-pink-700 dark:text-slate-300 mb-3">Contact our support team</p>
           <button className="w-full bg-gradient-to-r from-pink-600 to-purple-600 text-white text-xs py-2 rounded-md hover:from-pink-700 hover:to-purple-700">
             Get Support
           </button>

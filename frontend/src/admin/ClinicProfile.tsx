@@ -34,7 +34,12 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
                 setLoading(true);
                 const data = await clinicService.getProfile();
                 if (data) {
-                    setClinic(data);
+                    setClinic({
+                        ...data,
+                        services: data.clinic_services?.map(s => s.service || '') || [],
+                        facilities: data.clinic_facilities?.map(f => f.facility || '') || [],
+                        payment_modes: data.clinic_payment_modes?.map(p => p.payment_mode || '') || []
+                    });
                 } else {
                     setError('No clinic data found.');
                 }
@@ -61,9 +66,21 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
         if (!clinic) return;
         try {
             setLoading(true);
-            const updatedClinic = await clinicService.updateProfile(clinic);
+            const payload = {
+                ...clinic,
+                address: clinic.address?.address,
+                city: clinic.address?.city,
+                state: clinic.address?.state,
+                pin_code: clinic.address?.pin_code
+            };
+            const updatedClinic = await clinicService.updateProfile(payload);
             if (updatedClinic) {
-                setClinic(updatedClinic);
+                setClinic({
+                    ...updatedClinic,
+                    services: updatedClinic.clinic_services?.map(s => s.service || '') || [],
+                    facilities: updatedClinic.clinic_facilities?.map(f => f.facility || '') || [],
+                    payment_modes: updatedClinic.clinic_payment_modes?.map(p => p.payment_mode || '') || []
+                });
                 setIsEditing(false);
             }
         } catch (err) {
@@ -116,20 +133,37 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
             </div>
 
             {/* Verification Status */}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                <div className="flex items-start gap-4">
-                    <div className="p-3 bg-green-600 rounded-lg">
-                        <CheckCircle className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="font-semibold text-green-900 mb-1">Clinic Verified</h3>
-                        <p className="text-sm text-green-800">
-                            Your clinic has been verified and approved. Registration ID: <strong>{clinic.medical_council_reg_no}</strong>
-                        </p>
-                        <p className="text-xs text-green-700 mt-2">Status: {clinic.verification_status}</p>
+            {clinic.verification_status === 'APPROVED' ? (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 dark:from-emerald-950/20 dark:to-green-950/20 dark:border-emerald-900">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-green-600 rounded-lg">
+                            <CheckCircle className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-green-900 dark:text-emerald-300 mb-1">Clinic Verified</h3>
+                            <p className="text-sm text-green-800 dark:text-emerald-400">
+                                Your clinic has been verified and approved. Registration ID: <strong>{clinic.medical_council_reg_no}</strong>
+                            </p>
+                            <p className="text-xs text-green-700 dark:text-emerald-500 mt-2">Status: APPROVED</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl p-6 dark:from-amber-950/20 dark:to-yellow-950/20 dark:border-amber-900">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-amber-500 rounded-lg">
+                            <AlertCircle className="w-6 h-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                            <h3 className="font-semibold text-amber-900 dark:text-amber-300 mb-1">Verification Pending</h3>
+                            <p className="text-sm text-amber-800 dark:text-amber-400">
+                                Your clinic verification is currently in progress. Registration ID: <strong>{clinic.medical_council_reg_no}</strong>
+                            </p>
+                            <p className="text-xs text-amber-700 dark:text-amber-500 mt-2">Status: {clinic.verification_status || 'PENDING'}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Basic Information */}
             <div className="bg-white rounded-xl border border-gray-200">
@@ -262,12 +296,26 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
                                 'Emergency Services',
                                 'Dental Care',
                                 'Physiotherapy'
-                            ].map((service, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                    <input type="checkbox" defaultChecked disabled={!isEditing} className="rounded" />
-                                    <label className="text-sm text-gray-700">{service}</label>
-                                </div>
-                            ))}
+                            ].map((service, index) => {
+                                const isChecked = clinic.services?.includes(service);
+                                return (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!isChecked}
+                                            disabled={!isEditing}
+                                            onChange={(e) => {
+                                                const updatedServices = e.target.checked
+                                                    ? [...(clinic.services || []), service]
+                                                    : (clinic.services || []).filter((s: string) => s !== service);
+                                                setClinic({ ...clinic, services: updatedServices });
+                                            }}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:bg-gray-50"
+                                        />
+                                        <label className="text-sm text-gray-700">{service}</label>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -281,12 +329,26 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
                                 'Cafeteria',
                                 'Waiting Room',
                                 'Emergency Care'
-                            ].map((facility, index) => (
-                                <div key={index} className="flex items-center gap-2">
-                                    <input type="checkbox" defaultChecked disabled={!isEditing} className="rounded" />
-                                    <label className="text-sm text-gray-700">{facility}</label>
-                                </div>
-                            ))}
+                            ].map((facility, index) => {
+                                const isChecked = clinic.facilities?.includes(facility);
+                                return (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            checked={!!isChecked}
+                                            disabled={!isEditing}
+                                            onChange={(e) => {
+                                                const updatedFacilities = e.target.checked
+                                                    ? [...(clinic.facilities || []), facility]
+                                                    : (clinic.facilities || []).filter((f: string) => f !== facility);
+                                                setClinic({ ...clinic, facilities: updatedFacilities });
+                                            }}
+                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:bg-gray-50"
+                                        />
+                                        <label className="text-sm text-gray-700">{facility}</label>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -323,10 +385,28 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
                             </div>
                         ))}
                     </div>
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-900">
-                            <strong>Emergency Services:</strong> Available 24/7
-                        </p>
+                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-950/20 dark:border-blue-900">
+                        {isEditing ? (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="checkbox"
+                                    id="emergency_services"
+                                    checked={clinic.emergency_services !== 'Not Available'}
+                                    onChange={(e) => setClinic({
+                                        ...clinic,
+                                        emergency_services: e.target.checked ? 'Available 24/7' : 'Not Available'
+                                    })}
+                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <label htmlFor="emergency_services" className="text-sm font-semibold text-blue-900 dark:text-blue-300 cursor-pointer">
+                                    24/7 Emergency Services Available
+                                </label>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-blue-900 dark:text-blue-300">
+                                <strong>Emergency Services:</strong> {clinic.emergency_services || 'Available 24/7'}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -339,23 +419,36 @@ export function ClinicProfile({ userRole, user, onBack }: ClinicProfileProps) {
                 <div className="p-6">
                     <div className="grid grid-cols-4 gap-4">
                         {[
-                            { name: 'Cash', icon: CreditCard, enabled: true },
-                            { name: 'Credit/Debit Card', icon: CreditCard, enabled: true },
-                            { name: 'UPI', icon: CreditCard, enabled: true },
-                            { name: 'Insurance', icon: Shield, enabled: true },
-                        ].map((mode, index) => (
-                            <div
-                                key={index}
-                                className={`p-4 border-2 rounded-lg text-center ${mode.enabled ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-                                    }`}
-                            >
-                                <mode.icon className={`w-6 h-6 mx-auto mb-2 ${mode.enabled ? 'text-green-600' : 'text-gray-400'}`} />
-                                <p className="text-sm font-medium text-gray-900">{mode.name}</p>
-                                {mode.enabled && (
-                                    <p className="text-xs text-green-600 mt-1">Active</p>
-                                )}
-                            </div>
-                        ))}
+                            { name: 'Cash', icon: CreditCard },
+                            { name: 'Credit/Debit Card', icon: CreditCard },
+                            { name: 'UPI', icon: CreditCard },
+                            { name: 'Insurance', icon: Shield },
+                        ].map((mode, index) => {
+                            const isEnabled = clinic.payment_modes?.includes(mode.name);
+                            return (
+                                <div
+                                    key={index}
+                                    onClick={() => {
+                                        if (!isEditing) return;
+                                        const updatedModes = isEnabled
+                                            ? (clinic.payment_modes || []).filter((pm: string) => pm !== mode.name)
+                                            : [...(clinic.payment_modes || []), mode.name];
+                                        setClinic({ ...clinic, payment_modes: updatedModes });
+                                    }}
+                                    className={`p-4 border-2 rounded-lg text-center ${
+                                        isEnabled
+                                            ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/20'
+                                            : 'border-gray-200 bg-gray-50 dark:border-slate-800 dark:bg-slate-900'
+                                    } ${isEditing ? 'cursor-pointer hover:border-blue-500' : ''}`}
+                                >
+                                    <mode.icon className={`w-6 h-6 mx-auto mb-2 ${isEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-200">{mode.name}</p>
+                                    {isEnabled && (
+                                        <p className="text-xs text-green-600 mt-1">Active</p>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>

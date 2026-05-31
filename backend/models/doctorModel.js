@@ -126,7 +126,15 @@ class Doctor {
                     doctor_consultation_modes: true,
                     doctor_practice_locations: true,
                     doctor_time_slots: true,
-                    doctor_verification: true
+                    doctor_verification: true,
+                    users: {
+                        include: {
+                            emails: { where: { is_primary: true } },
+                            contact_numbers: { where: { is_primary: true } },
+                            bank_accounts: true,
+                            tax_details: true
+                        }
+                    }
                 }
             });
 
@@ -135,9 +143,17 @@ class Doctor {
             // Map back to the expected format
             return {
                 ...doctor,
+                specialization: doctor.doctor_specializations.length > 0 ? doctor.doctor_specializations[0].specializations_master?.specialization_name : '',
                 specializations: doctor.doctor_specializations.map(s => s.specializations_master?.specialization_name),
                 languages: doctor.doctor_languages.map(l => l.language),
-                consultation_modes: doctor.doctor_consultation_modes.map(m => m.consultation_mode)
+                consultation_modes: doctor.doctor_consultation_modes.map(m => m.consultation_mode),
+                email: doctor.users?.emails?.[0]?.email || '',
+                mobile: doctor.users?.contact_numbers?.[0]?.phone_number || '',
+                bank_account_name: doctor.users?.bank_accounts?.[0]?.account_holder_name || '',
+                bank_account_number: doctor.users?.bank_accounts?.[0]?.account_number || '',
+                ifsc_code: doctor.users?.bank_accounts?.[0]?.ifsc_code || '',
+                pan_number: doctor.users?.tax_details?.[0]?.pan_number || '',
+                gstin: doctor.users?.tax_details?.[0]?.gstin || ''
             };
         } catch (error) {
             throw error;

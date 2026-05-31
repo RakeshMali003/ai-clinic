@@ -28,7 +28,7 @@ import { Textarea } from '../common/ui/textarea';
 import { Badge } from '../common/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../common/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../common/ui/select';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { aiIntelligenceService } from '../services/aiIntelligenceService';
 
 // Web Speech API Types

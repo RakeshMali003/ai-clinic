@@ -130,9 +130,9 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-end items-center mb-4">
-        <div className="flex items-center space-x-2 bg-white p-2 rounded-lg border border-gray-200">
+        <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 p-2 rounded-lg border border-gray-200 dark:border-slate-800">
           <Switch id="demo-mode" checked={isDemoMode} onCheckedChange={setIsDemoMode} />
-          <Label htmlFor="demo-mode" className="text-sm cursor-pointer select-none">
+          <Label htmlFor="demo-mode" className="text-sm cursor-pointer select-none dark:text-slate-300">
             Demo Mode (Sample Data)
           </Label>
         </div>
@@ -140,75 +140,75 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-pink-200 bg-gradient-to-br from-pink-50 to-white">
+        <Card className="border-pink-200 dark:border-slate-800 bg-gradient-to-br from-pink-50 to-white dark:from-slate-900 dark:to-slate-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-pink-100 rounded-lg">
-                <Calendar className="size-5 text-pink-600" />
+              <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
+                <Calendar className="size-5 text-pink-600 dark:text-pink-400" />
               </div>
-              <Badge className="bg-pink-600">View</Badge>
+              <Badge className="bg-pink-600 dark:bg-pink-700">View</Badge>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Upcoming Appointments</p>
-            <p className="text-3xl font-bold text-gray-900">{upcomingAppointments.count}</p>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-1">Upcoming Appointments</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{upcomingAppointments.count}</p>
           </CardContent>
         </Card>
 
-        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white">
+        <Card className="border-purple-200 dark:border-slate-800 bg-gradient-to-br from-purple-50 to-white dark:from-slate-900 dark:to-slate-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Pill className="size-5 text-purple-600" />
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <Pill className="size-5 text-purple-600 dark:text-purple-400" />
               </div>
               <Badge 
-                className="bg-purple-600 cursor-pointer" 
+                className="bg-purple-600 dark:bg-purple-700 cursor-pointer" 
                 onClick={() => onNavigate('prescriptions')}
               >
                 View
               </Badge>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Active Prescriptions</p>
-            <p className="text-3xl font-bold text-gray-900">{dashboardStats.activePrescriptions}</p>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-1">Active Prescriptions</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{dashboardStats.activePrescriptions}</p>
           </CardContent>
         </Card>
 
-        <Card className="border-green-200 bg-gradient-to-br from-green-50 to-white">
+        <Card className="border-green-200 dark:border-slate-800 bg-gradient-to-br from-green-50 to-white dark:from-slate-900 dark:to-slate-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <Activity className="size-5 text-green-600" />
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                <Activity className="size-5 text-green-600 dark:text-green-400" />
               </div>
-              <Badge className="bg-green-600">Excellent</Badge>
+              <Badge className="bg-green-600 dark:bg-green-700">Excellent</Badge>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Health Score</p>
-            <p className="text-3xl font-bold text-gray-900">{dashboardStats.healthScore}%</p>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-1">Health Score</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">{dashboardStats.healthScore}%</p>
           </CardContent>
         </Card>
 
-        <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-white">
+        <Card className="border-orange-200 dark:border-slate-800 bg-gradient-to-br from-orange-50 to-white dark:from-slate-900 dark:to-slate-900">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <CreditCard className="size-5 text-orange-600" />
+              <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
+                <CreditCard className="size-5 text-orange-600 dark:text-orange-400" />
               </div>
               <Badge 
-                className="bg-orange-600 cursor-pointer"
+                className="bg-orange-600 dark:bg-orange-700 cursor-pointer"
                 onClick={() => onNavigate('billing')}
               >
                 Pay
               </Badge>
             </div>
-            <p className="text-sm text-gray-600 mb-1">Pending Bills</p>
-            <p className="text-3xl font-bold text-gray-900">₹{dashboardStats.pendingBills.toLocaleString()}</p>
+            <p className="text-sm text-gray-600 dark:text-slate-400 mb-1">Pending Bills</p>
+            <p className="text-3xl font-bold text-gray-900 dark:text-white">₹{dashboardStats.pendingBills.toLocaleString()}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="border-pink-200">
+        <Card className="border-pink-200 dark:border-slate-800 dark:bg-slate-900">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-pink-900">
-              <Heart className="size-5 text-pink-600" />
+            <CardTitle className="flex items-center gap-2 text-pink-900 dark:text-pink-400">
+              <Heart className="size-5 text-pink-600 dark:text-pink-400" />
               Heart Rate Trend
             </CardTitle>
           </CardHeader>
@@ -246,10 +246,10 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
           </CardContent>
         </Card>
 
-        <Card className="border-purple-200">
+        <Card className="border-purple-200 dark:border-slate-800 dark:bg-slate-900">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-purple-900">
-              <Footprints className="size-5 text-purple-600" />
+            <CardTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-400">
+              <Footprints className="size-5 text-purple-600 dark:text-purple-400" />
               Daily Steps
             </CardTitle>
           </CardHeader>
@@ -282,9 +282,9 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
       </div>
 
       {/* Quick Actions */}
-      <Card className="border-pink-200">
+      <Card className="border-pink-200 dark:border-slate-800 dark:bg-slate-900">
         <CardHeader>
-          <CardTitle className="text-pink-900">Quick Actions</CardTitle>
+          <CardTitle className="text-pink-900 dark:text-pink-400">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -325,9 +325,9 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Activity */}
-        <Card className="lg:col-span-2 border-pink-200">
+        <Card className="lg:col-span-2 border-pink-200 dark:border-slate-800 dark:bg-slate-900">
           <CardHeader>
-            <CardTitle className="text-pink-900">Recent Activity</CardTitle>
+            <CardTitle className="text-pink-900 dark:text-pink-400">Recent Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -335,16 +335,21 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
                 displayActivities.map((activity: any) => {
                   const details = getActivityDetails(activity.type);
                   const Icon = details.icon;
+                  // Adjust background color for dark mode slightly based on type
+                  const darkBgClass = activity.type === 'appointment' ? 'dark:bg-pink-900/20' 
+                    : activity.type === 'report' ? 'dark:bg-blue-900/20' 
+                    : activity.type === 'prescription' ? 'dark:bg-purple-900/20' : 'dark:bg-slate-800/50';
+                  
                   return (
-                    <div key={activity.id} className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg hover:bg-pink-50 transition-colors">
-                      <div className={`p-2 rounded-lg ${details.bgColor}`}>
-                        <Icon className={`size-5 ${details.color}`} />
+                    <div key={activity.id} className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-slate-850 rounded-lg hover:bg-pink-50 dark:hover:bg-slate-800 transition-colors">
+                      <div className={`p-2 rounded-lg ${details.bgColor} ${darkBgClass}`}>
+                        <Icon className={`size-5 ${details.color} dark:text-opacity-90`} />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold text-gray-900 mb-1">{activity.title}</h4>
-                        <p className="text-sm text-gray-600">{activity.description}</p>
+                        <h4 className="font-semibold text-gray-900 dark:text-white mb-1">{activity.title}</h4>
+                        <p className="text-sm text-gray-600 dark:text-slate-400">{activity.description}</p>
                       </div>
-                      <span className="text-xs text-gray-500 whitespace-nowrap">{formatTimeAgo(activity.time)}</span>
+                      <span className="text-xs text-gray-500 dark:text-slate-500 whitespace-nowrap">{formatTimeAgo(activity.time)}</span>
                     </div>
                   );
                 })
@@ -356,14 +361,14 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
         </Card>
 
         {/* Upcoming Appointments */}
-        <Card className="border-pink-200">
+        <Card className="border-pink-200 dark:border-slate-800 dark:bg-slate-900">
           <CardHeader>
-            <CardTitle className="text-pink-900 flex items-center justify-between">
+            <CardTitle className="text-pink-900 dark:text-pink-400 flex items-center justify-between">
               <span>Upcoming Appointments</span>
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-pink-600 hover:text-pink-700 hover:bg-pink-50"
+                className="text-pink-600 dark:text-pink-400 hover:text-pink-700 dark:hover:bg-slate-800"
                 onClick={() => onNavigate('book-appointment')}
               >
                 Book New
@@ -381,7 +386,7 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
               </div>
             ) : (
               displayUpcoming.map((appointment: any) => (
-                <div key={appointment.appointment_id} className="p-4 border-2 border-pink-200 rounded-lg bg-pink-50">
+                <div key={appointment.appointment_id} className="p-4 border-2 border-pink-200 dark:border-slate-800 rounded-lg bg-pink-50 dark:bg-slate-850">
                   <div className="flex items-start gap-3 mb-3">
                     <Avatar className="size-10">
                       <AvatarFallback className="bg-pink-600 text-white">
@@ -389,19 +394,19 @@ export function PatientDashboard({ patient, onNavigate }: PatientDashboardProps)
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{appointment.doctor?.full_name || 'Unknown Doctor'}</h4>
-                      <p className="text-sm text-gray-600">{appointment.doctor?.qualifications || 'N/A'}</p>
+                      <h4 className="font-semibold text-gray-900 dark:text-white">{appointment.doctor?.full_name || 'Unknown Doctor'}</h4>
+                      <p className="text-sm text-gray-600 dark:text-slate-400">{appointment.doctor?.qualifications || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2 text-gray-600">
+                    <div className="flex items-center gap-2 text-gray-600 dark:text-slate-400">
                       <Clock className="size-4" />
                       <span>{new Date(appointment.appointment_date).toLocaleDateString()} at {appointment.appointment_date ? new Date(appointment.appointment_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'}</span>
                     </div>
-                    <Badge className="bg-pink-600">{appointment.status || 'Scheduled'}</Badge>
+                    <Badge className="bg-pink-600 dark:bg-pink-700">{appointment.status || 'Scheduled'}</Badge>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-pink-200">
-                    <p className="text-xs text-gray-600 mb-2">{appointment.clinic?.clinic_name || 'Clinic'}</p>
+                  <div className="mt-3 pt-3 border-t border-pink-200 dark:border-slate-800">
+                    <p className="text-xs text-gray-600 dark:text-slate-400 mb-2">{appointment.clinic?.clinic_name || 'Clinic'}</p>
                   </div>
                 </div>
               ))

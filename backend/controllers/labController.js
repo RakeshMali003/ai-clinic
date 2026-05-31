@@ -193,6 +193,18 @@ const labController = {
         }
     },
 
+    updateLabProfile: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+            
+            const updatedLab = await labModel.updateLabProfile(lab.lab_id, req.body);
+            res.json({ success: true, message: 'Lab profile updated successfully', data: updatedLab });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
     // Dashboard Stats
     getDashboardStats: async (req, res) => {
         try {
@@ -291,9 +303,156 @@ const labController = {
             const lab = await labModel.getLabByUserId(req.user.user_id);
             if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
             
-            // For billing purposes, we use the flattened transactions
+            const result = await labModel.getLabBookings(lab.lab_id, req.query);
+            res.json({ success: true, ...result });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    // Lab Financial Transactions (billing overview)
+    getLabTransactions: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+            
             const transactions = await labModel.getLabTransactions(lab.lab_id, req.query);
             res.json({ success: true, data: transactions });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    // Bulk assign technician to lab bookings/samples
+    bulkAssignTechnician: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+            
+            const { orderIds, technicianId } = req.body;
+            if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
+                return res.status(400).json({ success: false, message: 'No orders specified' });
+            }
+            if (!technicianId) {
+                return res.status(400).json({ success: false, message: 'Technician ID is required' });
+            }
+
+            const updatedOrders = await labModel.bulkAssignTechnician(lab.lab_id, orderIds, technicianId);
+            
+            // Notify Technician if user_id is linked to tech
+            try {
+                const staff = await prisma.lab_staff.findUnique({
+                    where: { id: parseInt(technicianId) }
+                });
+                if (staff?.user_id) {
+                    await createNotification({
+                        userId: staff.user_id,
+                        type: 'SYSTEM',
+                        title: 'Bulk Task Assignment',
+                        message: `You have been assigned to collect samples for ${orderIds.length} orders.`
+                    });
+                }
+            } catch (err) {
+                console.error('Error notifying technician:', err);
+            }
+
+            res.json({ success: true, message: 'Technician assigned successfully', data: updatedOrders });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    // Bulk upload reports
+    bulkUploadReports: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+            
+            if (!req.files || req.files.length === 0) {
+                return res.status(400).json({ success: false, message: 'No files uploaded' });
+            }
+
+            const { uploadToSupabase } = require('../utils/supabaseStorage');
+            const results = [];
+            const errors = [];
+
+            for (const file of req.files) {
+                try {
+                    // Validate report format: PDF format
+                    if (file.mimetype !== 'application/pdf') {
+                        throw new Error(`File ${file.originalname} is not a PDF`);
+                    }
+
+                    // Parse filename to extract lab_order_id. Filenames should be like: LAB-DEMO-1.pdf, REP-LAB-123.pdf, or just LAB-123.pdf
+                    const nameWithoutExt = file.originalname.substring(0, file.originalname.lastIndexOf('.')) || file.originalname;
+                    // Extract match e.g. LAB-xxx-xxx or LAB-xxx or custom
+                    const matches = nameWithoutExt.match(/(LAB-[a-zA-Z0-9-]+)/i);
+                    const orderId = matches ? matches[1].toUpperCase() : nameWithoutExt.toUpperCase();
+
+                    // Find corresponding lab order
+                    const order = await prisma.lab_orders.findUnique({
+                        where: { lab_order_id: orderId },
+                        include: { patient: true }
+                    });
+
+                    if (!order || order.lab_id !== lab.lab_id) {
+                        throw new Error(`Lab order ${orderId} not found in this laboratory`);
+                    }
+
+                    // Upload file to Supabase
+                    const uploadResult = await uploadToSupabase(
+                        file.buffer,
+                        file.originalname,
+                        `patients/${order.patient_id}/documents`
+                    );
+
+                    if (!uploadResult.success) {
+                        throw new Error(`Supabase upload failed: ${uploadResult.error}`);
+                    }
+
+                    // Update order in database: status -> 'Completed', report_url -> uploadResult.url
+                    await prisma.lab_orders.update({
+                        where: { lab_order_id: orderId },
+                        data: {
+                            status: 'Completed',
+                            report_url: uploadResult.url
+                        }
+                    });
+
+                    // Add to patient_documents table as well
+                    await prisma.patient_documents.create({
+                        data: {
+                            patient_id: order.patient_id,
+                            document_type: 'Lab Report',
+                            file_url: uploadResult.url,
+                            mime_type: file.mimetype,
+                            file_size: file.size,
+                            file_name: file.originalname,
+                            uploaded_by: 'lab'
+                        }
+                    });
+
+                    // Send notification to patient
+                    if (order.patient?.user_id) {
+                        await createNotification({
+                            userId: order.patient.user_id,
+                            type: 'LAB_ORDER',
+                            title: 'Lab Report Available',
+                            message: `Your report for test order ${orderId} has been uploaded and is available for download.`
+                        });
+                    }
+
+                    results.push({ orderId, file: file.originalname, status: 'Success', url: uploadResult.url });
+                } catch (err) {
+                    errors.push({ file: file.originalname, error: err.message });
+                }
+            }
+
+            res.json({
+                success: results.length > 0,
+                message: `${results.length} reports uploaded successfully, ${errors.length} failed.`,
+                data: { results, errors }
+            });
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }
@@ -385,12 +544,8 @@ const labController = {
             const lab = await labModel.getLabByUserId(req.user.user_id);
             if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
             
-            // Generate mock CSV data or fetch summary
-            const reportData = {
-                lab_id: lab.lab_id,
-                generated_at: new Date(),
-                summary: "Digital Settlement Report - 2024 Protocol"
-            };
+            const { fromDate, toDate } = req.query;
+            const reportData = await labModel.getSettlementReport(lab.lab_id, fromDate, toDate);
             res.json({ success: true, data: reportData });
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
@@ -402,14 +557,20 @@ const labController = {
             const lab = await labModel.getLabByUserId(req.user.user_id);
             if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
             
-            // In a real app, we'd save this to an invoices table
-            const invoice = {
-                ...req.body,
-                lab_id: lab.lab_id,
-                created_at: new Date(),
-                status: 'Draft'
-            };
+            const invoice = await labModel.createManualInvoice(lab.lab_id, req.body);
             res.status(201).json({ success: true, data: invoice });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    getManualInvoices: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+            
+            const invoices = await labModel.getManualInvoices(lab.lab_id);
+            res.json({ success: true, data: invoices });
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }
@@ -542,6 +703,92 @@ const labController = {
             await labModel.updateSchedulingData(lab.lab_id, req.body);
 
             res.json({ success: true, message: 'Scheduling configuration safely deployed to production database.', data: req.body });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    getLabDocuments: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+
+            const documents = await prisma.lab_document.findMany({
+                where: { lab_id: lab.lab_id },
+                orderBy: { uploaded_at: 'desc' }
+            });
+
+            res.json({ success: true, data: documents });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    uploadLabDocument: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+
+            if (!req.file) {
+                return res.status(400).json({ success: false, message: 'No file uploaded' });
+            }
+
+            const { document_type } = req.body;
+            const { uploadToSupabase } = require('../utils/supabaseStorage');
+
+            const uploadResult = await uploadToSupabase(
+                req.file.buffer,
+                req.file.originalname,
+                `lab/${lab.lab_id}/documents`
+            );
+
+            if (!uploadResult.success) {
+                console.error('Supabase upload failed:', uploadResult.error);
+                return res.status(500).json({ success: false, message: 'Failed to upload file to storage' });
+            }
+
+            const document = await prisma.lab_document.create({
+                data: {
+                    lab_id: lab.lab_id,
+                    document_type: document_type || 'Other',
+                    file_url: uploadResult.url,
+                    mime_type: req.file.mimetype,
+                    file_size: req.file.size,
+                    file_name: req.file.originalname
+                }
+            });
+
+            res.status(201).json({ success: true, message: 'Lab document uploaded successfully', data: document });
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    },
+
+    deleteLabDocument: async (req, res) => {
+        try {
+            const lab = await labModel.getLabByUserId(req.user.user_id);
+            if (!lab) return res.status(404).json({ success: false, message: 'Lab profile not found' });
+
+            const { id } = req.params;
+
+            const doc = await prisma.lab_document.findUnique({
+                where: { id: parseInt(id) }
+            });
+
+            if (!doc || doc.lab_id !== lab.lab_id) {
+                return res.status(404).json({ success: false, message: 'Document not found or unauthorized' });
+            }
+
+            const { deleteFromSupabase } = require('../utils/supabaseStorage');
+            if (doc.file_url) {
+                await deleteFromSupabase(doc.file_url);
+            }
+
+            await prisma.lab_document.delete({
+                where: { id: parseInt(id) }
+            });
+
+            res.json({ success: true, message: 'Lab document deleted successfully' });
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }

@@ -20,10 +20,45 @@ export function PatientRegistration({ onSuccess, onBack, onLogin }: PatientRegis
     password: '',
     mobile: ''
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Input format validation checks
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = "Full Name is required";
+    }
+    
+    if (!formData.email.trim()) {
+      newErrors.email = "Email address is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Invalid email format (e.g., name@example.com)";
+    }
+    
+    const cleanMobile = formData.mobile.replace(/[\s-+]/g, '');
+    if (!formData.mobile.trim()) {
+      newErrors.mobile = "Mobile Number is required";
+    } else if (!/^[0-9]{10}$/.test(cleanMobile)) {
+      newErrors.mobile = "Mobile Number must be exactly 10 digits";
+    }
+    
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    } else if (formData.password.length < 8) {
+      newErrors.password = "Password must be at least 8 characters long";
+    }
+    
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please correct the form errors before submitting");
+      return;
+    }
+    
+    setErrors({});
     setIsLoading(true);
     try {
       const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:5000/api') + '/auth/register', {
@@ -133,33 +168,40 @@ export function PatientRegistration({ onSuccess, onBack, onLogin }: PatientRegis
                   <Label htmlFor="fullName" className="text-slate-700 dark:text-slate-300">Full Name</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-                    <Input id="fullName" value={formData.fullName} onChange={handleChange} className="pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500" placeholder="John Doe" required />
+                    <Input id="fullName" value={formData.fullName} onChange={handleChange} className={`pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500 ${errors.fullName ? 'border-red-500 focus-visible:ring-red-500' : ''}`} placeholder="John Doe" />
                   </div>
+                  {errors.fullName && <p className="text-xs text-red-500 mt-1">{errors.fullName}</p>}
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="email" className="text-slate-700 dark:text-slate-300">Email Address</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-                    <Input id="email" type="email" value={formData.email} onChange={handleChange} className="pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500" placeholder="name@example.com" required />
+                    <Input id="email" type="email" value={formData.email} onChange={handleChange} className={`pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500 ${errors.email ? 'border-red-500 focus-visible:ring-red-500' : ''}`} placeholder="name@example.com" />
                   </div>
+                  {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="mobile" className="text-slate-700 dark:text-slate-300">Mobile Number</Label>
                   <div className="relative">
                     <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-                    <Input id="mobile" type="tel" value={formData.mobile} onChange={handleChange} className="pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500" placeholder="+91 98765 43210" required />
+                    <Input id="mobile" type="tel" value={formData.mobile} onChange={handleChange} className={`pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500 ${errors.mobile ? 'border-red-500 focus-visible:ring-red-500' : ''}`} placeholder="9876543210" />
                   </div>
+                  {errors.mobile && <p className="text-xs text-red-500 mt-1">{errors.mobile}</p>}
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="password" className="text-slate-700 dark:text-slate-300">Password</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-slate-400" />
-                    <Input id="password" type="password" value={formData.password} onChange={handleChange} className="pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500" placeholder="Create a strong password" required minLength={8} />
+                    <Input id="password" type="password" value={formData.password} onChange={handleChange} className={`pl-10 h-12 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl focus-visible:ring-pink-500 ${errors.password ? 'border-red-500 focus-visible:ring-red-500' : ''}`} placeholder="Create a strong password" />
                   </div>
-                  <p className="text-xs text-slate-500 mt-1">Must be at least 8 characters long.</p>
+                  {errors.password ? (
+                    <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+                  ) : (
+                    <p className="text-xs text-slate-500 mt-1">Must be at least 8 characters long.</p>
+                  )}
                 </div>
 
                 <Button type="submit" disabled={isLoading} className="w-full h-12 mt-6 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-xl text-base font-semibold shadow-md transition-all hover:shadow-lg">

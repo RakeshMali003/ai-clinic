@@ -1,6 +1,110 @@
 const ResponseHandler = require('../utils/responseHandler');
 const prisma = require('../config/database');
 
+const getFullClinicProfileData = async (clinicId) => {
+    const clinic = await prisma.clinics.findUnique({
+        where: { id: clinicId },
+        include: {
+            address: true,
+            clinic_services: true,
+            clinic_facilities: true,
+            clinic_payment_modes: true,
+            clinic_booking_modes: true,
+            clinic_documents: true,
+            doctor_clinic_mapping: {
+                include: {
+                    doctors: {
+                        include: {
+                            doctor_specializations: {
+                                include: { specializations_master: true }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!clinic) return null;
+
+    let email = null;
+    let mobile = null;
+    let pan_number = null;
+    let gstin = null;
+    let bank_account_name = null;
+    let bank_account_number = null;
+    let ifsc_code = null;
+    let emergency_services = 'Available 24/7';
+
+    if (clinic.user_id) {
+        const userEmails = await prisma.emails.findMany({
+            where: { user_id: clinic.user_id, is_primary: true }
+        });
+        if (userEmails.length > 0) email = userEmails[0].email;
+
+        const userPhones = await prisma.contact_numbers.findMany({
+            where: { user_id: clinic.user_id, is_primary: true }
+        });
+        if (userPhones.length > 0) mobile = userPhones[0].phone_number;
+
+        const taxDetails = await prisma.tax_details.findMany({
+            where: { user_id: clinic.user_id }
+        });
+        if (taxDetails.length > 0) {
+            pan_number = taxDetails[0].pan_number;
+            gstin = taxDetails[0].gstin;
+        }
+
+        const bankAccounts = await prisma.bank_accounts.findMany({
+            where: { user_id: clinic.user_id }
+        });
+        if (bankAccounts.length > 0) {
+            bank_account_name = bankAccounts[0].account_holder_name;
+            bank_account_number = bankAccounts[0].account_number;
+            ifsc_code = bankAccounts[0].ifsc_code;
+        }
+
+        // Fetch emergency services availability setting
+        const emergencySetting = await prisma.system_settings.findFirst({
+            where: { setting_key: `clinic_${clinic.id}_emergency_services` }
+        });
+        if (emergencySetting) {
+            emergency_services = emergencySetting.setting_value;
+        }
+    }
+
+    const doctorIds = clinic.doctor_clinic_mapping.map(d => d.doctor_id);
+
+    const appointmentsCount = await prisma.appointments.count({
+        where: { doctor_id: { in: doctorIds } }
+    });
+
+    const patientsResult = await prisma.appointments.groupBy({
+        by: ['patient_id'],
+        where: { doctor_id: { in: doctorIds } }
+    });
+
+    const staffCount = 0;
+
+    return {
+        ...clinic,
+        email,
+        mobile,
+        pan_number,
+        gstin,
+        bank_account_name,
+        bank_account_number,
+        ifsc_code,
+        emergency_services,
+        stats: {
+            total_doctors: clinic.doctor_clinic_mapping.length,
+            total_staff: staffCount,
+            total_appointments: appointmentsCount,
+            total_patients: patientsResult.length
+        }
+    };
+};
+
 exports.getProfile = async (req, res, next) => {
     try {
         const clinicId = req.user.clinic_id;
@@ -8,104 +112,12 @@ exports.getProfile = async (req, res, next) => {
             return ResponseHandler.unauthorized(res, 'No clinic identity found for this user');
         }
 
-        const clinic = await prisma.clinics.findUnique({
-            where: { id: clinicId },
-            include: {
-                address: true,
-                clinic_services: true,
-                clinic_facilities: true,
-                clinic_payment_modes: true,
-                clinic_booking_modes: true,
-                clinic_documents: true,
-                doctor_clinic_mapping: {
-                    include: {
-                        doctors: {
-                            include: {
-                                doctor_specializations: {
-                                    include: { specializations_master: true }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        if (!clinic) {
+        const profileData = await getFullClinicProfileData(clinicId);
+        if (!profileData) {
             return ResponseHandler.notFound(res, 'Clinic record not found in registry');
         }
 
-        // Get email and phone from users table via user_id
-        let email = null;
-        let mobile = null;
-        let pan_number = null;
-        let gstin = null;
-        let bank_account_name = null;
-        let bank_account_number = null;
-        let ifsc_code = null;
-
-        if (clinic.user_id) {
-            const userEmails = await prisma.emails.findMany({
-                where: { user_id: clinic.user_id, is_primary: true }
-            });
-            if (userEmails.length > 0) email = userEmails[0].email;
-
-            const userPhones = await prisma.contact_numbers.findMany({
-                where: { user_id: clinic.user_id, is_primary: true }
-            });
-            if (userPhones.length > 0) mobile = userPhones[0].phone_number;
-
-            const taxDetails = await prisma.tax_details.findMany({
-                where: { user_id: clinic.user_id }
-            });
-            if (taxDetails.length > 0) {
-                pan_number = taxDetails[0].pan_number;
-                gstin = taxDetails[0].gstin;
-            }
-
-            const bankAccounts = await prisma.bank_accounts.findMany({
-                where: { user_id: clinic.user_id }
-            });
-            if (bankAccounts.length > 0) {
-                bank_account_name = bankAccounts[0].account_holder_name;
-                bank_account_number = bankAccounts[0].account_number;
-                ifsc_code = bankAccounts[0].ifsc_code;
-            }
-        }
-
-        // Count stats
-        const doctorIds = clinic.doctor_clinic_mapping.map(d => d.doctor_id);
-
-        const appointmentsCount = await prisma.appointments.count({
-            where: { doctor_id: { in: doctorIds } }
-        });
-
-        const patientsResult = await prisma.appointments.groupBy({
-            by: ['patient_id'],
-            where: { doctor_id: { in: doctorIds } }
-        });
-
-        // Staff count - no dedicated clinic_staff table, count from doctor_clinic_mapping as proxy
-        const staffCount = 0; // Placeholder - can be extended when staff management is implemented
-
-        const responseData = {
-            ...clinic,
-            email,
-            mobile,
-            pan_number,
-            gstin,
-            bank_account_name,
-            bank_account_number,
-            ifsc_code,
-            stats: {
-                total_doctors: clinic.doctor_clinic_mapping.length,
-                total_staff: staffCount,
-                total_appointments: appointmentsCount,
-                total_patients: patientsResult.length
-            }
-        };
-
-        ResponseHandler.success(res, responseData, 'Clinic profile data retrieved');
+        ResponseHandler.success(res, profileData, 'Clinic profile data retrieved');
     } catch (error) {
         next(error);
     }
@@ -128,7 +140,9 @@ exports.updateProfile = async (req, res, next) => {
             // Financial fields
             pan_number, gstin, bank_account_name, bank_account_number, ifsc_code,
             // Related arrays
-            services, facilities, payment_modes
+            services, facilities, payment_modes,
+            // Emergency availability
+            emergency_services
         } = req.body;
 
         const clinic = await prisma.clinics.findUnique({
@@ -243,6 +257,16 @@ exports.updateProfile = async (req, res, next) => {
             }
         }
 
+        // Update emergency services setting
+        if (emergency_services !== undefined) {
+            const settingKey = `clinic_${clinicId}_emergency_services`;
+            await prisma.system_settings.upsert({
+                where: { setting_key: settingKey },
+                update: { setting_value: String(emergency_services), updated_at: new Date() },
+                create: { setting_key: settingKey, setting_value: String(emergency_services) }
+            });
+        }
+
         // Update services (replace all)
         if (services && Array.isArray(services)) {
             await prisma.clinic_services.deleteMany({ where: { clinic_id: clinicId } });
@@ -274,7 +298,7 @@ exports.updateProfile = async (req, res, next) => {
         }
 
         // Update main clinic fields
-        const updatedClinic = await prisma.clinics.update({
+        await prisma.clinics.update({
             where: { id: clinicId },
             data: {
                 ...(clinic_name !== undefined && { clinic_name }),
@@ -285,16 +309,13 @@ exports.updateProfile = async (req, res, next) => {
                 ...(medical_council_reg_no !== undefined && { medical_council_reg_no }),
                 ...(establishment_year !== undefined && { establishment_year: parseInt(establishment_year) }),
                 updated_at: new Date()
-            },
-            include: {
-                address: true,
-                clinic_services: true,
-                clinic_facilities: true,
-                clinic_payment_modes: true
             }
         });
 
-        ResponseHandler.success(res, updatedClinic, 'Clinic profile updated successfully');
+        // Load and return full updated profile data
+        const profileData = await getFullClinicProfileData(clinicId);
+
+        ResponseHandler.success(res, profileData, 'Clinic profile updated successfully');
     } catch (error) {
         next(error);
     }

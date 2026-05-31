@@ -400,6 +400,62 @@ class DoctorService {
             return false;
         }
     }
+
+    // --- Doctor Profile Documents ---
+    async getMyDocuments(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/documents`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching doctor documents:', error);
+            throw error;
+        }
+    }
+
+    async uploadDocument(file: File, type: string): Promise<any> {
+        try {
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('document_type', type);
+
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`${API_BASE_URL}/api/doctors/documents/upload`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error uploading doctor document:', error);
+            throw error;
+        }
+    }
+
+    async deleteDocument(documentId: number): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/doctors/documents/${documentId}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return true;
+        } catch (error) {
+            console.error('Error deleting doctor document:', error);
+            return false;
+        }
+    }
 }
 
 export const doctorService = new DoctorService();

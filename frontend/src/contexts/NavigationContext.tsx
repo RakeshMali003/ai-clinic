@@ -9,7 +9,17 @@ interface NavigationContextType {
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
 export const NavigationProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentView, setCurrentView] = useState<PageView>("home");
+    const [currentView, setCurrentView] = useState<PageView>(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const email = urlParams.get('email');
+        const view = urlParams.get('view');
+        
+        if (view === 'reset-password' || (token && email && !urlParams.has('user'))) {
+            return 'reset-password';
+        }
+        return 'home';
+    });
 
     const navigateTo = (view: PageView) => {
         setCurrentView(view);

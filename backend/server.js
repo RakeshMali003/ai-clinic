@@ -7,6 +7,25 @@ const compression = require('compression');
 const session = require('express-session');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+// Enforce critical environment variables in production
+if (process.env.NODE_ENV === 'production') {
+    const requiredEnv = ['JWT_SECRET', 'SESSION_SECRET', 'DATABASE_URL'];
+    const missing = requiredEnv.filter(name => !process.env[name]);
+    if (missing.length > 0) {
+        console.error(`❌ Critical production environment variables are missing: ${missing.join(', ')}`);
+        process.exit(-1);
+    }
+} else {
+    // In development, warn if key secrets are using default/missing variables
+    if (!process.env.JWT_SECRET) {
+        console.warn('⚠️ Warning: JWT_SECRET is not set in development.');
+    }
+    if (!process.env.SESSION_SECRET) {
+        console.warn('⚠️ Warning: SESSION_SECRET is not set in development.');
+    }
+}
+
 const passport = require('./config/passport');
 
 const errorHandler = require('./middleware/errorHandler');
@@ -19,7 +38,6 @@ const authRoutes = require('./routes/authRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
 const patientRoutes = require('./routes/patientRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
-const userRoutes = require('./routes/userRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const medicineRoutes = require('./routes/medicineRoutes');
@@ -78,7 +96,6 @@ app.use('/api/auth', authRoutes);
 app.use('/api/doctors', doctorRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/appointments', appointmentRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/medicines', medicineRoutes);

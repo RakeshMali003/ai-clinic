@@ -17,10 +17,7 @@ class Patient {
             const where = {};
             
             if (doctorId) {
-                where.OR = [
-                    { doctor_id: parseInt(doctorId) },
-                    { appointments: { some: { doctor_id: parseInt(doctorId) } } }
-                ];
+                where.appointments = { some: { doctor_id: parseInt(doctorId) } };
             }
 
             if (search) {
@@ -61,10 +58,7 @@ class Patient {
             const where = {};
             
             if (doctorId) {
-                where.OR = [
-                    { doctor_id: parseInt(doctorId) },
-                    { appointments: { some: { doctor_id: parseInt(doctorId) } } }
-                ];
+                where.appointments = { some: { doctor_id: parseInt(doctorId) } };
             }
 
             if (search) {
@@ -98,7 +92,7 @@ class Patient {
             const data = await prisma.patients.findUnique({
                 where: { patient_id: id },
                 include: {
-                    address: true,
+                    address_record: true,
                     users: {
                         include: {
                             contact_numbers: true
@@ -107,7 +101,8 @@ class Patient {
                     appointments: true,
                     prescriptions: true,
                     patient_documents: true,
-                    invoices: true
+                    invoices: true,
+                    patient_emergency_contacts: true
                 }
             });
             return data;
@@ -129,7 +124,7 @@ class Patient {
                     }
                 },
                 include: {
-                    address: true,
+                    address_record: true,
                     users: {
                         include: {
                             contact_numbers: true
@@ -138,7 +133,8 @@ class Patient {
                     appointments: true,
                     prescriptions: true,
                     patient_documents: true,
-                    invoices: true
+                    invoices: true,
+                    patient_emergency_contacts: true
                 }
             });
             return data;
@@ -152,7 +148,7 @@ class Patient {
             const data = await prisma.patients.findFirst({
                 where: { user_id: userId },
                 include: {
-                    address: true,
+                    address_record: true,
                     users: {
                         include: {
                             contact_numbers: true
@@ -161,7 +157,8 @@ class Patient {
                     appointments: true,
                     prescriptions: true,
                     patient_documents: true,
-                    invoices: true
+                    invoices: true,
+                    patient_emergency_contacts: true
                 }
             });
             return data;
@@ -191,7 +188,9 @@ class Patient {
 
     static async update(id, updates) {
         try {
-            const { address, phone, ...patientUpdates } = updates;
+            console.log('Patient.update received:', id, updates);
+            const { address, phone, emergency_contact, ...patientUpdates } = updates;
+            console.log('Patient.update extracted patientUpdates:', patientUpdates);
             
             // Handle updates in a transaction
             return await prisma.$transaction(async (tx) => {
@@ -199,6 +198,14 @@ class Patient {
                     where: { patient_id: id },
                     select: { address_id: true, user_id: true }
                 });
+
+                // Update users table name if full_name is updated
+                if (patientUpdates.full_name !== undefined && patient.user_id) {
+                    await tx.users.update({
+                        where: { user_id: patient.user_id },
+                        data: { full_name: patientUpdates.full_name }
+                    });
+                }
 
                 // Update address if provided
                 if (address !== undefined) {
@@ -237,17 +244,64 @@ class Patient {
                     }
                 }
 
+                // Update emergency contact if provided
+                if (emergency_contact !== undefined) {
+                    const name = 'Emergency Contact';
+                    const phoneNum = emergency_contact || '';
+                    
+                    const existingContact = await tx.patient_emergency_contacts.findFirst({
+                        where: { patient_id: id }
+                    });
+                    
+                    if (existingContact) {
+                        await tx.patient_emergency_contacts.update({
+                            where: { id: existingContact.id },
+                            data: {
+                                full_name: name,
+                                phone: phoneNum
+                            }
+                        });
+                    } else {
+                        await tx.patient_emergency_contacts.create({
+                            data: {
+                                patient_id: id,
+                                full_name: name,
+                                phone: phoneNum,
+                                relation: 'Emergency'
+                            }
+                        });
+                    }
+                }
+
+                // Filter out any unknown keys from patientUpdates
+                const validKeys = [
+                    'full_name', 'gender', 'blood_group', 'abha_id', 
+                    'medical_history', 'insurance_id', 'date_of_birth', 
+                    'age', 'address', 'abhaid', 'insuranceid', 'bloodgroup',
+                    'dob', 'contact', 'email', 'allergies', 'medications', 'chronic_diseases',
+                    'address_id'
+                ];
+                
+                const cleanPatientUpdates = {};
+                for (const key of validKeys) {
+                    if (patientUpdates[key] !== undefined) {
+                        cleanPatientUpdates[key] = patientUpdates[key];
+                    }
+                }
+                
                 // Update core patient data
+                console.log('Executing tx.patients.update with:', cleanPatientUpdates);
                 const updated = await tx.patients.update({
                     where: { patient_id: id },
-                    data: patientUpdates,
+                    data: cleanPatientUpdates,
                     include: {
-                        address: true,
+                        address_record: true,
                         users: {
                             include: {
                                 contact_numbers: true
                             }
-                        }
+                        },
+                        patient_emergency_contacts: true
                     }
                 });
                 

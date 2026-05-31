@@ -23,6 +23,7 @@ export interface Patient {
     chronicDiseases?: string[];
     currentMedications?: string[];
     prescriptions?: any[];
+    emergency_contact?: string;
 }
 
 
@@ -87,6 +88,43 @@ class PatientService {
         } catch (error) {
             console.error('Error fetching patient:', error);
             return null;
+        }
+    }
+
+    async submitFeedback(data: any): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/feedback`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(data)
+            });
+            return response.ok;
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            return false;
+        }
+    }
+
+    async scanPrescriptionImage(file: File): Promise<any> {
+        try {
+            const formData = new FormData();
+            formData.append('prescription_image', file);
+
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`${API_BASE_URL}/api/patients/ai/scan-prescription`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || { extractedData: [], fileUrl: '' };
+        } catch (error) {
+            console.error('Error scanning prescription:', error);
+            return { extractedData: [], fileUrl: '' };
         }
     }
 
@@ -202,6 +240,20 @@ class PatientService {
             return result.data || [];
         } catch (error) {
             console.error('Error fetching my lab orders:', error);
+            return [];
+        }
+    }
+
+    async getMyInvoices(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/invoices/my`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching my invoices:', error);
             return [];
         }
     }
@@ -416,6 +468,109 @@ class PatientService {
         } catch (error) {
             console.error('Error uploading document:', error);
             throw error;
+        }
+    }
+
+    async saveScannedPrescription(fileUrl: string, extractedData: any): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/scanned-prescriptions`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ file_url: fileUrl, extracted_data: extractedData })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error saving scanned prescription:', error);
+            throw error;
+        }
+    }
+
+    async getScannedPrescriptionHistory(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/scanned-prescriptions`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error getting scanned prescriptions:', error);
+            return [];
+        }
+    }
+
+    async getSavedMedicines(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/saved-medicines`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error getting saved medicines:', error);
+            return [];
+        }
+    }
+
+    async toggleSaveMedicine(medicineId: string): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/saved-medicines/toggle`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ medicine_id: medicineId })
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error toggling saved medicine:', error);
+            throw error;
+        }
+    }
+
+    async getSavedAddresses(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/addresses`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error getting saved addresses:', error);
+            return [];
+        }
+    }
+
+    async saveAddress(addressData: { address: string; city: string; state: string; pin_code: string; latitude?: number; longitude?: number }): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/addresses`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(addressData)
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error saving address:', error);
+            throw error;
+        }
+    }
+
+    async deleteAddress(addressId: number): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/patients/addresses/${addressId}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders(),
+            });
+            return response.ok;
+        } catch (error) {
+            console.error('Error deleting address:', error);
+            return false;
         }
     }
 }

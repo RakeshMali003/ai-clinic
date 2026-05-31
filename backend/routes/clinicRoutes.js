@@ -63,6 +63,11 @@ router.get('/labs', clinicAndStaff, clinicOpsController.getLabs);
 router.post('/labs', clinicAndStaff, clinicOpsController.addLab);
 router.get('/labs/orders', clinicAndStaff, clinicOpsController.getLabOrders);
 router.post('/labs/orders', clinicAndStaff, clinicOpsController.createLabOrder);
+router.get('/labs/connected', clinicAndStaff, clinicOpsController.getConnectedLabs);
+router.get('/labs/system-provided', clinicAndStaff, clinicOpsController.getSystemLabs);
+router.post('/labs/connect-system', clinicAndStaff, clinicOpsController.connectSystemLab);
+router.post('/labs/connect-manual', clinicAndStaff, clinicOpsController.connectManualLab);
+router.delete('/labs/connected/:id', clinicAndStaff, clinicOpsController.disconnectLab);
 
 // 10. Billing & Payments
 router.get('/billing', clinicAndStaff, clinicOpsController.getBilling);

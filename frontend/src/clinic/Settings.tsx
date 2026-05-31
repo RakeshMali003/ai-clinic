@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UserRole } from '../common/types';
-import { User, Bell, CreditCard, Database, HelpCircle, Save, Loader2, ArrowUpRight } from 'lucide-react';
+import { User, Bell, CreditCard, Database, HelpCircle, Save, Loader2, ArrowUpRight, FileText, Upload, Trash2, ExternalLink, Paperclip } from 'lucide-react';
 import { clinicService } from '../services/clinicService';
 
 interface SettingsProps {
@@ -14,6 +14,60 @@ export function Settings({ userRole }: SettingsProps) {
   const [settings, setSettings] = useState<any>({});
   const [ticketData, setTicketData] = useState({ type: 'Technical Issue', subject: '', description: '' });
   const [submittingTicket, setSubmittingTicket] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState('Clinic Registration');
+
+  const fetchDocs = async () => {
+    try {
+      setDocsLoading(true);
+      const docs = await clinicService.getClinicDocuments();
+      setDocuments(docs);
+    } catch (error) {
+      console.error('Error fetching clinic docs:', error);
+    } finally {
+      setDocsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'documents') {
+      fetchDocs();
+    }
+  }, [activeTab]);
+
+  const handleUploadDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docFile) return alert('Please select a file to upload');
+
+    try {
+      setUploadingDoc(true);
+      await clinicService.uploadClinicDocument(docFile, docType);
+      alert('Clinic document uploaded successfully!');
+      setDocFile(null);
+      fetchDocs();
+    } catch (error) {
+      console.error('Error uploading doc:', error);
+      alert('Failed to upload document.');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  const handleDeleteDoc = async (id: number) => {
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
+    try {
+      await clinicService.deleteClinicDocument(id);
+      alert('Document deleted successfully');
+      fetchDocs();
+    } catch (error) {
+      console.error('Error deleting doc:', error);
+      alert('Failed to delete document');
+    }
+  };
+
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -98,6 +152,7 @@ export function Settings({ userRole }: SettingsProps) {
 
   const tabs = [
     { id: 'profile', label: 'Profile & Security', icon: User },
+    { id: 'documents', label: 'Verification Documents', icon: FileText },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'payment', label: 'Payment Gateway', icon: CreditCard, adminOnly: true },
     { id: 'backup', label: 'Data & Backup', icon: Database, adminOnly: true },
@@ -147,6 +202,106 @@ export function Settings({ userRole }: SettingsProps) {
 
         {/* Content */}
         <div className="flex-1">
+          {activeTab === 'documents' && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <div className="bg-white dark:bg-[#111625] rounded-xl border border-gray-200 dark:border-slate-800 p-6 transition-colors duration-300">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 border-b border-gray-100 dark:border-slate-800 pb-2">Upload Verification Documents</h2>
+                <form onSubmit={handleUploadDoc} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-350 mb-1">Document Type *</label>
+                      <select
+                        value={docType}
+                        onChange={(e) => setDocType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-gray-950 dark:text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="Clinic Registration">Clinic Registration</option>
+                        <option value="Medical Council License">Medical Council License</option>
+                        <option value="Tax Registration Certificate">Tax Registration Certificate</option>
+                        <option value="Compliance Document">Compliance Document</option>
+                        <option value="Other Certification">Other Certification</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-slate-350 mb-1">Select Document File *</label>
+                      <div className="relative border border-dashed border-gray-300 dark:border-slate-800 rounded-lg p-2.5 flex items-center justify-between bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800/20 cursor-pointer">
+                        <input
+                          type="file"
+                          onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+                          className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                        />
+                        <span className="text-sm font-medium text-gray-600 dark:text-slate-400 truncate max-w-[200px]">
+                          {docFile ? docFile.name : 'Choose file...'}
+                        </span>
+                        <Upload className="w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      disabled={uploadingDoc || !docFile}
+                      className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 shadow-md hover:shadow-lg"
+                    >
+                      {uploadingDoc ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4" />
+                      )}
+                      {uploadingDoc ? 'Uploading...' : 'Upload File'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="bg-white dark:bg-[#111625] rounded-xl border border-gray-200 dark:border-slate-800 p-6 transition-colors duration-300">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 border-b border-gray-100 dark:border-slate-800 pb-2">Compliance Repository</h2>
+                {docsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                  </div>
+                ) : documents.length === 0 ? (
+                  <div className="text-center py-10 space-y-2">
+                    <FileText className="w-10 h-10 text-gray-300 dark:text-slate-700 mx-auto" />
+                    <p className="text-gray-500 dark:text-slate-400 text-sm">No verification documents uploaded yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {documents.map((doc: any) => (
+                      <div key={doc.id} className="p-4 border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900/40 rounded-xl flex items-center justify-between transition-colors">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2.5 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-lg shrink-0">
+                            <FileText className="w-5 h-5" />
+                          </div>
+                          <div className="overflow-hidden">
+                            <h4 className="font-semibold text-sm text-gray-800 dark:text-slate-200 truncate">{doc.document_type}</h4>
+                            <p className="text-[11px] text-gray-400 dark:text-slate-500 mt-0.5">Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <a
+                            href={doc.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 bg-white dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 text-gray-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg border border-gray-200 dark:border-slate-700 transition-colors animate-all"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                          <button
+                            onClick={() => handleDeleteDoc(doc.id)}
+                            className="p-1.5 bg-white dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/20 text-gray-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-455 rounded-lg border border-gray-200 dark:border-slate-700 transition-colors animate-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'profile' && (
             <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
               <div>

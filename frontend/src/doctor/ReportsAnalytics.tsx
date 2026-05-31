@@ -54,6 +54,67 @@ export function ReportsAnalytics({ }: ReportsAnalyticsProps) {
         document.body.removeChild(link);
     };
 
+    const handleExportAll = () => {
+        if (!stats && !chartData) return;
+        
+        let csvContent = "data:text/csv;charset=utf-8,";
+        
+        // 1. Key Metrics Section
+        csvContent += "KEY PERFORMANCE METRICS\n";
+        csvContent += "Metric,Value\n";
+        csvContent += `Total Appointments,${stats?.totalAppointments || 0}\n`;
+        csvContent += `Total Revenue (INR),${stats?.totalRevenue || 0}\n`;
+        csvContent += `Active Patients,${stats?.totalPatients || 0}\n`;
+        csvContent += `Average Rating,${stats?.avgRating || 0}\n\n`;
+        
+        // 2. Consultation Volume
+        if (chartData?.dailyAppointments && chartData.dailyAppointments.length > 0) {
+            csvContent += "CONSULTATION VOLUME\n";
+            csvContent += "Date,Count\n";
+            chartData.dailyAppointments.forEach(row => {
+                csvContent += `"${row.date}",${row.count}\n`;
+            });
+            csvContent += "\n";
+        }
+        
+        // 3. Financial Projections
+        if (chartData?.revenueTrend && chartData.revenueTrend.length > 0) {
+            csvContent += "FINANCIAL PROJECTIONS\n";
+            csvContent += "Month,Revenue (INR)\n";
+            chartData.revenueTrend.forEach(row => {
+                csvContent += `"${row.month}",${row.revenue}\n`;
+            });
+            csvContent += "\n";
+        }
+        
+        // 4. Patient Segmentation
+        if (chartData?.visitDist && chartData.visitDist.length > 0) {
+            csvContent += "PATIENT SEGMENTATION\n";
+            csvContent += "Segment,Patients Count\n";
+            chartData.visitDist.forEach(row => {
+                csvContent += `"${row.name}",${row.value}\n`;
+            });
+            csvContent += "\n";
+        }
+        
+        // 5. Medical Team Efficiency
+        if (chartData?.doctorPerf && chartData.doctorPerf.length > 0) {
+            csvContent += "MEDICAL TEAM EFFICIENCY\n";
+            csvContent += "Doctor Name,Consultations,Revenue (INR),Rating\n";
+            chartData.doctorPerf.forEach(row => {
+                csvContent += `"${row.name}",${row.consultations},${row.revenue},${row.rating}\n`;
+            });
+        }
+        
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `practice_analytics_summary_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh]">
@@ -81,7 +142,10 @@ export function ReportsAnalytics({ }: ReportsAnalyticsProps) {
                         <option value="quarter">Quarterly</option>
                         <option value="year">Annual Summary</option>
                     </select>
-                    <button className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10">
+                    <button 
+                        onClick={handleExportAll}
+                        className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
+                    >
                         <Download className="w-5 h-5" />
                         <span>Export</span>
                     </button>

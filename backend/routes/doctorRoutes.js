@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const doctorController = require('../controllers/doctorController');
 const { protect, authorize } = require('../middleware/auth');
+const { upload } = require('../middleware/upload');
 
 // Routes accessible by public (like fetching the doctor list)
 router.get('/', doctorController.getAllDoctors);
@@ -34,5 +35,10 @@ router.get('/stats', doctorController.getDoctorStats);
 // Profile Management
 router.get('/profile', doctorController.getDoctorProfile);
 router.put('/profile', doctorController.updateDoctorProfile);
+
+// Document Management
+router.get('/documents', doctorController.getDoctorDocuments);
+router.post('/documents/upload', upload.single('document'), doctorController.uploadDoctorDocument);
+router.delete('/documents/:id', doctorController.deleteDoctorDocument);
 
 module.exports = router;

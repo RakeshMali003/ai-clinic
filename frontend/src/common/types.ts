@@ -14,7 +14,7 @@ export interface User {
 
 export type PageView =
     // Core Pages
-    | "home" | "login" | "dashboard" | "loading" | "forgot-password"
+    | "home" | "login" | "dashboard" | "loading" | "forgot-password" | "reset-password"
     | "features" | "how-it-works" | "pricing" | "ai-features"
     | "medicine" | "cart" | "healthcare" | "doctor-consult"
     | "lab-tests" | "plus" | "health-insights" | "offers" | "contact"

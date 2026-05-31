@@ -12,6 +12,7 @@ router.use(protect);
 
 router.get('/profile', patientController.getPatientProfile);
 router.get('/dashboard/stats', patientController.getDashboardStats);
+router.get('/invoices/my', patientController.getMyInvoices);
 router.put('/profile', patientController.updatePatientProfile);
 // Use memory upload for profile photos (stores binary in database)
 router.post('/profile/photo', upload.single('profile_photo'), patientController.uploadProfilePhoto);
@@ -51,7 +52,23 @@ router.delete(
 router.get('/profile/photo/:patientId', patientController.getProfilePhoto);
 
 // AI Insight routes
+const aiHealthController = require('../controllers/aiHealthController');
+
 router.post('/ai/explain-report', patientController.explainReport);
 router.post('/ai/explain-prescription', patientController.explainPrescription);
+router.post('/ai/scan-prescription', upload.single('prescription_image'), aiHealthController.scanPrescription);
+
+// Scanned prescriptions history
+router.post('/scanned-prescriptions', patientController.saveScannedPrescription);
+router.get('/scanned-prescriptions', patientController.getScannedPrescriptionHistory);
+
+// Saved medicines (wishlist)
+router.get('/saved-medicines', patientController.getSavedMedicines);
+router.post('/saved-medicines/toggle', patientController.toggleSaveMedicine);
+
+// Saved addresses
+router.get('/addresses', patientController.getSavedAddresses);
+router.post('/addresses', patientController.saveAddress);
+router.delete('/addresses/:id', patientController.deleteAddress);
 
 module.exports = router;

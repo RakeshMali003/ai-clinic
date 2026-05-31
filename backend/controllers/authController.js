@@ -9,14 +9,11 @@ const { validatePAN, validateIFSC, validateGSTIN } = require('../utils/validator
 const prisma = require('../config/database');
 const { uploadToSupabase, deleteFromSupabase } = require('../utils/supabaseStorage');
 const { v4: uuidv4 } = require('uuid');
-const { sendOTP } = require('../utils/mailService');
+const { sendOTP, sendResetLink } = require('../utils/mailService');
+const { enqueue } = require('../utils/taskQueue');
 const crypto = require('crypto');
 
 exports.googleAuth = (req, res, next) => {
-  console.log('Google auth route hit');
-  console.log('GOOGLE_CLIENT_ID:', process.env.GOOGLE_CLIENT_ID ? 'Set' : 'Not set');
-  console.log('GOOGLE_CLIENT_SECRET:', process.env.GOOGLE_CLIENT_SECRET ? 'Set' : 'Not set');
-
   if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
     return res.status(500).json({
       error: 'Google OAuth not configured',
@@ -42,12 +39,12 @@ exports.googleAuthCallback = (req, res) => {
 
   try {
     const userEmail = user.email || user.emails?.[0]?.email;
-    console.log('Google callback for user:', userEmail, 'role:', user.role);
+    // Create JWT token
 
     // Create JWT token
     const token = jwt.sign(
       { id: user.user_id, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -117,7 +114,7 @@ exports.register = async (req, res, next) => {
     // Create token
     const token = jwt.sign(
       { id: newUser.user_id, role: newUser.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -175,7 +172,7 @@ exports.login = async (req, res, next) => {
     // Create token
     const token = jwt.sign(
       { id: user.user_id, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -495,7 +492,7 @@ exports.registerDoctor = async (req, res, next) => {
     // Create token
     const token = jwt.sign(
       { id: newUser.user_id, role: newUser.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -660,8 +657,6 @@ exports.registerClinic = async (req, res, next) => {
       }
     }
 
-    console.log('Creating clinic with data:', JSON.stringify(clinicData, null, 2));
-
     const newClinic = await Clinic.create(clinicData);
 
     // Insert multi-value data
@@ -683,12 +678,6 @@ exports.registerClinic = async (req, res, next) => {
       if (req.files && req.files[fieldName] && req.files[fieldName][0]) {
         const file = req.files[fieldName][0];
         
-        console.log(`Processing uploaded file: ${fieldName}`, {
-          originalname: file.originalname,
-          mimetype: file.mimetype,
-          size: file.size
-        });
-        
         // Upload to Supabase
         const uploadResult = await uploadToSupabase(
           file.buffer,
@@ -697,8 +686,6 @@ exports.registerClinic = async (req, res, next) => {
         );
 
         if (uploadResult.success) {
-          console.log(`✅ ${fieldName} uploaded successfully:`, uploadResult.url);
-          
           // Save to clinic_document table
           await prisma.clinic_document.create({
             data: {
@@ -710,7 +697,6 @@ exports.registerClinic = async (req, res, next) => {
               file_name: file.originalname
             }
           });
-          console.log(`✅ ${fieldName} saved to database`);
         } else {
           console.error(`❌ Failed to upload ${fieldName} to Supabase:`, uploadResult.error);
         }
@@ -720,7 +706,7 @@ exports.registerClinic = async (req, res, next) => {
     // Create token
     const token = jwt.sign(
       { id: newUser.user_id, role: newUser.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -841,13 +827,12 @@ exports.registerLab = async (req, res, next) => {
       if (uploadResult.success) {
         // Here you could save document details to a "lab_documents" table if it exists
         // Currently 'labs' doesn't have a document relation but Supabase has the file
-        console.log("Lab document uploaded securely:", uploadResult.url);
       }
     }
 
     const token = jwt.sign(
       { id: newUser.user_id, role: newUser.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -876,49 +861,88 @@ exports.forgotPassword = async (req, res, next) => {
     // Check if user exists
     const user = await User.findByEmail(email);
     if (!user) {
-      return ResponseHandler.badRequest(res, 'User not found');
+      // Validate email exists - requirement 3
+      return ResponseHandler.badRequest(res, 'No user found with this email address');
     }
 
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 2 * 60 * 1000); // 120 seconds
+    // Generate raw token (32 bytes = 64 characters hex)
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    // Compute SHA-256 hash to store securely in database
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    
+    // Set 15 minutes expiry
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
-    // Create OTP record
+    // Save to otp_records table
     await prisma.otp_records.create({
       data: {
         id: uuidv4(),
         email: email,
-        otp_hash: otpHash,
+        otp_hash: 'reset-link', // Required field
         expires_at: expiresAt,
         attempts: 0,
-        max_attempts: 3,
+        max_attempts: 5,
         status: 'PENDING',
-        created_at: new Date()
+        created_at: new Date(),
+        token: tokenHash,
+        user_id: user.user_id
       }
     });
 
-    // Send email
-    const mailSent = await sendOTP(email, otp);
-    if (!mailSent) {
-      return res.status(500).json({ success: false, message: 'Failed to send OTP' });
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/?view=reset-password&token=${rawToken}&email=${encodeURIComponent(email)}`;
+
+    console.log(`[Auth] Queueing password reset email for: ${email}`);
+
+    // Offload email sending to background task queue
+    enqueue(async () => {
+      await sendResetLink(email, resetLink);
+    }, `send-reset-email-${email}`).catch(err => {
+      console.error(`[Auth] Background email queue error:`, err);
+    });
+
+    ResponseHandler.success(res, null, 'If the email exists, a password reset link has been sent.');
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.validateResetToken = async (req, res, next) => {
+  try {
+    const { email, token } = req.query;
+
+    if (!email || !token) {
+      return ResponseHandler.badRequest(res, 'Email and token are required');
     }
 
-    ResponseHandler.success(res, null, 'OTP sent to your email. Valid for 120 seconds.');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const otpRecord = await prisma.otp_records.findFirst({
+      where: {
+        email: email,
+        token: tokenHash,
+        status: 'PENDING',
+        expires_at: { gt: new Date() }
+      }
+    });
+
+    if (!otpRecord) {
+      return ResponseHandler.badRequest(res, 'Invalid or expired password reset link');
+    }
+
+    ResponseHandler.success(res, null, 'Reset link is valid');
   } catch (error) {
     next(error);
   }
 };
 
 exports.verifyOtp = async (req, res, next) => {
+  // Retained for backwards compatibility if needed, but not used in the link flow
   try {
     const { email, otp } = req.body;
-
     if (!email || !otp) {
       return ResponseHandler.badRequest(res, 'Email and OTP are required');
     }
-
-    // Use a transaction to find and verify
     const otpRecord = await prisma.otp_records.findFirst({
       where: {
         email: email,
@@ -927,38 +951,15 @@ exports.verifyOtp = async (req, res, next) => {
       },
       orderBy: { created_at: 'desc' }
     });
-
     if (!otpRecord) {
       return ResponseHandler.badRequest(res, 'Invalid or expired OTP');
     }
-
-    // Check attempts
-    if (otpRecord.attempts >= otpRecord.max_attempts) {
-      await prisma.otp_records.update({
-        where: { id: otpRecord.id },
-        data: { status: 'EXPIRED' }
-      });
-      return ResponseHandler.badRequest(res, 'Max attempts reached. Request a new OTP.');
-    }
-
-    // Verify OTP hash
     const isOTPValid = await bcrypt.compare(otp, otpRecord.otp_hash);
-    
-    // Increment attempts
-    await prisma.otp_records.update({
-      where: { id: otpRecord.id },
-      data: { attempts: otpRecord.attempts + 1 }
-    });
-
     if (!isOTPValid) {
       return ResponseHandler.badRequest(res, 'Invalid OTP');
     }
-
-    // Generate a temporary reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const tokenHash = await bcrypt.hash(resetToken, 10);
-
-    // Update record as verified and store token hash
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
     await prisma.otp_records.update({
       where: { id: otpRecord.id },
       data: {
@@ -967,7 +968,6 @@ exports.verifyOtp = async (req, res, next) => {
         token: tokenHash
       }
     });
-
     ResponseHandler.success(res, { resetToken }, 'OTP verified successfully');
   } catch (error) {
     next(error);
@@ -979,188 +979,47 @@ exports.resetPassword = async (req, res, next) => {
     const { email, resetToken, newPassword } = req.body;
 
     if (!email || !resetToken || !newPassword) {
-      return ResponseHandler.badRequest(res, 'Email, reset token and new password are required');
+      return ResponseHandler.badRequest(res, 'Email, token, and new password are required');
     }
 
-    // Find the verified OTP record with this token
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+
     const otpRecord = await prisma.otp_records.findFirst({
       where: {
         email: email,
-        status: 'VERIFIED',
-        token: { not: null }, // It should have a token hash
-        verified_at: { gt: new Date(Date.now() - 10 * 60 * 1000) } // Token valid for 10 mins after verification
-      },
-      orderBy: { verified_at: 'desc' }
-    });
-
-    if (!otpRecord) {
-      return ResponseHandler.badRequest(res, 'Invalid or expired reset session');
-    }
-
-    // Verify token hash
-    const isTokenValid = await bcrypt.compare(resetToken, otpRecord.token);
-    if (!isTokenValid) {
-      return ResponseHandler.badRequest(res, 'Invalid reset token');
-    }
-
-    // Find user
-    const user = await User.findByEmail(email);
-    if (!user) {
-      return ResponseHandler.badRequest(res, 'User not found');
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update user password
-    await prisma.users.update({
-      where: { user_id: user.user_id },
-      data: { password_hash: hashedPassword }
-    });
-
-    // Mark token as used
-    await prisma.otp_records.update({
-      where: { id: otpRecord.id },
-      data: { status: 'USED' }
-    });
-
-    ResponseHandler.success(res, null, 'Password reset successful. You can now login.');
-  } catch (error) {
-    next(error);
-  }
-};
-
-exports.sendOtpMobile = async (req, res, next) => {
-  try {
-    const { mobile } = req.body;
-
-    if (!mobile) {
-      return ResponseHandler.badRequest(res, 'Mobile number is required');
-    }
-
-    // Check if user exists with this mobile
-    const user = await User.findByMobile(mobile);
-    if (!user) {
-      return ResponseHandler.badRequest(res, 'No user found with this mobile number. Please register first.');
-    }
-
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
-    // Create OTP record
-    await prisma.otp_records.create({
-      data: {
-        id: uuidv4(),
-        mobile_number: mobile,
-        otp_hash: otpHash,
-        expires_at: expiresAt,
-        attempts: 0,
-        max_attempts: 3,
+        token: tokenHash,
         status: 'PENDING',
-        created_at: new Date(),
-        user_id: user.user_id
+        expires_at: { gt: new Date() }
       }
     });
 
-    // In a real app, send SMS via gateway
-    // For development/demo, we log it and provide a mock success
-    console.log('--- DEVELOPMENT MOBILE OTP ---');
-    console.log(`Mobile: ${mobile}`);
-    console.log(`OTP: ${otp}`);
-    console.log('------------------------------');
+    if (!otpRecord) {
+      return ResponseHandler.badRequest(res, 'Your password reset link is invalid or has expired');
+    }
 
-    ResponseHandler.success(res, null, 'OTP sent to your mobile number. Valid for 5 minutes.');
+    const user = await User.findByEmail(email);
+    if (!user) {
+      return ResponseHandler.badRequest(res, 'No user associated with this email address');
+    }
+
+    // Hash new password securely
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update user password and invalidate token (prevent reuse)
+    await prisma.$transaction([
+      prisma.users.update({
+        where: { user_id: user.user_id },
+        data: { password_hash: hashedPassword }
+      }),
+      prisma.otp_records.update({
+        where: { id: otpRecord.id },
+        data: { status: 'USED', verified_at: new Date() }
+      })
+    ]);
+
+    ResponseHandler.success(res, null, 'Password has been updated successfully. You can now login.');
   } catch (error) {
     next(error);
-  }
-};
-
-exports.loginOtpMobile = async (req, res, next) => {
-  try {
-    const { mobile, otp } = req.body;
-
-    if (!mobile || !otp) {
-      return ResponseHandler.badRequest(res, 'Mobile and OTP are required');
-    }
-
-    // Find valid OTP record
-    const otpRecord = await prisma.otp_records.findFirst({
-      where: {
-        mobile_number: mobile,
-        status: 'PENDING',
-        expires_at: { gt: new Date() }
-      },
-      orderBy: { created_at: 'desc' }
-    });
-
-    if (!otpRecord) {
-      return ResponseHandler.badRequest(res, 'Invalid or expired OTP');
-    }
-
-    // Check attempts
-    if (otpRecord.attempts >= otpRecord.max_attempts) {
-      await prisma.otp_records.update({
-        where: { id: otpRecord.id },
-        data: { status: 'EXPIRED' }
-      });
-      return ResponseHandler.badRequest(res, 'Max attempts reached. Please request a new OTP.');
-    }
-
-    // Verify OTP (Mock 123456 always works if registered in code)
-    const isOTPValid = (otp === '123456') || (await bcrypt.compare(otp, otpRecord.otp_hash));
-    
-    // Increment attempts
-    await prisma.otp_records.update({
-      where: { id: otpRecord.id },
-      data: { attempts: otpRecord.attempts + 1 }
-    });
-
-    if (!isOTPValid) {
-      return ResponseHandler.badRequest(res, 'Invalid OTP');
-    }
-
-    // OTP is valid! Mark as used
-    await prisma.otp_records.update({
-      where: { id: otpRecord.id },
-      data: { status: 'USED', verified_at: new Date() }
-    });
-
-    // Get user details for login
-    const user = await User.findById(otpRecord.user_id);
-    if (!user) {
-      return ResponseHandler.badRequest(res, 'User record not found');
-    }
-
-    // Create JWT token
-    const token = jwt.sign(
-      { id: user.user_id, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: process.env.JWT_EXPIRE || '24h' }
-    );
-
-    const userResponse = {
-      user_id: user.user_id,
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role.toLowerCase()
-    };
-
-    // Add specific IDs for convenience (mirrors standard login)
-    if (user.role === 'doctor') {
-      const doctor = await prisma.doctors.findUnique({ where: { user_id: user.user_id }, select: { id: true } });
-      if (doctor) userResponse.doctor_id = doctor.id;
-    } else if (user.role === 'clinic') {
-      const clinic = await prisma.clinics.findUnique({ where: { user_id: user.user_id }, select: { id: true } });
-      if (clinic) userResponse.clinic_id = clinic.id;
-    } else if (user.role === 'lab') {
-      const lab = await prisma.labs.findUnique({ where: { user_id: user.user_id }, select: { lab_id: true } });
-      if (lab) userResponse.lab_id = lab.lab_id;
-    }
-
-    res.status(200).json({ token, user: userResponse });
-  } catch (error) {
   }
 };
 
@@ -1212,7 +1071,7 @@ exports.providerLogin = async (req, res, next) => {
     // Create our custom JWT token
     const customToken = jwt.sign(
       { id: user.user_id, role: user.role },
-      process.env.JWT_SECRET || 'fallback-secret',
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRE || '24h' }
     );
 
@@ -1239,6 +1098,39 @@ exports.providerLogin = async (req, res, next) => {
     }
 
     res.status(200).json({ token: customToken, user: userResponse });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return ResponseHandler.badRequest(res, 'Current password and new password are required');
+    }
+
+    const user = await prisma.users.findUnique({
+      where: { user_id: req.user.user_id }
+    });
+
+    if (!user) {
+      return ResponseHandler.unauthorized(res, 'User not found');
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) {
+      return ResponseHandler.badRequest(res, 'Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.users.update({
+      where: { user_id: user.user_id },
+      data: { password_hash: hashedPassword }
+    });
+
+    ResponseHandler.success(res, null, 'Password updated successfully');
   } catch (error) {
     next(error);
   }

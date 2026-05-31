@@ -50,6 +50,7 @@ export interface PatientUser {
   chronicDiseases?: string[];
   currentMedications?: string[];
   prescriptions?: any[];
+  emergencyContact?: string;
 }
 
 interface PatientPortalProps {
@@ -65,7 +66,8 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
     email: user.email || '',
     avatar: user.avatar || '',
     phone: '',
-    abhaId: ''
+    abhaId: '',
+    emergencyContact: ''
   });
   const [loading, setLoading] = useState(true);
 
@@ -92,7 +94,8 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
             allergies: fullPatient.allergies || [],
             chronicDiseases: fullPatient.chronicDiseases || [],
             currentMedications: fullPatient.currentMedications || [],
-            prescriptions: fullPatient.prescriptions || []
+            prescriptions: fullPatient.prescriptions || [],
+            emergencyContact: fullPatient.emergency_contact || ''
           });
         }
       } catch (error) {
@@ -154,7 +157,7 @@ export function PatientPortal({ user, onLogout }: PatientPortalProps) {
 
   return (
     <>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 dark:bg-slate-950">
         <PatientSidebar
           currentPage={currentPage}
           onPageChange={setCurrentPage}

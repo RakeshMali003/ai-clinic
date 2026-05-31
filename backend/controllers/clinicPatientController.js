@@ -166,7 +166,7 @@ exports.searchPatient = async (req, res, next) => {
                             contact_numbers: true
                         }
                     },
-                    address: true
+                    address_record: true
                 }
             });
         }
@@ -183,7 +183,7 @@ exports.searchPatient = async (req, res, next) => {
                         contact_numbers: true
                     }
                 },
-                address: true
+                address_record: true
             }
         });
 

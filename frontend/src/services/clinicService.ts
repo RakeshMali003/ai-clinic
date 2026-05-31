@@ -464,6 +464,76 @@ class ClinicService {
         }
     }
 
+    async getConnectedLabs(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/labs/connected`, {
+                headers: await this.getAuthHeaders(),
+            });
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching connected labs:', error);
+            return [];
+        }
+    }
+
+    async getSystemLabs(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/labs/system-provided`, {
+                headers: await this.getAuthHeaders(),
+            });
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching system labs:', error);
+            return [];
+        }
+    }
+
+    async connectSystemLab(labId: number): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/labs/connect-system`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify({ lab_id: labId }),
+            });
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error connecting system lab:', error);
+            throw error;
+        }
+    }
+
+    async connectManualLab(labData: any): Promise<any> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/labs/connect-manual`, {
+                method: 'POST',
+                headers: await this.getAuthHeaders(),
+                body: JSON.stringify(labData),
+            });
+            const result = await response.json();
+            return result.data;
+        } catch (error) {
+            console.error('Error connecting manual lab:', error);
+            throw error;
+        }
+    }
+
+    async disconnectLab(id: number): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinics/labs/connected/${id}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders(),
+            });
+            const result = await response.json();
+            return result.success || false;
+        } catch (error) {
+            console.error('Error disconnecting lab:', error);
+            return false;
+        }
+    }
+
     async addLab(labData: any): Promise<any> {
         try {
             const response = await fetch(`${API_BASE_URL}/api/clinics/labs`, {
@@ -706,6 +776,62 @@ class ClinicService {
             return response.ok;
         } catch (error) {
             console.error('Error deleting appointment:', error);
+            return false;
+        }
+    }
+
+    // --- Clinic Documents ---
+    async getClinicDocuments(): Promise<any[]> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinic-documents`, {
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            return result.data || [];
+        } catch (error) {
+            console.error('Error fetching clinic documents:', error);
+            throw error;
+        }
+    }
+
+    async uploadClinicDocument(file: File, type: string): Promise<any> {
+        try {
+            const formData = new FormData();
+            formData.append('document', file);
+            formData.append('document_type', type);
+
+            const token = localStorage.getItem('auth_token');
+            const response = await fetch(`${API_BASE_URL}/api/clinic-documents/upload`, {
+                method: 'POST',
+                headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                const errorResult = await response.json();
+                throw new Error(errorResult.message || `HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Error uploading clinic document:', error);
+            throw error;
+        }
+    }
+
+    async deleteClinicDocument(documentId: number): Promise<boolean> {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/clinic-documents/${documentId}`, {
+                method: 'DELETE',
+                headers: await this.getAuthHeaders(),
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return true;
+        } catch (error) {
+            console.error('Error deleting clinic document:', error);
             return false;
         }
     }

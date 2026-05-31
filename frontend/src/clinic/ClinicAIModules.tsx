@@ -59,35 +59,32 @@ export const ClinicAIModules: React.FC<ClinicAIModulesProps> = ({ user, onBack }
     };
 
     return (
-        <div className="bg-gray-50 min-h-screen text-gray-900">
-            {/* Header */}
-            <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
-                <div className="max-w-[1400px] mx-auto px-6 flex items-center gap-4 py-4">
-                    <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl">
-                            <Brain className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold text-gray-900">AI Medical Intelligence Suite</h1>
-                            <p className="text-xs text-gray-500">Advanced clinical AI tools optimized for health operations</p>
-                        </div>
+        <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+            {/* Standardized Header matching LabDiagnostics/QueueManagement */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-100 dark:border-slate-800">
+                <div className="flex items-center gap-4">
+                    {onBack && (
+                        <button onClick={onBack} className="p-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 rounded-xl transition-colors shadow-sm">
+                            <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-slate-300" />
+                        </button>
+                    )}
+                    <div>
+                        <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 tracking-tight">AI Medical Intelligence Suite</h1>
+                        <p className="text-gray-500 dark:text-slate-400 font-medium mt-1">Advanced clinical AI tools optimized for health operations</p>
                     </div>
-                    <div className="ml-auto flex items-center gap-2 text-xs text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse inline-block"></span>
-                        Gemini Pro AI • Active
-                    </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3.5 py-1.5 rounded-full border border-emerald-200 dark:border-emerald-500/20">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse inline-block"></span>
+                    Gemini Pro AI • Active
                 </div>
             </div>
 
-            <div className="max-w-[1400px] mx-auto px-6 mt-6 flex flex-col lg:flex-row gap-6 pb-12">
+            <div className="flex flex-col lg:flex-row gap-6">
                 {/* Sidebar */}
                 <div className="w-full lg:w-72 flex-shrink-0">
-                    <div className="bg-white rounded-xl shadow-sm border p-3 sticky top-24">
-                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">Clinical Modules</p>
-                        <ul className="space-y-0.5">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 p-4 sticky top-24">
+                        <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-4 px-2">Clinical Modules</p>
+                        <ul className="space-y-1">
                             {modules.map(mod => {
                                 const Icon = mod.icon;
                                 const isActive = activeTab === mod.index;
@@ -95,13 +92,13 @@ export const ClinicAIModules: React.FC<ClinicAIModulesProps> = ({ user, onBack }
                                     <li key={mod.id}>
                                         <button
                                             onClick={() => setActiveTab(mod.index)}
-                                            className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center gap-3 transition-all text-sm ${
+                                            className={`w-full text-left px-4 py-3 rounded-2xl flex items-center gap-3 transition-all text-sm ${
                                                 isActive
-                                                    ? `${colorMap[mod.color]} font-semibold border`
-                                                    : 'text-gray-600 hover:bg-gray-50'
+                                                    ? `${colorMap[mod.color]} font-bold shadow-sm`
+                                                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 font-medium'
                                             }`}
                                         >
-                                            <Icon className="w-4 h-4 flex-shrink-0" />
+                                            <Icon className="w-5 h-5 flex-shrink-0" />
                                             {mod.title}
                                         </button>
                                     </li>
@@ -112,7 +109,7 @@ export const ClinicAIModules: React.FC<ClinicAIModulesProps> = ({ user, onBack }
                 </div>
 
                 {/* Main Panel */}
-                <div className="flex-1 bg-white rounded-xl shadow-sm border p-6 md:p-8 min-h-[600px]">
+                <div className="flex-1 bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-gray-100 dark:border-slate-800 p-6 md:p-8 min-h-[600px]">
                     {activeTab === 0 && <AIClinicSchedulingAndWorkloadManager user={user} />}
                     {activeTab === 1 && <VirtualReceptionist />}
                     {activeTab === 2 && <SymptomChecker />}

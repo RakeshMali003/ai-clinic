@@ -19,9 +19,11 @@ import { Button } from '../common/ui/button';
 import { Input } from '../common/ui/input';
 import { Badge } from '../common/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../common/ui/select';
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 import { ImageWithFallback } from "../public/figma/ImageWithFallback";
 import { medicineService } from '../services/medicineService';
+import { patientService } from '../services/patientService';
+import { Tabs, TabsList, TabsTrigger } from '../common/ui/tabs';
 import type { PatientPage } from './PatientPortal';
 
 export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage) => void }) {
@@ -31,6 +33,8 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
   const [category, setCategory] = useState('All');
   const [cart, setCart] = useState<any[]>([]);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'saved'>('all');
+  const [savedMedicines, setSavedMedicines] = useState<any[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<string[]>([]);
   const [showCamera, setShowCamera] = useState(false);
@@ -38,10 +42,14 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchMedicines();
+    if (activeTab === 'all') {
+      fetchMedicines();
+    } else {
+      fetchSavedMedicinesList();
+    }
     fetchCart();
     fetchBookmarks();
-  }, [category, searchQuery]);
+  }, [category, searchQuery, activeTab]);
 
 
   const fetchMedicines = async () => {
@@ -59,6 +67,19 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
     }
   };
 
+  const fetchSavedMedicinesList = async () => {
+    try {
+      setLoading(true);
+      const data = await patientService.getSavedMedicines();
+      const medsList = data.map((item: any) => item.medicine).filter(Boolean);
+      setSavedMedicines(medsList);
+    } catch (error) {
+      console.error('Error fetching saved medicines:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const fetchCart = async () => {
     try {
       const data = await medicineService.getCart();
@@ -70,7 +91,7 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
 
   const fetchBookmarks = async () => {
     try {
-      const data = await medicineService.getBookmarks();
+      const data = await patientService.getSavedMedicines();
       setBookmarks(data.map((b: any) => b.medicine_id));
     } catch (error) {
       console.error('Error fetching bookmarks:', error);
@@ -79,7 +100,11 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchMedicines();
+    if (activeTab === 'all') {
+      fetchMedicines();
+    } else {
+      fetchSavedMedicinesList();
+    }
   };
 
   const handleAddToCart = async (medicineId: string) => {
@@ -93,8 +118,11 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
 
   const handleToggleBookmark = async (medicineId: string) => {
     try {
-      await medicineService.toggleBookmark(medicineId);
+      await patientService.toggleSaveMedicine(medicineId);
       fetchBookmarks();
+      if (activeTab === 'saved') {
+        fetchSavedMedicinesList();
+      }
     } catch (error) {
       console.error('Error toggling bookmark:', error);
     }
@@ -163,9 +191,13 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
     setScanResult([]);
     
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${API}/ai/scan-prescription`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ fileDataUri: dataUri })
       });
       
@@ -224,6 +256,13 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
           )}
         </Button>
       </div>
+
+      <Tabs value={activeTab} onValueChange={(val: any) => setActiveTab(val)} className="w-full">
+        <TabsList className="grid w-full max-w-xs grid-cols-2">
+          <TabsTrigger value="all">Shop Medicines</TabsTrigger>
+          <TabsTrigger value="saved">Wishlist</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Features Banner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -297,7 +336,13 @@ export function MedicineStore({ onNavigate }: { onNavigate?: (page: PatientPage)
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {medicines.map((medicine) => {
+          {activeTab === 'saved' && savedMedicines.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-gray-500">
+              <BookMarked className="size-12 mx-auto mb-4 opacity-50 text-pink-600" />
+              <p className="text-lg">Your wishlist is empty.</p>
+              <p className="text-sm text-gray-400">Save medicines to purchase them later.</p>
+            </div>
+          ) : (activeTab === 'all' ? medicines : savedMedicines).map((medicine) => {
             const quantity = getCartQuantity(medicine.medicine_id);
             const isBookmarked = bookmarks.includes(medicine.medicine_id);
 

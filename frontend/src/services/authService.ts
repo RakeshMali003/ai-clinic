@@ -6,16 +6,12 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL
 
 export async function getUserWithRole(): Promise<User | null> {
     const token = localStorage.getItem('auth_token');
-    console.log('getUserWithRole: Checking for token...');
-    console.log('Token in localStorage:', token ? `Found (${token.substring(0, 30)}...)` : 'NOT FOUND');
 
     if (!token) {
-        console.log('No token found in localStorage');
         return null;
     }
 
     try {
-        console.log('Making /api/auth/me request with token...');
         const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
             headers: {
                 'Authorization': `Bearer ${token}`,
@@ -23,33 +19,21 @@ export async function getUserWithRole(): Promise<User | null> {
             }
         });
 
-        console.log('/api/auth/me response status:', response.status);
-
         if (!response.ok) {
-            if (response.status === 401) {
-                console.log('Token validation failed (401) - checking cache...');
-                // Don't clear the token - it might be a server issue, not invalid token
-                // The backend might need restart or have a temporary issue
                 const cachedUser = localStorage.getItem('user');
                 if (cachedUser) {
                     try {
                         const parsedUser = JSON.parse(cachedUser);
-                        console.log('Found cached user - returning with existing token');
                         return parsedUser;
                     } catch (parseError) {
                         console.error('Error parsing cached user:', parseError);
                     }
                 }
-                // Only clear token if there's no cached user AND we get 401 consistently
-                // For now, keep the token - user can try again
-                console.log('No cached user - keeping token for retry');
                 return null;
-            }
             throw new Error('Failed to fetch user');
         }
 
         const data = await response.json();
-        console.log("getUserWithRole raw data:", data);
         const user: User = {
             id: String(data.data.user_id),
             full_name: data.data.full_name,
@@ -62,7 +46,6 @@ export async function getUserWithRole(): Promise<User | null> {
         };
         // Cache the user in localStorage
         localStorage.setItem('user', JSON.stringify(user));
-        console.log('User fetched and cached successfully');
         return user;
     } catch (error) {
         console.error('Error fetching user:', error);
@@ -135,7 +118,6 @@ export interface DoctorRegistrationData {
 export class AuthService {
     // Sign in with email and password
     async signInWithEmail(email: string, password: string): Promise<User> {
-        console.log('Attempting login for:', email);
         const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
             method: 'POST',
             headers: {
@@ -144,8 +126,6 @@ export class AuthService {
             body: JSON.stringify({ email, password }),
         });
 
-        console.log('Login response status:', response.status);
-
         if (!response.ok) {
             const errorData = await response.json();
             console.error('Login error:', errorData);
@@ -153,17 +133,10 @@ export class AuthService {
         }
 
         const data = await response.json();
-        console.log("signInWithEmail response data:", data);
-        console.log("Token received:", data.token ? `Yes (${data.token.substring(0, 30)}...)` : 'No');
 
         // Store token FIRST before anything else
         if (data.token) {
             localStorage.setItem('auth_token', data.token);
-            console.log("✅ Token stored in localStorage");
-
-            // Verify token was stored
-            const storedToken = localStorage.getItem('auth_token');
-            console.log("Verification - Token in localStorage:", storedToken ? 'YES' : 'NO');
         } else {
             console.error("❌ NO TOKEN IN RESPONSE!");
         }
@@ -180,7 +153,6 @@ export class AuthService {
             clinic_id: data.user.clinic_id
         };
         localStorage.setItem('user', JSON.stringify(userData));
-        console.log("User data stored:", userData);
 
         return userData;
     }
@@ -404,6 +376,25 @@ export class AuthService {
         }
     }
 
+    // Change password (using current & new password check)
+    async changePassword(currentPassword: string, newPassword: string): Promise<any> {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ currentPassword, newPassword }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.message || 'Password update failed');
+        }
+        return data;
+    }
+
     // Get user profile from database
     async getUserProfile(userId: string) {
         const token = localStorage.getItem('auth_token');
@@ -439,58 +430,6 @@ export class AuthService {
         }
 
         return await response.json();
-    }
-
-    // Mobile OTP
-    async sendMobileOTP(mobile: string) {
-        const response = await fetch(`${API_BASE_URL}/api/auth/send-otp-mobile`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ mobile }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Failed to send OTP');
-        }
-
-        return await response.json();
-    }
-
-    async loginWithMobileOTP(mobile: string, otp: string): Promise<User> {
-        const response = await fetch(`${API_BASE_URL}/api/auth/login-otp-mobile`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ mobile, otp }),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'OTP verification failed');
-        }
-
-        const data = await response.json();
-        
-        if (data.token) {
-            localStorage.setItem('auth_token', data.token);
-        }
-
-        const userData: User = {
-            id: String(data.user.user_id),
-            full_name: data.user.full_name,
-            name: data.user.full_name, 
-            email: data.user.email,
-            role: data.user.role as UserRole,
-            doctor_id: data.user.doctor_id,
-            patient_id: data.user.patient_id,
-            clinic_id: data.user.clinic_id
-        };
-        localStorage.setItem('user', JSON.stringify(userData));
-        return userData;
     }
 
     // Sign out

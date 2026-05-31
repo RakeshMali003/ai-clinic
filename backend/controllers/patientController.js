@@ -1,6 +1,7 @@
 const Patient = require('../models/patientModel');
 const ResponseHandler = require('../utils/responseHandler');
 const prisma = require('../config/database');
+const cache = require('../utils/cache');
 const { uploadToSupabase, deleteFromSupabase } = require('../utils/supabaseStorage');
 
 exports.createPatient = async (req, res, next) => {
@@ -117,7 +118,8 @@ exports.getPatientProfile = async (req, res, next) => {
             address: patient.address?.address || '',
             allergies: allergies.map(a => a.allergy_name),
             chronicDiseases: conditions.filter(c => c.is_chronic).map(c => c.condition_name),
-            currentMedications: medications
+            currentMedications: medications,
+            emergency_contact: patient.patient_emergency_contacts?.[0]?.phone || ''
         };
 
         ResponseHandler.success(res, patientWithMedicalData, 'Session-based patient profile retrieved');
@@ -144,9 +146,20 @@ exports.updatePatientProfile = async (req, res, next) => {
         }
 
         const { allergies, chronicDiseases, currentMedications, ...profileData } = req.body;
+        console.log('updatePatientProfile profileData:', profileData);
+
+        // Validation
+        if (profileData.full_name && profileData.full_name.trim() === '') {
+            return ResponseHandler.badRequest(res, 'Name cannot be empty');
+        }
 
         // Correctly handle age and numeric fields
         if (profileData.age) profileData.age = parseInt(profileData.age, 10);
+        
+        // Correctly handle Date objects
+        if (profileData.date_of_birth) {
+            profileData.date_of_birth = new Date(profileData.date_of_birth);
+        }
 
         // Store currentMedications in medical_history as JSON
         if (currentMedications !== undefined) {
@@ -155,8 +168,10 @@ exports.updatePatientProfile = async (req, res, next) => {
             });
         }
 
+        console.log('Sending to Patient.update:', profileData);
         // Update basic profile data
         const updated = await Patient.update(patient.patient_id, profileData);
+        console.log('Patient.update success:', updated.patient_id);
 
         // Update allergies if provided
         if (allergies !== undefined) {
@@ -174,11 +189,12 @@ exports.updatePatientProfile = async (req, res, next) => {
 
         const finalPatient = {
             ...updated,
-            phone: updated.users?.contact_numbers?.[0]?.phone_number || phone || '',
-            address: updated.address?.address || address || '',
+            phone: updated.users?.contact_numbers?.[0]?.phone_number || profileData.phone || '',
+            address: updated.address?.address || profileData.address || '',
             allergies: updatedAllergies.map(a => a.allergy_name),
             chronicDiseases: updatedConditions.filter(c => c.is_chronic).map(c => c.condition_name),
-            currentMedications: currentMedications || []
+            currentMedications: currentMedications || [],
+            emergency_contact: updated.patient_emergency_contacts?.[0]?.phone || profileData.emergency_contact || ''
         };
 
         ResponseHandler.updated(res, finalPatient, 'Patient profile metrics recalibrated');
@@ -308,6 +324,13 @@ exports.getProfilePhoto = async (req, res, next) => {
 exports.getDashboardStats = async (req, res, next) => {
     try {
         const userId = req.user.user_id;
+        
+        const cacheKey = `patient_dashboard_stats_${userId}`;
+        const cachedData = cache.get(cacheKey);
+        if (cachedData) {
+            return ResponseHandler.success(res, cachedData, 'Patient dashboard metrics synchronized (cached)');
+        }
+
         let patient = await Patient.findByUserId(userId);
 
         if (!patient && req.user.email) {
@@ -370,13 +393,18 @@ exports.getDashboardStats = async (req, res, next) => {
         // Sort activities by time desc
         recentActivities.sort((a, b) => b.time - a.time);
 
-        ResponseHandler.success(res, {
+        const stats = {
             upcomingAppointments: upcomingCount,
             activePrescriptions: activePrescriptionsCount,
             healthScore: 85,
             pendingBills: pendingBillsResult._sum.total_amount || 0,
             recentActivities: recentActivities.slice(0, 5)
-        }, 'Patient dashboard metrics synchronized');
+        };
+
+        // Cache the patient dashboard stats for 5 minutes
+        cache.set(cacheKey, stats, 300);
+
+        ResponseHandler.success(res, stats, 'Patient dashboard metrics synchronized');
     } catch (error) {
         console.error('getDashboardStats error:', error);
         next(error);
@@ -422,4 +450,203 @@ exports.explainPrescription = async (req, res, next) => {
         next(error);
     }
 };
+
+exports.getMyInvoices = async (req, res, next) => {
+    try {
+        // Find patient_id from user
+        const user = await prisma.users.findUnique({
+            where: { user_id: req.user.user_id },
+            include: { patients: true }
+        });
+        
+        let patientId = req.user.patient_id;
+        if (!patientId && user?.patients?.patient_id) {
+            patientId = user.patients.patient_id;
+        }
+
+        if (!patientId) {
+            return ResponseHandler.badRequest(res, 'Patient ID not found for user');
+        }
+
+        const invoices = await prisma.invoices.findMany({
+            where: { patient_id: patientId },
+            include: {
+                invoice_items: true,
+                invoice_payments: true
+            },
+            orderBy: { invoice_date: 'desc' }
+        });
+
+        ResponseHandler.success(res, invoices, 'Invoices fetched successfully');
+    } catch (error) {
+        console.error('getMyInvoices error:', error);
+        next(error);
+    }
+};
+
+const getPatientIdFromUser = async (user) => {
+    let patient = await Patient.findByUserId(user.user_id);
+    if (!patient && user.email) {
+        patient = await Patient.findByEmail(user.email);
+    }
+    return patient?.patient_id || null;
+};
+
+exports.saveScannedPrescription = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const { file_url, extracted_data } = req.body;
+        const newScan = await prisma.scanned_prescriptions.create({
+            data: {
+                patient_id: patientId,
+                file_url,
+                extracted_data: extracted_data || {}
+            }
+        });
+        ResponseHandler.created(res, newScan, 'Scanned prescription saved successfully');
+    } catch (error) {
+        console.error('saveScannedPrescription error:', error);
+        next(error);
+    }
+};
+
+exports.getScannedPrescriptionHistory = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const scans = await prisma.scanned_prescriptions.findMany({
+            where: { patient_id: patientId },
+            orderBy: { created_at: 'desc' }
+        });
+        ResponseHandler.success(res, scans, 'Scanned prescription history retrieved');
+    } catch (error) {
+        console.error('getScannedPrescriptionHistory error:', error);
+        next(error);
+    }
+};
+
+exports.getSavedMedicines = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const saved = await prisma.patient_saved_medicines.findMany({
+            where: { patient_id: patientId },
+            include: {
+                medicine: true
+            },
+            orderBy: { created_at: 'desc' }
+        });
+        ResponseHandler.success(res, saved, 'Saved medicines retrieved');
+    } catch (error) {
+        console.error('getSavedMedicines error:', error);
+        next(error);
+    }
+};
+
+exports.toggleSaveMedicine = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const { medicine_id } = req.body;
+        if (!medicine_id) {
+            return ResponseHandler.badRequest(res, 'Medicine ID is required');
+        }
+        
+        const existing = await prisma.patient_saved_medicines.findFirst({
+            where: { patient_id: patientId, medicine_id }
+        });
+
+        if (existing) {
+            await prisma.patient_saved_medicines.delete({
+                where: { id: existing.id }
+            });
+            return ResponseHandler.success(res, { saved: false }, 'Medicine removed from saved list');
+        } else {
+            const saved = await prisma.patient_saved_medicines.create({
+                data: {
+                    patient_id: patientId,
+                    medicine_id
+                }
+            });
+            return ResponseHandler.created(res, { saved: true, record: saved }, 'Medicine saved successfully');
+        }
+    } catch (error) {
+        console.error('toggleSaveMedicine error:', error);
+        next(error);
+    }
+};
+
+exports.getSavedAddresses = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const addresses = await prisma.addresses.findMany({
+            where: { patient_id: patientId }
+        });
+        ResponseHandler.success(res, addresses, 'Saved addresses retrieved');
+    } catch (error) {
+        console.error('getSavedAddresses error:', error);
+        next(error);
+    }
+};
+
+exports.saveAddress = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const { address, city, state, pin_code, latitude, longitude } = req.body;
+        const newAddress = await prisma.addresses.create({
+            data: {
+                patient_id: patientId,
+                address,
+                city,
+                state,
+                pin_code,
+                latitude: latitude ? parseFloat(latitude) : null,
+                longitude: longitude ? parseFloat(longitude) : null
+            }
+        });
+        ResponseHandler.created(res, newAddress, 'Address saved successfully');
+    } catch (error) {
+        console.error('saveAddress error:', error);
+        next(error);
+    }
+};
+
+exports.deleteAddress = async (req, res, next) => {
+    try {
+        const patientId = await getPatientIdFromUser(req.user);
+        if (!patientId) {
+            return ResponseHandler.notFound(res, 'Patient profile not found');
+        }
+        const { id } = req.params;
+        const addressRecord = await prisma.addresses.findUnique({
+            where: { address_id: parseInt(id) }
+        });
+        if (!addressRecord || addressRecord.patient_id !== patientId) {
+            return ResponseHandler.notFound(res, 'Address not found or unauthorized');
+        }
+        await prisma.addresses.delete({
+            where: { address_id: parseInt(id) }
+        });
+        ResponseHandler.success(res, null, 'Address deleted successfully');
+    } catch (error) {
+        console.error('deleteAddress error:', error);
+        next(error);
+    }
+};
+
 

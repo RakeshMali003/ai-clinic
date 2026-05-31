@@ -92,6 +92,7 @@ class API {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    ...this.getAuthHeaders(),
                 },
                 body: JSON.stringify(data),
             });
@@ -107,6 +108,9 @@ class API {
         try {
             const response = await fetch(`${this.baseURL}${endpoint}`, {
                 method: 'DELETE',
+                headers: {
+                    ...this.getAuthHeaders(),
+                },
             });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             return await response.json();

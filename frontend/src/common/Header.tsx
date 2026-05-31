@@ -8,8 +8,8 @@ interface HeaderProps {
 
 export function Header({ user, onLogout }: HeaderProps) {
   return (
-    <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-700 h-20 px-6 flex items-center sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-slate-900/80">
+      <div className="flex items-center justify-between w-full">
         <div>
           <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Welcome back, {user.name}</h2>
           <p className="text-sm text-gray-500 dark:text-slate-400 capitalize">{(user.role || 'user').replace('_', ' ')}</p>

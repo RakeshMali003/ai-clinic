@@ -21,6 +21,31 @@ const labService = {
         return response.data;
     },
 
+    getTransactions: async (filters = {}) => {
+        const response = await axios.get(`${API_URL}/transactions`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` },
+            params: filters
+        });
+        return response.data;
+    },
+
+    bulkAssignTechnicians: async (orderIds: string[], technicianId: number) => {
+        const response = await axios.put(`${API_URL}/bookings/bulk-assign`, { orderIds, technicianId }, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    bulkUploadReports: async (formData: FormData) => {
+        const response = await axios.post(`${API_URL}/reports/bulk-upload`, formData, {
+            headers: { 
+                Authorization: `Bearer ${getAuthToken()}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
     getInventory: async () => {
         const response = await axios.get(`${API_URL}/inventory`, {
             headers: { Authorization: `Bearer ${getAuthToken()}` }
@@ -92,8 +117,30 @@ const labService = {
         return response.data;
     },
 
-    getBillingReport: async () => {
+    getProfile: async () => {
+        const response = await axios.get(`${API_URL}/profile`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    updateProfile: async (data: any) => {
+        const response = await axios.put(`${API_URL}/profile`, data, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getBillingReport: async (filters: any = {}) => {
         const response = await axios.get(`${API_URL}/billing/report`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` },
+            params: filters
+        });
+        return response.data;
+    },
+
+    getManualInvoices: async () => {
+        const response = await axios.get(`${API_URL}/billing/invoices`, {
             headers: { Authorization: `Bearer ${getAuthToken()}` }
         });
         return response.data;
@@ -157,6 +204,33 @@ const labService = {
 
     updateScheduling: async (data: any) => {
         const response = await axios.put(`${API_URL}/scheduling`, data, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    getLabDocuments: async () => {
+        const response = await axios.get(`${API_URL}/documents`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` }
+        });
+        return response.data;
+    },
+
+    uploadLabDocument: async (file: File, type: string) => {
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('document_type', type);
+        const response = await axios.post(`${API_URL}/documents/upload`, formData, {
+            headers: { 
+                Authorization: `Bearer ${getAuthToken()}`,
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
+    deleteLabDocument: async (id: number) => {
+        const response = await axios.delete(`${API_URL}/documents/${id}`, {
             headers: { Authorization: `Bearer ${getAuthToken()}` }
         });
         return response.data;

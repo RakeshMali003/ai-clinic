@@ -176,18 +176,18 @@ export function BillingPayments({ userRole }: BillingPaymentsProps) {
   const pendingPayments = invoices.filter(inv => inv.status === 'pending' || inv.status === 'partial').length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-8 animate-in fade-in zoom-in-95 duration-300">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-gray-100 dark:border-slate-800">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Billing & Payments</h1>
-          <p className="text-gray-500 text-sm">Synchronized financial ledger and automated invoicing</p>
+          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Billing & Payments</h1>
+          <p className="text-gray-500 dark:text-slate-400 mt-1 font-medium">Synchronized financial ledger and automated invoicing</p>
         </div>
         {(userRole === 'admin' || userRole === 'clinic' || userRole === 'receptionist') && (
           <button
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-sm font-medium"
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md hover:shadow-lg font-bold text-sm"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             Generate Invoice
           </button>
         )}

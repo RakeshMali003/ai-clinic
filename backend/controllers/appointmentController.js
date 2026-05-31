@@ -1,7 +1,18 @@
 const Appointment = require('../models/appointmentModel');
 const ResponseHandler = require('../utils/responseHandler');
 const prisma = require('../config/database');
+const cache = require('../utils/cache');
 const { createNotification } = require('../utils/notificationHelper');
+const { invalidateDashboardCache } = require('./dashboardController');
+
+const clearAllDashboardCaches = () => {
+    try {
+        invalidateDashboardCache();
+        cache.delByPrefix('patient_dashboard_stats_');
+    } catch (err) {
+        console.error('Failed to invalidate caches:', err);
+    }
+};
 
 exports.getPatientAppointments = async (req, res, next) => {
     try {
@@ -34,6 +45,10 @@ exports.getUpcomingPatientAppointments = async (req, res, next) => {
 exports.createAppointment = async (req, res, next) => {
     try {
         const { patient_id, doctor_id, appointment_date } = req.body;
+        console.log('Incoming createAppointment request:', {
+            payload: req.body,
+            timestamp: new Date().toISOString()
+        });
 
         if (!patient_id || !doctor_id || !appointment_date) {
             return ResponseHandler.badRequest(res, 'Missing required parameters for appointment');
@@ -55,67 +70,113 @@ exports.createAppointment = async (req, res, next) => {
 
         // Parse the appointment_date string to Date object for Prisma (treat as UTC date at midnight)
         const [year, month, day] = appointment_date.split('-').map(Number);
-        const utcDate = new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed in Date constructor
+        const utcDate = new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed
 
-        // Handle appointment_time - convert to full ISO-8601 datetime string for Prisma
         let appointmentTime = req.body.appointment_time;
-        console.log('DEBUG: Raw appointment_time:', appointmentTime, 'Type:', typeof appointmentTime);
-
         let timeForValidation = appointmentTime;
         if (appointmentTime) {
-            // If time is like "15:30:00", convert to full datetime string
-            // Force conversion for any time-like string
+            // Standardize to 1970-01-01T[HH:MM:SS].000Z
             if (appointmentTime.includes(':')) {
-                // Extract hours:minutes:seconds
-                const parts = appointmentTime.split(':');
+                // If it is in AM/PM format, convert it first
+                if (appointmentTime.includes('AM') || appointmentTime.includes('PM')) {
+                    const [time, modifier] = appointmentTime.trim().split(' ');
+                    let [hours, minutes] = time.split(':').map(Number);
+                    if (modifier === 'PM' && hours !== 12) hours += 12;
+                    if (modifier === 'AM' && hours === 12) hours = 0;
+                    timeForValidation = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+                }
+                
+                const parts = timeForValidation.split(':');
                 const hours = parts[0]?.padStart(2, '0') || '00';
                 const minutes = parts[1]?.padStart(2, '0') || '00';
                 const seconds = parts[2]?.padStart(2, '0') || '00';
 
-                timeForValidation = `${hours}:${minutes}:${seconds}`;
                 appointmentTime = `1970-01-01T${hours}:${minutes}:${seconds}.000Z`;
-                console.log('DEBUG: Converted appointment_time:', appointmentTime);
+                timeForValidation = `${hours}:${minutes}:${seconds}`;
             }
         }
 
+        const timeToMatch = new Date(appointmentTime);
+
         // 1. Time Slot Validation: Minimum 1 hour after current time
-        const now = new Date();
         const selectedDateTime = new Date(utcDate);
         if (timeForValidation) {
             const [h, m, s] = timeForValidation.split(':').map(Number);
             selectedDateTime.setUTCHours(h, m, s || 0, 0);
         }
 
-        const allowedBookingTime = new Date(now.getTime() + 60 * 60 * 1000);
+        const allowedBookingTime = new Date(Date.now() + 60 * 60 * 1000); // Now UTC + 1 hour
         if (selectedDateTime < allowedBookingTime) {
+            console.log('Validation failed: Booking is within next 1 hour restriction or in past', {
+                selectedDateTime: selectedDateTime.toISOString(),
+                allowedBookingTime: allowedBookingTime.toISOString()
+            });
             return ResponseHandler.badRequest(res, 'Appointment must be booked at least 1 hour in advance');
         }
 
-        // 2. Check for Conflicts (Doctor or Patient already booked at this time)
-        const conflict = await Appointment.findConflictingAppointment(doctor_id, patient_id, appointment_date, req.body.appointment_time);
-        if (conflict) {
-            const isDoctorConflict = conflict.doctor_id === Number(doctor_id);
-            const message = isDoctorConflict 
-                ? 'This slot is already booked for the doctor. Please choose another time.' 
-                : 'You already have another appointment booked at this time. Please choose another time.';
-            return ResponseHandler.badRequest(res, message);
-        }
+        // Run interactive transaction for conflict checks and locking
+        const newAppointment = await prisma.$transaction(async (tx) => {
+            // Check doctor slot conflict (Step 1)
+            const doctorConflict = await tx.appointments.findFirst({
+                where: {
+                    doctor_id: Number(doctor_id),
+                    appointment_date: utcDate,
+                    appointment_time: timeToMatch,
+                    status: { not: 'cancelled' }
+                }
+            });
 
-        const appointmentData = {
-            appointment_id,
-            patient_id: req.body.patient_id,
-            doctor_id: parseInt(req.body.doctor_id),
-            appointment_date: utcDate,
-            appointment_time: appointmentTime,
-            appointment_type: req.body.type,
-            mode: req.body.mode,
-            status: req.body.status || 'scheduled',
-            consult_duration: req.body.consult_duration || 30,
-            earnings: req.body.earnings || 500,
-            reason_for_visit: req.body.reason_for_visit || null
-        };
+            if (doctorConflict) {
+                console.log('Transaction failed: Doctor conflict detected', {
+                    doctorId: doctor_id,
+                    date: appointment_date,
+                    time: appointmentTime
+                });
+                throw new Error('Selected slot is no longer available.');
+            }
 
-        const newAppointment = await Appointment.create(appointmentData);
+            // Check patient conflict (Step 2)
+            const patientConflict = await tx.appointments.findFirst({
+                where: {
+                    patient_id: patient_id,
+                    appointment_date: utcDate,
+                    appointment_time: timeToMatch,
+                    status: { not: 'cancelled' }
+                }
+            });
+
+            if (patientConflict) {
+                console.log('Transaction failed: Patient conflict detected', {
+                    patientId: patient_id,
+                    date: appointment_date,
+                    time: appointmentTime
+                });
+                throw new Error('You already have another appointment scheduled at this time.');
+            }
+
+            // Create appointment (Step 3)
+            const created = await tx.appointments.create({
+                data: {
+                    appointment_id,
+                    patient_id: req.body.patient_id,
+                    doctor_id: parseInt(req.body.doctor_id),
+                    appointment_date: utcDate,
+                    appointment_time: appointmentTime,
+                    appointment_type: req.body.type,
+                    mode: req.body.mode,
+                    status: req.body.status || 'scheduled',
+                    consult_duration: req.body.consult_duration || 30,
+                    earnings: req.body.earnings || 500,
+                    reason_for_visit: req.body.reason_for_visit || null
+                }
+            });
+
+            return created;
+        });
+
+        console.log('Transaction succeeded: Appointment created', {
+            appointment_id: newAppointment.appointment_id
+        });
 
         // Notify patient
         try {
@@ -135,17 +196,51 @@ exports.createAppointment = async (req, res, next) => {
             console.error('Error sending appointment notification:', err);
         }
 
-        ResponseHandler.created(res, newAppointment, 'Appointment created successfully');
+        const todayCount = await prisma.appointments.count({
+            where: {
+                doctor_id: parseInt(req.body.doctor_id),
+                appointment_date: utcDate,
+                status: { not: 'cancelled' }
+            }
+        });
+
+        clearAllDashboardCaches();
+
+        ResponseHandler.created(res, {
+            ...newAppointment,
+            token_number: todayCount
+        }, 'Appointment booked successfully.');
     } catch (error) {
-        console.error('Error in createAppointment:', error);
-        next(error);
+        console.error('Exception in createAppointment:', {
+            message: error.message,
+            stack: error.stack,
+            payload: req.body
+        });
+        
+        return ResponseHandler.badRequest(res, error.message || 'Failed to book appointment. Please try again.');
     }
 };
 
 exports.getAllAppointments = async (req, res, next) => {
     try {
-        const appointments = await Appointment.findAll();
-        ResponseHandler.success(res, appointments, 'Scheduled encounters retrieved');
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const offset = (page - 1) * limit;
+
+        const appointments = await Appointment.findAll(limit, offset);
+        const total = await prisma.appointments.count({
+            where: { status: { not: 'cancelled' } }
+        });
+
+        ResponseHandler.success(res, {
+            appointments,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        }, 'Scheduled encounters retrieved');
     } catch (error) {
         next(error);
     }
@@ -243,6 +338,7 @@ exports.startAppointment = async (req, res, next) => {
         }
 
         const updated = await Appointment.updateStatus(appointment_id, 'in_progress');
+        clearAllDashboardCaches();
         ResponseHandler.success(res, updated, 'Appointment started');
     } catch (error) {
         next(error);
@@ -255,6 +351,7 @@ exports.updateStatusFromPost = async (req, res, next) => {
         if (!appointment_id || !status) return ResponseHandler.badRequest(res, 'Appointment ID and status required');
 
         const updated = await Appointment.updateStatus(appointment_id, status);
+        clearAllDashboardCaches();
         ResponseHandler.updated(res, updated, 'Appointment status updated');
     } catch (error) {
         next(error);
@@ -264,7 +361,6 @@ exports.updateStatusFromPost = async (req, res, next) => {
 exports.rescheduleAppointment = async (req, res, next) => {
     try {
         const { appointment_id, appointment_date, appointment_time } = req.body;
-        console.log('RESCHEDULE REQUEST:', { appointment_id, appointment_date, appointment_time });
         
         if (!appointment_id || !appointment_date || !appointment_time) {
             return ResponseHandler.badRequest(res, 'Missing reschedule parameters');
@@ -288,20 +384,6 @@ exports.rescheduleAppointment = async (req, res, next) => {
             formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
         }
 
-        console.log('FORMATTED FOR DB:', { utcDate, formattedTime });
-
-        // Check for conflicts (excluding the current appointment itself)
-        const conflict = await Appointment.findConflictingAppointment(appointment.doctor_id, appointment.patient_id, appointment_date, formattedTime);
-        
-        if (conflict && conflict.appointment_id !== appointment_id) {
-            console.log('CONFLICT DETECTED:', conflict);
-            const isDoctorConflict = conflict.doctor_id === Number(appointment.doctor_id);
-            const message = isDoctorConflict 
-                ? 'This slot is already booked for the doctor. Please choose another time.' 
-                : 'You already have another appointment booked at this time. Please choose another time.';
-            return ResponseHandler.badRequest(res, message);
-        }
-
         const timeForDB = `1970-01-01T${formattedTime}.000Z`;
 
         const updateData = {
@@ -310,8 +392,39 @@ exports.rescheduleAppointment = async (req, res, next) => {
             status: 'scheduled'
         };
 
-        const updated = await Appointment.update(appointment_id, updateData);
-        console.log('RESCHEDULE SUCCESS:', updated);
+        // Use interactive transaction for reschedule conflict checks
+        const updated = await prisma.$transaction(async (tx) => {
+            const doctorConflict = await tx.appointments.findFirst({
+                where: {
+                    doctor_id: Number(appointment.doctor_id),
+                    appointment_date: utcDate,
+                    appointment_time: new Date(timeForDB),
+                    appointment_id: { not: appointment_id },
+                    status: { not: 'cancelled' }
+                }
+            });
+            if (doctorConflict) {
+                throw new Error('Selected slot is no longer available.');
+            }
+
+            const patientConflict = await tx.appointments.findFirst({
+                where: {
+                    patient_id: appointment.patient_id,
+                    appointment_date: utcDate,
+                    appointment_time: new Date(timeForDB),
+                    appointment_id: { not: appointment_id },
+                    status: { not: 'cancelled' }
+                }
+            });
+            if (patientConflict) {
+                throw new Error('You already have another appointment scheduled at this time.');
+            }
+
+            return await tx.appointments.update({
+                where: { appointment_id: appointment_id },
+                data: updateData
+            });
+        });
         
         // Notify patient of reschedule
         try {
@@ -333,10 +446,11 @@ exports.rescheduleAppointment = async (req, res, next) => {
             console.error('Error sending reschedule notification:', err);
         }
 
+        clearAllDashboardCaches();
         ResponseHandler.updated(res, updated, 'Appointment rescheduled');
     } catch (error) {
         console.error('Error in rescheduleAppointment:', error);
-        next(error);
+        return ResponseHandler.badRequest(res, error.message || 'Failed to reschedule appointment. Please try again.');
     }
 };
 
@@ -344,6 +458,7 @@ exports.deleteAppointment = async (req, res, next) => {
     try {
         const { id } = req.params;
         await Appointment.delete(id);
+        clearAllDashboardCaches();
         ResponseHandler.success(res, null, 'Appointment deleted');
     } catch (error) {
         next(error);
@@ -359,6 +474,7 @@ exports.updateStatus = async (req, res, next) => {
         if (!updated) {
             return ResponseHandler.notFound(res, 'Appointment not found');
         }
+        clearAllDashboardCaches();
         ResponseHandler.updated(res, updated, 'Appointment status updated');
 
         // Notify patient of status update
@@ -400,8 +516,137 @@ exports.getBookedSlots = async (req, res, next) => {
         const { patientId } = req.query;
         if (!doctorId || !date) return ResponseHandler.badRequest(res, 'Doctor ID and date are required');
 
-        const bookedSlots = await Appointment.getBookedSlots(doctorId, date, patientId);
-        ResponseHandler.success(res, { bookedSlots }, 'Booked time slots retrieved successfully');
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const [year, month, day] = date.split('-').map(Number);
+        const dateObj = new Date(Date.UTC(year, month - 1, day));
+        const dayName = days[dateObj.getUTCDay()];
+
+        // Query Prisma for doctor_time_slots configuration
+        const slotsConfig = await prisma.doctor_time_slots.findMany({
+            where: {
+                doctor_id: Number(doctorId),
+                day_of_week: dayName
+            }
+        });
+
+        let startTimeStr = '09:00:00';
+        let endTimeStr = '17:00:00';
+        if (slotsConfig && slotsConfig.length > 0) {
+            const ts = slotsConfig[0];
+            const startHour = new Date(ts.start_time).getUTCHours();
+            const startMin = new Date(ts.start_time).getUTCMinutes();
+            const endHour = new Date(ts.end_time).getUTCHours();
+            const endMin = new Date(ts.end_time).getUTCMinutes();
+            
+            startTimeStr = `${startHour.toString().padStart(2, '0')}:${startMin.toString().padStart(2, '0')}:00`;
+            endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMin.toString().padStart(2, '0')}:00`;
+        }
+
+        const generatedSlots = [];
+        const [startH, startM] = startTimeStr.split(':').map(Number);
+        const [endH, endM] = endTimeStr.split(':').map(Number);
+        
+        let currentHour = startH;
+        let currentMin = startM;
+        
+        while (currentHour < endH || (currentHour === endH && currentMin < endM)) {
+            const ampm = currentHour >= 12 ? 'PM' : 'AM';
+            const displayHour = currentHour % 12 || 12;
+            const timeString = `${displayHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')} ${ampm}`;
+            const time24 = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}:00`;
+            
+            generatedSlots.push({
+                time: timeString,
+                time24: time24,
+                hour: currentHour,
+                minute: currentMin
+            });
+            
+            currentMin += 30;
+            if (currentMin >= 60) {
+                currentHour += 1;
+                currentMin -= 60;
+            }
+        }
+
+        const nextDay = new Date(dateObj.getTime() + 24 * 60 * 60 * 1000);
+        
+        const whereClause = {
+            appointment_date: {
+                gte: dateObj,
+                lt: nextDay
+            },
+            status: {
+                notIn: ['cancelled']
+            },
+            doctor_id: Number(doctorId)
+        };
+        
+        if (patientId) {
+            whereClause.OR = [
+                { doctor_id: Number(doctorId) },
+                { patient_id: patientId }
+            ];
+            delete whereClause.doctor_id;
+        }
+
+        const bookings = await prisma.appointments.findMany({
+            where: whereClause,
+            select: {
+                appointment_id: true,
+                appointment_time: true,
+                doctor_id: true,
+                patient_id: true
+            }
+        });
+
+        const bookedTimes = new Set();
+        const patientConfTimes = new Set();
+        for (const booking of bookings) {
+            if (!booking.appointment_time) continue;
+            const t = new Date(booking.appointment_time);
+            const timeStr24 = `${t.getUTCHours().toString().padStart(2, '0')}:${t.getUTCMinutes().toString().padStart(2, '0')}:00`;
+            if (booking.doctor_id === Number(doctorId)) {
+                bookedTimes.add(timeStr24);
+            }
+            if (patientId && booking.patient_id === patientId) {
+                patientConfTimes.add(timeStr24);
+            }
+        }
+
+        // Zone-safe today check (India timezone offsets +5.5 hours)
+        const nowLocal = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+        const nowYear = nowLocal.getUTCFullYear();
+        const nowMonth = nowLocal.getUTCMonth() + 1;
+        const nowDate = nowLocal.getUTCDate();
+        const nowISTStr = `${nowYear}-${nowMonth.toString().padStart(2, '0')}-${nowDate.toString().padStart(2, '0')}`;
+        const isToday = (date === nowISTStr);
+
+        const limitTime = new Date(Date.now() + 5.5 * 60 * 60 * 1000 + 60 * 60 * 1000); // Now IST + 1 hour
+        const limitHour = limitTime.getUTCHours();
+        const limitMin = limitTime.getUTCMinutes();
+
+        const slotStatuses = generatedSlots.map(s => {
+            let status = 'available';
+            if (bookedTimes.has(s.time24) || patientConfTimes.has(s.time24)) {
+                status = 'booked';
+            } else if (isToday) {
+                if (s.hour < limitHour || (s.hour === limitHour && s.minute < limitMin)) {
+                    status = 'expired';
+                }
+            }
+            return {
+                time: s.time,
+                status
+            };
+        });
+
+        ResponseHandler.success(res, {
+            slots: slotStatuses,
+            bookedSlots: generatedSlots
+                .filter(s => bookedTimes.has(s.time24) || patientConfTimes.has(s.time24))
+                .map(s => s.time)
+        }, 'Booked time slots retrieved successfully');
     } catch (error) {
         next(error);
     }

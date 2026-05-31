@@ -104,11 +104,20 @@
 .dark .bg-gray-50\/50, .dark .bg-slate-50\/50 { background-color: hsla(var(--background), 0.5) !important; }
 
 /* Text Overrides */
+.dark .text-gray-950, .dark .text-slate-950, .dark .text-zinc-950, .dark .text-neutral-950,
 .dark .text-gray-900, .dark .text-slate-900, .dark .text-zinc-900, .dark .text-neutral-900 { color: hsl(var(--foreground)) !important; }
 .dark .text-gray-800, .dark .text-slate-800, .dark .text-zinc-800, .dark .text-neutral-800 { color: hsla(var(--foreground), 0.9) !important; }
 .dark .text-gray-700, .dark .text-slate-700, .dark .text-zinc-700, .dark .text-neutral-700 { color: hsla(var(--foreground), 0.8) !important; }
-.dark .text-gray-600, .dark .text-slate-600, .dark .text-zinc-600, .dark .text-neutral-600 { color: hsla(var(--foreground), 0.7) !important; }
-.dark .text-gray-500, .dark .text-slate-500, .dark .text-zinc-500, .dark .text-neutral-500 { color: hsla(var(--foreground), 0.6) !important; }
+.dark .text-gray-650, .dark .text-gray-600, .dark .text-slate-600, .dark .text-zinc-650, .dark .text-neutral-600 { color: hsla(var(--foreground), 0.7) !important; }
+.dark .text-gray-550, .dark .text-gray-500, .dark .text-slate-500, .dark .text-zinc-500, .dark .text-neutral-500 { color: hsla(var(--foreground), 0.6) !important; }
+
+/* Themed Text Overrides (Fix invisible text in dark mode alerts, badges, and headers) */
+.dark .text-blue-900, .dark .text-green-900, .dark .text-yellow-900, .dark .text-red-900, .dark .text-purple-900, .dark .text-slate-900, .dark .text-indigo-900 {
+  color: hsl(var(--foreground)) !important;
+}
+.dark .text-blue-800, .dark .text-green-800, .dark .text-yellow-800, .dark .text-red-800, .dark .text-purple-800, .dark .text-slate-800, .dark .text-indigo-800 {
+  color: hsla(var(--foreground), 0.9) !important;
+}
 
 /* Borders */
 .dark .border-gray-100, .dark .border-slate-100 { border-color: hsla(var(--border), 0.5) !important; }

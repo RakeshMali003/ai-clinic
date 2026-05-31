@@ -142,7 +142,17 @@ const labModel = {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const [totalTestsToday, totalBookings, pendingReports, completedReports, revenue] = await Promise.all([
+        const [
+            totalTestsToday,
+            totalBookings,
+            pendingReports,
+            completedReports,
+            revenue,
+            totalTestsInCatalog,
+            techniciansCount,
+            totalLabsInSystem,
+            totalReportsCount
+        ] = await Promise.all([
             prisma.lab_orders.count({
                 where: {
                     lab_id: labId,
@@ -161,6 +171,16 @@ const labModel = {
             prisma.lab_order_items.aggregate({
                 where: { lab_orders: { lab_id: labId, status: 'Completed' } },
                 _sum: { price: true }
+            }),
+            prisma.lab_tests.count({
+                where: { lab_id: labId }
+            }),
+            prisma.lab_staff.count({
+                where: { lab_id: labId, role: 'technician' }
+            }),
+            prisma.labs.count(),
+            prisma.lab_orders.count({
+                where: { lab_id: labId, report_url: { not: null } }
             })
         ]);
 
@@ -179,23 +199,107 @@ const labModel = {
             pendingReports,
             completedReports,
             revenueSummary: revenue._sum.price || 0,
+            totalTests: totalTestsInCatalog,
+            orders: totalBookings,
+            revenue: revenue._sum.price || 0,
+            technicians: techniciansCount,
+            labs: totalLabsInSystem,
+            reports: totalReportsCount,
             recentActivity
         };
     },
 
     getLabBookings: async (labId, filters = {}) => {
+        const { status, fromDate, toDate, search, page = 1, limit = 10, all = false } = filters;
         const where = { lab_id: labId };
-        if (filters.status) where.status = filters.status;
         
-        return await prisma.lab_orders.findMany({
-            where,
-            include: {
-                patient: { select: { full_name: true, gender: true, date_of_birth: true } },
-                doctor: { select: { full_name: true } },
-                lab_order_items: { include: { lab_test_types: true } }
-            },
-            orderBy: { order_date: 'desc' }
+        if (status && status !== 'All') {
+            where.status = status;
+        }
+        
+        if (fromDate || toDate) {
+            where.order_date = {};
+            if (fromDate) {
+                where.order_date.gte = new Date(fromDate);
+            }
+            if (toDate) {
+                const end = new Date(toDate);
+                end.setHours(23, 59, 59, 999);
+                where.order_date.lte = end;
+            }
+        }
+        
+        if (search) {
+            where.OR = [
+                { lab_order_id: { contains: search, mode: 'insensitive' } },
+                { patient: { full_name: { contains: search, mode: 'insensitive' } } }
+            ];
+        }
+        
+        // For export, return all records without pagination
+        if (all === 'true' || all === true) {
+            const bookings = await prisma.lab_orders.findMany({
+                where,
+                include: {
+                    patient: { select: { full_name: true, gender: true, date_of_birth: true, age: true } },
+                    doctor: { select: { full_name: true } },
+                    clinic: { select: { clinic_name: true } },
+                    technician: { select: { id: true, full_name: true, phone: true } },
+                    lab_order_items: { include: { lab_test_types: true } }
+                },
+                orderBy: { order_date: 'desc' }
+            });
+            return { bookings, total: bookings.length };
+        }
+        
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const take = parseInt(limit);
+        
+        const [bookings, total] = await Promise.all([
+            prisma.lab_orders.findMany({
+                where,
+                include: {
+                    patient: { select: { full_name: true, gender: true, date_of_birth: true, age: true } },
+                    doctor: { select: { full_name: true } },
+                    clinic: { select: { clinic_name: true } },
+                    technician: { select: { id: true, full_name: true, phone: true } },
+                    lab_order_items: { include: { lab_test_types: true } }
+                },
+                orderBy: { order_date: 'desc' },
+                skip,
+                take
+            }),
+            prisma.lab_orders.count({ where })
+        ]);
+        
+        return {
+            bookings,
+            total,
+            page: parseInt(page),
+            limit: parseInt(limit),
+            totalPages: Math.ceil(total / limit)
+        };
+    },
+
+    bulkAssignTechnician: async (labId, orderIds, technicianId) => {
+        const tech = await prisma.lab_staff.findFirst({
+            where: { id: parseInt(technicianId), lab_id: labId }
         });
+        if (!tech) throw new Error('Technician not found or not authorized for this lab');
+
+        // Assign technician and update status to 'Processing'
+        return await prisma.$transaction(
+            orderIds.map(orderId => 
+                prisma.lab_orders.update({
+                    where: { lab_order_id: orderId },
+                    data: {
+                        technician_id: parseInt(technicianId),
+                        status: 'Processing',
+                        collection_type: 'Home' // Mark collection type as Home if assigning tech
+                    }
+                })
+            )
+        );
     },
 
     getLabTransactions: async (labId, filters = {}) => {
@@ -409,6 +513,185 @@ const labModel = {
 
             return true;
         });
+    },
+
+    updateLabProfile: async (labId, profileData) => {
+        const lab = await prisma.labs.findUnique({
+            where: { lab_id: labId },
+            include: { address: true }
+        });
+        if (!lab) throw new Error('Lab not found');
+
+        const { name, owner_name, lab_type, registration_number, establishment_year, contact_number, email, license_number, gst_number, certification, address } = profileData;
+
+        let addressId = lab.address_id;
+        if (address) {
+            if (addressId) {
+                await prisma.addresses.update({
+                    where: { address_id: addressId },
+                    data: {
+                        address: address.address,
+                        city: address.city,
+                        state: address.state,
+                        pin_code: address.pin_code
+                    }
+                });
+            } else {
+                const newAddress = await prisma.addresses.create({
+                    data: {
+                        address: address.address,
+                        city: address.city,
+                        state: address.state,
+                        pin_code: address.pin_code
+                    }
+                });
+                addressId = newAddress.address_id;
+            }
+        }
+
+        return await prisma.labs.update({
+            where: { lab_id: labId },
+            data: {
+                name,
+                owner_name,
+                lab_type,
+                registration_number,
+                establishment_year: establishment_year ? parseInt(establishment_year) : undefined,
+                contact_number,
+                email,
+                license_number,
+                gst_number,
+                certification,
+                address_id: addressId
+            },
+            include: { address: true }
+        });
+    },
+
+    createManualInvoice: async (labId, invoiceData) => {
+        const { patient_name, gst_number, items, discount = 0, invoice_date = new Date() } = invoiceData;
+
+        let calculatedSubtotal = 0;
+        const itemsToCreate = [];
+        for (const item of items) {
+            const rate = parseFloat(item.rate || item.price || 0);
+            const quantity = parseInt(item.quantity || item.qty || 1);
+            const amount = rate * quantity;
+            calculatedSubtotal += amount;
+
+            itemsToCreate.push({
+                service_name: item.service_name || item.description,
+                quantity,
+                rate,
+                amount
+            });
+        }
+
+        const discountVal = parseFloat(discount);
+        const tax = (calculatedSubtotal - discountVal) * 0.18; // 18% GST
+        const total_amount = calculatedSubtotal - discountVal + tax;
+
+        return await prisma.invoices.create({
+            data: {
+                invoice_id: `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+                lab_id: labId,
+                patient_name,
+                gst_number,
+                invoice_date: new Date(invoice_date),
+                discount: discountVal,
+                subtotal: calculatedSubtotal,
+                tax,
+                total_amount,
+                status: 'Paid',
+                invoice_items: {
+                    create: itemsToCreate
+                }
+            },
+            include: {
+                invoice_items: true
+            }
+        });
+    },
+
+    getManualInvoices: async (labId) => {
+        return await prisma.invoices.findMany({
+            where: {
+                lab_id: labId
+            },
+            include: {
+                invoice_items: true
+            },
+            orderBy: {
+                invoice_date: 'desc'
+            }
+        });
+    },
+
+    getSettlementReport: async (labId, fromDate, toDate) => {
+        const where = {
+            lab_id: labId
+        };
+
+        if (fromDate || toDate) {
+            where.order_date = {};
+            if (fromDate) {
+                where.order_date.gte = new Date(fromDate);
+            }
+            if (toDate) {
+                const end = new Date(toDate);
+                end.setHours(23, 59, 59, 999);
+                where.order_date.lte = end;
+            }
+        }
+
+        const bookings = await prisma.lab_orders.findMany({
+            where,
+            include: {
+                patient: { select: { full_name: true } },
+                lab_order_items: true
+            },
+            orderBy: { order_date: 'desc' }
+        });
+
+        let totalBookings = bookings.length;
+        let totalRevenue = 0;
+        let completedRevenue = 0;
+        let pendingRevenue = 0;
+
+        const bookingsList = bookings.map(booking => {
+            const bookingPrice = booking.lab_order_items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+            
+            if (booking.status === 'Completed') {
+                completedRevenue += bookingPrice;
+            } else if (booking.status !== 'Cancelled') {
+                pendingRevenue += bookingPrice;
+            }
+
+            totalRevenue += bookingPrice;
+
+            return {
+                bookingId: booking.lab_order_id,
+                patientName: booking.patient?.full_name || 'Walking Customer',
+                date: booking.order_date,
+                status: booking.status,
+                amount: bookingPrice
+            };
+        });
+
+        const tax = completedRevenue * 0.18;
+        const labEarnings = completedRevenue - tax;
+
+        return {
+            fromDate,
+            toDate,
+            totalBookings,
+            totalRevenue,
+            completedRevenue,
+            pendingRevenue,
+            tax,
+            labEarnings,
+            bookings: bookingsList
+        };
     }
 };
 

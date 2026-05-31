@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import { handleTTS, handleChat, analyzeSymptoms, analyzeDocument, analyzeXray, scanPrescription, analyzeSentiment } from '../controllers/genkitController';
+import { protect } from '../middleware/auth';
 
 const router = Router();
+
+// Protect all AI routes
+router.use(protect);
 
 /**
  * @route   POST /api/ai/analyze-symptoms

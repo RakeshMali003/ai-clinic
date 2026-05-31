@@ -76,11 +76,11 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
   };
 
   return (
-    <header className="bg-white border-b border-pink-200 px-6 py-4">
-      <div className="flex items-center justify-between">
+    <header className="bg-white dark:bg-slate-900 border-b border-pink-200 dark:border-slate-800 h-20 px-6 flex items-center sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 transition-colors">
+      <div className="flex items-center justify-between w-full">
         <div>
-          <h1 className="font-semibold text-gray-900">Welcome back, {patient.name ? patient.name.split(' ')[0] : 'User'}!</h1>
-          <p className="text-sm text-gray-600">Manage your health, anytime, anywhere</p>
+          <h1 className="font-semibold text-gray-900 dark:text-white">Welcome back, {patient.name ? patient.name.split(' ')[0] : 'User'}!</h1>
+          <p className="text-sm text-gray-600 dark:text-slate-400">Manage your health, anytime, anywhere</p>
         </div>
 
         <div className="flex items-center gap-4">
@@ -88,8 +88,8 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative hover:bg-pink-50">
-                <Bell className="size-5 text-gray-700" />
+              <Button variant="ghost" size="icon" className="relative hover:bg-pink-50 dark:hover:bg-slate-800">
+                <Bell className="size-5 text-gray-700 dark:text-slate-300" />
                 {unreadCount > 0 && (
                   <Badge className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 bg-pink-600">
                     {unreadCount}
@@ -97,9 +97,9 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
                 )}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-80 dark:bg-slate-900 dark:border-slate-800">
               <div className="flex items-center justify-between px-2 py-1.5 cursor-default">
-                <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+                <DropdownMenuLabel className="p-0 dark:text-white">Notifications</DropdownMenuLabel>
                 {unreadCount > 0 && (
                   <button 
                     onClick={handleMarkAllAsRead}
@@ -112,24 +112,24 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
               <DropdownMenuSeparator />
               <div className="max-h-[400px] overflow-y-auto">
                 {loading ? (
-                  <div className="p-4 text-center text-sm text-gray-500">Loading notifications...</div>
+                  <div className="p-4 text-center text-sm text-gray-500 dark:text-slate-400">Loading notifications...</div>
                 ) : !Array.isArray(notifications) || notifications.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-gray-500">No notifications</div>
+                  <div className="p-4 text-center text-sm text-gray-500 dark:text-slate-400">No notifications</div>
                 ) : (
                   notifications.map((notification) => (
                     <DropdownMenuItem 
                       key={notification.notification_id} 
-                      className={`flex flex-col items-start gap-1 p-4 cursor-pointer border-b last:border-0 ${
-                        notification.status !== 'READ' ? 'bg-pink-50/50' : ''
+                      className={`flex flex-col items-start gap-1 p-4 cursor-pointer border-b dark:border-slate-800 last:border-0 ${
+                        notification.status !== 'READ' ? 'bg-pink-50/50 dark:bg-slate-800' : 'dark:hover:bg-slate-800'
                       }`}
                     >
                       <div className="flex justify-between w-full">
-                        <span className={`font-semibold text-sm ${notification.status !== 'READ' ? 'text-pink-900' : 'text-gray-900'}`}>
+                        <span className={`font-semibold text-sm ${notification.status !== 'READ' ? 'text-pink-900 dark:text-pink-400' : 'text-gray-900 dark:text-white'}`}>
                           {notification.title}
                         </span>
-                        <span className="text-[10px] text-gray-500">{formatNotificationTime(notification.created_at)}</span>
+                        <span className="text-[10px] text-gray-500 dark:text-slate-400">{formatNotificationTime(notification.created_at)}</span>
                       </div>
-                      <p className="text-xs text-gray-600 line-clamp-2">{notification.message}</p>
+                      <p className="text-xs text-gray-600 dark:text-slate-400 line-clamp-2">{notification.message}</p>
                       {notification.status !== 'READ' && (
                         <button 
                           onClick={(e) => handleMarkAsRead(notification.notification_id, e)}
@@ -142,14 +142,14 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
                   ))
                 )}
               </div>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="justify-center text-pink-600 font-medium cursor-pointer">
+              <DropdownMenuSeparator className="dark:bg-slate-800" />
+              <DropdownMenuItem className="justify-center text-pink-600 dark:text-pink-400 font-medium cursor-pointer dark:hover:bg-slate-800">
                 View all notifications
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <div className="flex items-center gap-3 border-l border-pink-200 pl-4">
+          <div className="flex items-center gap-3 border-l border-pink-200 dark:border-slate-700 pl-4">
             <Avatar>
               {patient.avatar ? (
                 <AvatarImage src={patient.avatar} alt={patient.name} />
@@ -160,9 +160,9 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
               )}
             </Avatar>
             <div>
-              <p className="font-medium text-gray-900">{patient.name}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{patient.name}</p>
               {patient.abhaId && (
-                <p className="text-xs text-pink-600">ABHA: {patient.abhaId}</p>
+                <p className="text-xs text-pink-600 dark:text-pink-400">ABHA: {patient.abhaId}</p>
               )}
             </div>
           </div>
@@ -172,7 +172,7 @@ export function PatientHeader({ patient, onLogout }: PatientHeaderProps) {
               variant="outline"
               size="sm"
               onClick={onLogout}
-              className="border-pink-300 text-pink-600 hover:bg-pink-50"
+              className="border-pink-300 text-pink-600 hover:bg-pink-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
             >
               <LogOut className="size-4 mr-2" />
               Logout

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   User,
   Briefcase,
@@ -9,7 +9,18 @@ import {
   CheckCircle,
   ChevronRight,
   ChevronLeft,
-  ArrowLeft
+  ArrowLeft,
+  Mail,
+  Phone,
+  Lock,
+  Globe,
+  Calendar,
+  MapPin,
+  CreditCard,
+  Award,
+  AlertCircle,
+  ShieldCheck,
+  Plus
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../common/ui/card';
 import { Button } from '../common/ui/button';
@@ -314,490 +325,547 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
     }
   };
 
-  const renderStep1 = () => (
+    const renderStep1 = () => (
     <div className="space-y-6">
-      <div>
-        <Label htmlFor="fullName">Dr. Full Name *</Label>
-        <Input
-          id="fullName"
-          placeholder="Dr. First Middle Last"
-          className={`mt-2 ${errors.fullName ? 'border-red-500' : ''}`}
-          value={formData.fullName}
-          onChange={handleInputChange}
-        />
-        {errors.fullName && <p className="text-xs text-red-500 mt-1">{errors.fullName}</p>}
+      <div className="space-y-2">
+        <Label htmlFor="fullName" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Dr. Full Name *</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+            <User className="w-5 h-5" />
+          </div>
+          <Input
+            id="fullName"
+            placeholder="Dr. First Middle Last"
+            className={`pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm transition-all focus:bg-white dark:focus:bg-slate-950 ${errors.fullName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+            value={formData.fullName}
+            onChange={handleInputChange}
+          />
+        </div>
+        {errors.fullName && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.fullName}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="gender">Gender *</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="gender" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Gender *</Label>
           <Select onValueChange={(v) => handleSelectChange('gender', v)}>
-            <SelectTrigger id="gender" className={`mt-2 ${errors.gender ? 'border-red-500' : ''}`}>
-              <SelectValue placeholder="Select" />
+            <SelectTrigger id="gender" className={`h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus:ring-blue-500/20 ${errors.gender ? 'border-red-500' : ''}`}>
+              <SelectValue placeholder="Select Gender" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
+            <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 dark:bg-slate-905">
+              <SelectItem value="male" className="font-bold">Male</SelectItem>
+              <SelectItem value="female" className="font-bold">Female</SelectItem>
+              <SelectItem value="other" className="font-bold">Other</SelectItem>
             </SelectContent>
           </Select>
-          {errors.gender && <p className="text-xs text-red-500 mt-1">{errors.gender}</p>}
+          {errors.gender && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.gender}</p>}
         </div>
 
-        <div>
-          <Label htmlFor="dob">Date of Birth *</Label>
-          <Input
-            id="dob"
-            type="date"
-            className={`mt-2 ${errors.dob ? 'border-red-500' : ''}`}
-            value={formData.dob}
-            onChange={handleInputChange}
-          />
-          {errors.dob && <p className="text-xs text-red-500 mt-1">{errors.dob}</p>}
+        <div className="space-y-2">
+          <Label htmlFor="dob" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Date of Birth *</Label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <Input
+              id="dob"
+              type="date"
+              className={`pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.dob ? 'border-red-500' : ''}`}
+              value={formData.dob}
+              onChange={handleInputChange}
+            />
+          </div>
+          {errors.dob && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.dob}</p>}
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="password">Login Password *</Label>
-        <Input
-          id="password"
-          type="password"
-          placeholder="Create a secure password"
-          className={`mt-2 ${errors.password ? 'border-red-500' : ''}`}
-          value={formData.password}
-          onChange={handleInputChange}
-        />
-        {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
-      </div>
-
-      <div>
-        <Label htmlFor="mobile">Mobile Number *</Label>
-        <div className="flex gap-2 mt-2">
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Login Password *</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+            <Lock className="w-5 h-5" />
+          </div>
           <Input
-            id="mobile"
-            placeholder="10-digit mobile"
-            maxLength={10}
-            className={`flex-1 ${errors.mobile ? 'border-red-500' : ''}`}
-            value={formData.mobile}
+            id="password"
+            type="password"
+            placeholder="Create a secure login password"
+            className={`pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.password ? 'border-red-500' : ''}`}
+            value={formData.password}
             onChange={handleInputChange}
           />
-          {!mobileVerified ? (
-            <Button onClick={() => { if (formData.mobile.length === 10) setMobileVerified(true); else toast.error("Invalid mobile"); }} className="bg-pink-600 px-3 h-10">
-              Verify
-            </Button>
-          ) : (
-            <Button disabled className="bg-green-600 px-3 h-10">
-              <CheckCircle className="size-4" />
-            </Button>
-          )}
         </div>
-        {errors.mobile && <p className="text-xs text-red-500 mt-1">{errors.mobile}</p>}
+        {errors.password && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.password}</p>}
       </div>
 
-      <div>
-        <Label htmlFor="email">Email Address *</Label>
-        <div className="flex gap-2 mt-2">
-          <Input
-            id="email"
-            type="email"
-            placeholder="doctor@example.com"
-            className={`flex-1 ${errors.email ? 'border-red-500' : ''}`}
-            value={formData.email}
-            onChange={handleInputChange}
-          />
-          {!emailVerified ? (
-            <Button onClick={() => { if (/\S+@\S+\.\S+/.test(formData.email)) setEmailVerified(true); else toast.error("Invalid email"); }} className="bg-pink-600 px-3 h-10">
-              Verify
-            </Button>
-          ) : (
-            <Button disabled className="bg-green-600 px-3 h-10">
-              <CheckCircle className="size-4" />
-            </Button>
-          )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="mobile" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mobile Number *</Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+                <Phone className="w-4 h-4" />
+              </div>
+              <Input
+                id="mobile"
+                placeholder="10-digit mobile"
+                maxLength={10}
+                className={`pl-10 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.mobile ? 'border-red-500' : ''}`}
+                value={formData.mobile}
+                onChange={handleInputChange}
+              />
+            </div>
+            {!mobileVerified ? (
+              <Button type="button" onClick={() => { if (formData.mobile.length === 10) setMobileVerified(true); else toast.error("Invalid mobile"); }} className="bg-gradient-to-r from-blue-600 to-indigo-650 text-white rounded-2xl px-6 font-black uppercase text-xs tracking-wider border-4 border-blue-500/20 active:scale-95 shadow-lg shadow-blue-500/10">
+                Verify
+              </Button>
+            ) : (
+              <Button type="button" disabled className="bg-emerald-500 hover:bg-emerald-500 text-white rounded-2xl px-6 border-4 border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+                <CheckCircle className="size-5" />
+              </Button>
+            )}
+          </div>
+          {errors.mobile && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.mobile}</p>}
         </div>
-        {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Email Address *</Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+                <Mail className="w-4 h-4" />
+              </div>
+              <Input
+                id="email"
+                placeholder="doctor@example.com"
+                className={`pl-10 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.email ? 'border-red-500' : ''}`}
+                value={formData.email}
+                onChange={handleInputChange}
+              />
+            </div>
+            {!emailVerified ? (
+              <Button type="button" onClick={() => { if (/\S+@\S+\.\S+/.test(formData.email)) setEmailVerified(true); else toast.error("Invalid email"); }} className="bg-gradient-to-r from-blue-600 to-indigo-650 text-white rounded-2xl px-6 font-black uppercase text-xs tracking-wider border-4 border-blue-500/20 active:scale-95 shadow-lg shadow-blue-500/10">
+                Verify
+              </Button>
+            ) : (
+              <Button type="button" disabled className="bg-emerald-500 hover:bg-emerald-500 text-white rounded-2xl px-6 border-4 border-emerald-500/20 shadow-lg shadow-emerald-500/10">
+                <CheckCircle className="size-5" />
+              </Button>
+            )}
+          </div>
+          {errors.email && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.email}</p>}
+        </div>
       </div>
     </div>
   );
 
   const renderStep2 = () => (
     <div className="space-y-6">
-      <div>
-        <Label htmlFor="mciReg">MCI / State Medical Council Registration No. *</Label>
-        <p className="text-xs text-pink-600 mt-1">🏷️ This is mandatory for verification</p>
-        <Input
-          id="mciReg"
-          placeholder="e.g., MH/12345/2015"
-          className={`mt-2 ${errors.mciReg ? 'border-red-500' : ''}`}
-          value={formData.mciReg}
-          onChange={handleInputChange}
-        />
-        {errors.mciReg && <p className="text-xs text-red-500 mt-1">{errors.mciReg}</p>}
+      <div className="space-y-2">
+        <Label htmlFor="mciReg" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">MCI / State Medical Council Registration No. *</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+            <FileText className="w-5 h-5 text-indigo-500" />
+          </div>
+          <Input
+            id="mciReg"
+            placeholder="e.g., MH/12345/2015"
+            className={`pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.mciReg ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+            value={formData.mciReg}
+            onChange={handleInputChange}
+          />
+        </div>
+        <p className="text-[10px] font-bold text-slate-450 uppercase tracking-widest pl-1">This ID is crucial for authentication verification audits</p>
+        {errors.mciReg && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.mciReg}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="council">Medical Council Name *</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="council" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Medical Council Name *</Label>
           <Input
             id="council"
             placeholder="e.g., Maharashtra Medical Council"
-            className={`mt-2 ${errors.council ? 'border-red-500' : ''}`}
+            className={`h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.council ? 'border-red-500' : ''}`}
             value={formData.council}
             onChange={handleInputChange}
           />
-          {errors.council && <p className="text-xs text-red-500 mt-1">{errors.council}</p>}
+          {errors.council && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.council}</p>}
         </div>
 
-        <div>
-          <Label htmlFor="regYear">Registration Year *</Label>
+        <div className="space-y-2">
+          <Label htmlFor="regYear" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Registration Year *</Label>
           <Select onValueChange={(v) => handleSelectChange('regYear', v)}>
-            <SelectTrigger id="regYear" className={`mt-2 ${errors.regYear ? 'border-red-500' : ''}`}>
+            <SelectTrigger id="regYear" className={`h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus:ring-blue-500/20 ${errors.regYear ? 'border-red-500' : ''}`}>
               <SelectValue placeholder="Select Year" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 dark:bg-slate-905 max-h-60">
               {Array.from({ length: 50 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                <SelectItem key={year} value={year.toString()} className="font-bold">{year}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {errors.regYear && <p className="text-xs text-red-500 mt-1">{errors.regYear}</p>}
+          {errors.regYear && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.regYear}</p>}
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="degrees">Degrees *</Label>
-        <Input
-          id="degrees"
-          placeholder="MBBS, MD, BDS, etc. (comma-separated)"
-          className={`mt-2 ${errors.degrees ? 'border-red-500' : ''}`}
-          value={formData.degrees}
-          onChange={handleInputChange}
-        />
-        {errors.degrees && <p className="text-xs text-red-500 mt-1">{errors.degrees}</p>}
+      <div className="space-y-2">
+        <Label htmlFor="degrees" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Degrees *</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+            <Award className="w-5 h-5 text-purple-500" />
+          </div>
+          <Input
+            id="degrees"
+            placeholder="MBBS, MD, BDS, etc. (comma-separated)"
+            className={`pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.degrees ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+            value={formData.degrees}
+            onChange={handleInputChange}
+          />
+        </div>
+        {errors.degrees && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.degrees}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="university">University *</Label>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="university" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">University *</Label>
           <Input
             id="university"
             placeholder="University name"
-            className={`mt-2 ${errors.university ? 'border-red-500' : ''}`}
+            className={`h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm ${errors.university ? 'border-red-500' : ''}`}
             value={formData.university}
             onChange={handleInputChange}
           />
-          {errors.university && <p className="text-xs text-red-500 mt-1">{errors.university}</p>}
+          {errors.university && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.university}</p>}
         </div>
 
-        <div>
-          <Label htmlFor="gradYear">Graduation Year *</Label>
+        <div className="space-y-2">
+          <Label htmlFor="gradYear" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Graduation Year *</Label>
           <Select onValueChange={(v) => handleSelectChange('gradYear', v)}>
-            <SelectTrigger id="gradYear" className={`mt-2 ${errors.gradYear ? 'border-red-500' : ''}`}>
+            <SelectTrigger id="gradYear" className={`h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus:ring-blue-500/20 ${errors.gradYear ? 'border-red-500' : ''}`}>
               <SelectValue placeholder="Select Year" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 dark:bg-slate-905 max-h-60">
               {Array.from({ length: 60 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                <SelectItem key={year} value={year.toString()} className="font-bold">{year}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {errors.gradYear && <p className="text-xs text-red-500 mt-1">{errors.gradYear}</p>}
+          {errors.gradYear && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.gradYear}</p>}
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="experience">Years of Experience *</Label>
+      <div className="space-y-2">
+        <Label htmlFor="experience" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Years of Experience *</Label>
         <Select onValueChange={(v) => handleSelectChange('experience', v)}>
-          <SelectTrigger id="experience" className={`mt-2 ${errors.experience ? 'border-red-500' : ''}`}>
-            <SelectValue placeholder="Select Experience" />
+          <SelectTrigger id="experience" className={`h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus:ring-blue-500/20 ${errors.experience ? 'border-red-500' : ''}`}>
+            <SelectValue placeholder="Select Experience Level" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="rounded-2xl border-slate-200 dark:border-slate-800 dark:bg-slate-905 max-h-60">
             {Array.from({ length: 51 }, (_, i) => i).map(exp => (
-              <SelectItem key={exp} value={exp.toString()}>{exp} {exp === 1 ? 'Year' : 'Years'}</SelectItem>
+              <SelectItem key={exp} value={exp.toString()} className="font-bold">{exp} {exp === 1 ? 'Year' : 'Years'}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {errors.experience && <p className="text-xs text-red-500 mt-1">{errors.experience}</p>}
+        {errors.experience && <p className="text-xs text-red-555 font-bold mt-1 pl-1">{errors.experience}</p>}
       </div>
 
-      <div>
-        <Label>Specializations * (Select all that apply)</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Specializations *</Label>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
           {specializations.map((spec) => (
             <div
               key={spec}
               onClick={() => toggleSelection(spec, selectedSpecializations, setSelectedSpecializations)}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedSpecializations.includes(spec)
-                ? 'bg-pink-600 text-white border-pink-600'
-                : 'bg-white border-gray-300 hover:border-pink-400'
+              className={`p-3.5 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs select-none ${selectedSpecializations.includes(spec)
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-650 text-white border-transparent shadow-md shadow-blue-500/10 scale-[1.02]'
+                : 'bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:border-slate-350 dark:hover:border-slate-700'
                 }`}
             >
-              <p className="text-sm font-medium">{spec}</p>
+              <p className="text-[10px] font-black uppercase tracking-wider scale-95">{spec}</p>
             </div>
           ))}
-          {/* Custom Specializations Display */}
           {selectedSpecializations.filter(s => !specializations.includes(s)).map((spec) => (
             <div
               key={spec}
               onClick={() => toggleSelection(spec, selectedSpecializations, setSelectedSpecializations)}
-              className="p-3 border rounded-lg cursor-pointer transition-colors bg-pink-600 text-white border-pink-600"
+              className="p-3.5 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs bg-gradient-to-r from-blue-600 to-indigo-650 text-white border-transparent shadow-md shadow-blue-500/10 scale-[1.02] select-none"
             >
-              <p className="text-sm font-medium">{spec}</p>
+              <p className="text-[10px] font-black uppercase tracking-wider scale-95">{spec}</p>
             </div>
           ))}
 
-          {/* Add Other Button */}
           {!showCustomSpecializationInput ? (
             <div
               onClick={() => setShowCustomSpecializationInput(true)}
-              className="p-3 border border-dashed border-gray-400 rounded-lg cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-colors flex items-center justify-center"
+              className="p-3 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-blue-500 dark:hover:border-blue-800 hover:bg-blue-50/20 dark:hover:bg-slate-800/20 transition-all flex items-center justify-center"
             >
-              <p className="text-sm font-medium text-gray-600">+ Other</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-550 dark:text-slate-400">+ Other</p>
             </div>
           ) : (
-            <div className="p-3 border border-pink-200 rounded-lg bg-white flex items-center gap-2">
+            <div className="p-2 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 flex items-center gap-2">
               <Input
                 value={customSpecialization}
                 onChange={(e) => setCustomSpecialization(e.target.value)}
                 placeholder="Type specialization..."
-                className="h-8 text-sm"
+                className="h-8 text-sm rounded-xl"
               />
-              <Button size="sm" onClick={handleAddCustomSpecialization} className="h-8 w-8 p-0 bg-pink-600">
+              <Button size="sm" type="button" onClick={handleAddCustomSpecialization} className="h-8 w-8 p-0 bg-blue-600">
                 <CheckCircle className="size-4" />
               </Button>
             </div>
           )}
         </div>
-        {errors.specializations && <p className="text-xs text-red-500 mt-1">{errors.specializations}</p>}
+        {errors.specializations && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.specializations}</p>}
       </div>
 
-      <div>
-        <Label>Languages Spoken *</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Languages Spoken *</Label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
           {languages.map((lang) => (
             <div
               key={lang}
               onClick={() => toggleSelection(lang, selectedLanguages, setSelectedLanguages)}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedLanguages.includes(lang)
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-white border-gray-300 hover:border-purple-400'
+              className={`p-3.5 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs select-none border ${selectedLanguages.includes(lang)
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent shadow-md shadow-indigo-500/10 scale-[1.02]'
+                : 'bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:border-slate-350 dark:hover:border-slate-700'
                 }`}
             >
-              <p className="text-sm font-medium">{lang}</p>
+              <p className="text-[10px] font-black uppercase tracking-wider scale-95">{lang}</p>
             </div>
           ))}
-          {/* Custom Languages Display */}
           {selectedLanguages.filter(l => !languages.includes(l)).map((lang) => (
             <div
               key={lang}
               onClick={() => toggleSelection(lang, selectedLanguages, setSelectedLanguages)}
-              className="p-3 border rounded-lg cursor-pointer transition-colors bg-purple-600 text-white border-purple-600"
+              className="p-3.5 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-transparent shadow-md shadow-indigo-500/10 scale-[1.02] border-transparent select-none"
             >
-              <p className="text-sm font-medium">{lang}</p>
+              <p className="text-[10px] font-black uppercase tracking-wider scale-95">{lang}</p>
             </div>
           ))}
 
-          {/* Add Other Button */}
           {!showCustomLanguageInput ? (
             <div
               onClick={() => setShowCustomLanguageInput(true)}
-              className="p-3 border border-dashed border-gray-400 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors flex items-center justify-center"
+              className="p-3.5 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-800 hover:bg-indigo-50/20 dark:hover:bg-slate-800/20 transition-all flex items-center justify-center"
             >
-              <p className="text-sm font-medium text-gray-600">+ Other</p>
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-550 dark:text-slate-400">+ Other</p>
             </div>
           ) : (
-            <div className="p-3 border border-purple-200 rounded-lg bg-white flex items-center gap-2">
+            <div className="p-2 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 flex items-center gap-2">
               <Input
                 value={customLanguage}
                 onChange={(e) => setCustomLanguage(e.target.value)}
                 placeholder="Type language..."
-                className="h-8 text-sm"
+                className="h-8 text-sm rounded-xl"
               />
-              <Button size="sm" onClick={handleAddCustomLanguage} className="h-8 w-8 p-0 bg-purple-600">
+              <Button size="sm" type="button" onClick={handleAddCustomLanguage} className="h-8 w-8 p-0 bg-indigo-600">
                 <CheckCircle className="size-4" />
               </Button>
             </div>
           )}
         </div>
-        {errors.languages && <p className="text-xs text-red-500 mt-1">{errors.languages}</p>}
+        {errors.languages && <p className="text-xs text-red-550 font-bold mt-1 pl-1">{errors.languages}</p>}
       </div>
     </div>
   );
 
   const renderStep3 = () => (
-    <div className="space-y-6">
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
-          📄 Upload clear copies. All mandatory documents must be submitted for verification.
-        </p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="p-5 bg-gradient-to-r from-blue-500/10 to-indigo-500/5 dark:from-blue-950/20 dark:to-slate-950/30 border border-blue-150 dark:border-blue-900/30 rounded-[1.5rem] flex gap-4 items-center text-left">
+        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 grow-0 shrink-0"><FileText className="w-5 h-5" /></div>
+        <div>
+          <h4 className="font-bold text-xs uppercase tracking-widest text-slate-800 dark:text-white leading-tight">Verification Credentials REQUIRED</h4>
+          <p className="text-[10px] text-slate-550 dark:text-slate-400 uppercase tracking-wide mt-1">Please upload clear scanned copies or PDF files. All documents are mandatory for verification audit.</p>
+        </div>
       </div>
 
-      {[
-        { key: 'mciReg', label: 'Upload Medical Council Registration', desc: 'Click to upload or drag & drop' },
-        { key: 'degree', label: 'Upload Degree Certificate', desc: 'Click to upload' },
-        { key: 'idProof', label: 'Upload Government ID', desc: 'Aadhaar / PAN / Passport' },
-        { key: 'clinicLetter', label: 'Upload Clinic Letter (if attached to clinic)', desc: 'Optional' },
-        { key: 'signature', label: 'Upload signature image (transparent background preferred)', desc: 'Digital signature for prescriptions' }
-      ].map((doc) => (
-        <div key={doc.key}>
-          <Label>{doc.label}</Label>
-          <div className={`mt-2 border-2 border-dashed rounded-lg p-6 text-center transition-colors relative ${files[doc.key] ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-pink-400'}`}>
-            <input
-              type="file"
-              id={`file-${doc.key}`}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              onChange={(e) => handleFileChange(doc.key, e)}
-              accept=".pdf,.jpg,.jpeg,.png"
-            />
-            {files[doc.key] ? (
-              <div className="flex flex-col items-center">
-                <CheckCircle className="size-10 text-green-500 mx-auto mb-2" />
-                <p className="text-sm text-green-700 font-medium">{files[doc.key].name}</p>
-                <p className="text-xs text-green-600 mt-1">{(files[doc.key].size / 1024 / 1024).toFixed(2)} MB</p>
-              </div>
-            ) : (
-              <>
-                <Upload className="size-10 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600">{doc.desc}</p>
-                <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG (Max 5MB)</p>
-              </>
-            )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[
+          { key: 'mciReg', label: 'Medical Council Registration Document *', desc: 'MCI Certificate copy' },
+          { key: 'degree', label: 'Degree Certificate *', desc: 'MBBS / MD Graduation proof' },
+          { key: 'idProof', label: 'Government ID *', desc: 'Aadhaar, Passport or PAN Card' },
+          { key: 'clinicLetter', label: 'Clinic Authorization Letter', desc: 'Clinic attachment proof (Optional)' },
+          { key: 'signature', label: 'Prescription Digital Signature *', desc: 'Transparent background preferred' }
+        ].map((doc) => (
+          <div key={doc.key} className="space-y-2">
+            <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{doc.label}</Label>
+            <div className={`border-2 border-dashed rounded-3xl p-6 text-center transition-all relative overflow-hidden group ${files[doc.key] ? 'border-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-500/50 dark:hover:border-blue-800 bg-white/40 dark:bg-slate-950/20'}`}>
+              <input
+                type="file"
+                id={`file-${doc.key}`}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                onChange={(e) => handleFileChange(doc.key, e)}
+                accept=".pdf,.jpg,.jpeg,.png"
+              />
+              {files[doc.key] ? (
+                <div className="flex flex-col items-center">
+                  <CheckCircle className="size-10 text-emerald-500 mb-2 animate-bounce" />
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400 font-bold truncate max-w-xs">{files[doc.key].name}</p>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-555 uppercase tracking-widest mt-1">{(files[doc.key].size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"><Upload className="size-5" /></div>
+                  <p className="text-xs text-slate-655 dark:text-slate-350 font-bold">{doc.desc}</p>
+                  <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">PDF, JPG, PNG (Max 5MB)</p>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 
   const renderStep4 = () => (
-    <div className="space-y-6">
-      <div>
-        <Label htmlFor="clinicName">Clinic or Hospital Name</Label>
-        <Input
-          id="clinicName"
-          placeholder="Clinic or Hospital name"
-          className="mt-2"
-          value={formData.clinicName}
-          onChange={handleInputChange}
-        />
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="space-y-2">
+        <Label htmlFor="clinicName" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Primary Consulting Clinic Name</Label>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <Input
+            id="clinicName"
+            placeholder="Clinic or Hospital name"
+            className="pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100"
+            value={formData.clinicName}
+            onChange={handleInputChange}
+          />
+        </div>
       </div>
 
-      <div>
-        <Label htmlFor="clinicAddress">Clinic Address</Label>
-        <Textarea
-          id="clinicAddress"
-          placeholder="Complete address"
-          rows={3}
-          className="mt-2"
-          value={formData.clinicAddress}
-          onChange={handleInputChange}
-        />
+      <div className="space-y-2">
+        <Label htmlFor="clinicAddress" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Clinic Address</Label>
+        <div className="relative">
+          <div className="absolute top-4 left-4 pointer-events-none text-slate-400 dark:text-slate-600">
+            <MapPin className="w-5 h-5" />
+          </div>
+          <Textarea
+            id="clinicAddress"
+            placeholder="Complete address details"
+            rows={3}
+            className="pl-12 pt-3 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100"
+            value={formData.clinicAddress}
+            onChange={handleInputChange}
+          />
+        </div>
       </div>
 
-      <div>
-        <Label>Working Days</Label>
-        <div className="grid grid-cols-7 gap-2 mt-2">
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Practice Weekly Calendar</Label>
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 mt-2">
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
               onClick={() => toggleSelection(day, workingDays, setWorkingDays)}
-              className={`p-3 border rounded-lg cursor-pointer text-center transition-colors ${workingDays.includes(day)
-                ? 'bg-pink-600 text-white border-pink-600'
-                : 'bg-white border-gray-300 hover:border-pink-400'
+              className={`p-3 border rounded-2xl cursor-pointer text-center transition-all duration-300 font-bold text-xs select-none ${workingDays.includes(day)
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-650 text-white border-transparent shadow-md shadow-blue-500/10 scale-[1.02]'
+                : 'bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:border-slate-355 dark:hover:border-slate-700'
                 }`}
             >
-              <p className="text-sm font-medium">{day}</p>
+              <p className="text-[10px] font-black uppercase tracking-wider scale-95">{day}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="inClinicFee">In-Clinic Consultation Fee (₹)</Label>
-          <Input
-            id="inClinicFee"
-            placeholder="e.g., 500"
-            type="number"
-            className="mt-2"
-            value={formData.inClinicFee}
-            onChange={handleInputChange}
-          />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label htmlFor="inClinicFee" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">In-Clinic Consultation Fee (₹)</Label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <Input
+              id="inClinicFee"
+              placeholder="e.g., 500"
+              type="number"
+              className="pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100"
+              value={formData.inClinicFee}
+              onChange={handleInputChange}
+            />
+          </div>
         </div>
 
-        <div>
-          <Label htmlFor="onlineFee">Online Consultation Fee (₹)</Label>
-          <Input
-            id="onlineFee"
-            placeholder="e.g., 300"
-            type="number"
-            className="mt-2"
-            value={formData.onlineFee}
-            onChange={handleInputChange}
-          />
+        <div className="space-y-2">
+          <Label htmlFor="onlineFee" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Online Consultation Fee (₹)</Label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <Input
+              id="onlineFee"
+              placeholder="e.g., 300"
+              type="number"
+              className="pl-12 h-13 rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100"
+              value={formData.onlineFee}
+              onChange={handleInputChange}
+            />
+          </div>
         </div>
       </div>
 
-      <div>
-        <Label>Consultation Modes</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Consultation Modes Accepted *</Label>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
           {consultationModes.map((mode) => (
             <div
               key={mode}
               onClick={() => toggleSelection(mode, selectedModes, setSelectedModes)}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedModes.includes(mode)
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-white border-gray-300 hover:border-purple-400'
+              className={`p-3.5 border rounded-2xl cursor-pointer text-center transition-all duration-300 font-bold text-xs select-none border ${selectedModes.includes(mode)
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-650 text-white border-transparent shadow-md shadow-purple-500/10 scale-[1.02]'
+                : 'bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-450 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:border-slate-350 dark:hover:border-slate-700'
                 }`}
             >
-              <p className="text-sm font-medium">{mode}</p>
+              <p className="font-black uppercase tracking-wider text-[10px] scale-95">{mode}</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div>
-        <Label>Conditions You Treat</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Target Medical Conditions You Treat *</Label>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
           {conditionsTreated.map((condition) => (
             <div
               key={condition}
               onClick={() => toggleSelection(condition, selectedConditions, setSelectedConditions)}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedConditions.includes(condition)
-                ? 'bg-pink-600 text-white border-pink-600'
-                : 'bg-white border-gray-300 hover:border-pink-400'
+              className={`p-3 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs flex items-center justify-between border select-none ${selectedConditions.includes(condition)
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-650 text-white border-transparent shadow-md shadow-blue-500/10 scale-[1.02]'
+                : 'bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
             >
-              <p className="text-sm font-medium">{condition}</p>
+              <p className="font-bold uppercase tracking-wider text-[10px] scale-95 truncate mr-1">{condition}</p>
+              {selectedConditions.includes(condition) && <CheckCircle className="size-4 shrink-0 animate-in zoom-in" />}
             </div>
           ))}
-          {/* Custom Conditions Display */}
           {selectedConditions.filter(c => !conditionsTreated.includes(c)).map((condition) => (
             <div
               key={condition}
               onClick={() => toggleSelection(condition, selectedConditions, setSelectedConditions)}
-              className="p-3 border rounded-lg cursor-pointer transition-colors bg-pink-600 text-white border-pink-600"
+              className="p-3 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs flex items-center justify-between border bg-gradient-to-r from-blue-600 to-indigo-650 text-white border-transparent shadow-md shadow-blue-500/10 scale-[1.02] select-none"
             >
-              <p className="text-sm font-medium">{condition}</p>
+              <p className="font-bold uppercase tracking-wider text-[10px] scale-95 truncate mr-1">{condition}</p>
+              <CheckCircle className="size-4 shrink-0 animate-in zoom-in" />
             </div>
           ))}
 
-          {/* Add Other Button */}
           {!showCustomConditionInput ? (
             <div
               onClick={() => setShowCustomConditionInput(true)}
-              className="p-3 border border-dashed border-gray-400 rounded-lg cursor-pointer hover:border-pink-400 hover:bg-pink-50 transition-colors flex items-center justify-center"
+              className="p-3 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl cursor-pointer text-slate-555 dark:text-slate-400 hover:border-blue-500 dark:hover:border-blue-800 hover:bg-blue-50/20 dark:hover:bg-slate-800/20 transition-all flex items-center justify-center gap-1.5"
             >
-              <p className="text-sm font-medium text-gray-600">+ Other</p>
+              <Plus className="size-4" />
+              <p className="font-black uppercase tracking-wider text-[10px] scale-95">+ Add Custom</p>
             </div>
           ) : (
-            <div className="p-3 border border-pink-200 rounded-lg bg-white flex items-center gap-2">
+            <div className="p-2 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 flex items-center gap-2">
               <Input
                 value={customCondition}
                 onChange={(e) => setCustomCondition(e.target.value)}
                 placeholder="Type condition..."
-                className="h-8 text-sm"
+                className="h-8 text-sm rounded-xl"
               />
-              <Button size="sm" onClick={handleAddCustomCondition} className="h-8 w-8 p-0 bg-pink-600">
+              <Button size="sm" type="button" onClick={handleAddCustomCondition} className="h-8 w-8 p-0 bg-blue-600">
                 <CheckCircle className="size-4" />
               </Button>
             </div>
@@ -805,49 +873,50 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
         </div>
       </div>
 
-      <div>
-        <Label>Services Offered</Label>
+      <div className="space-y-2">
+        <Label className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Practice Services Offered *</Label>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
           {servicesOffered.map((service) => (
             <div
               key={service}
               onClick={() => toggleSelection(service, selectedServices, setSelectedServices)}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedServices.includes(service)
-                ? 'bg-purple-600 text-white border-purple-600'
-                : 'bg-white border-gray-300 hover:border-purple-400'
+              className={`p-3 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs flex items-center justify-between border select-none ${selectedServices.includes(service)
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-650 text-white border-transparent shadow-md shadow-indigo-500/10 scale-[1.02]'
+                : 'bg-white dark:bg-slate-950/20 border-slate-200 dark:border-slate-800 text-slate-655 dark:text-slate-455 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
             >
-              <p className="text-sm font-medium">{service}</p>
+              <p className="font-bold uppercase tracking-wider text-[10px] scale-95 truncate mr-1">{service}</p>
+              {selectedServices.includes(service) && <CheckCircle className="size-4 shrink-0 animate-in zoom-in" />}
             </div>
           ))}
-          {/* Custom Services Display */}
           {selectedServices.filter(s => !servicesOffered.includes(s)).map((service) => (
             <div
               key={service}
               onClick={() => toggleSelection(service, selectedServices, setSelectedServices)}
-              className="p-3 border rounded-lg cursor-pointer transition-colors bg-purple-600 text-white border-purple-600"
+              className="p-3 border rounded-2xl cursor-pointer transition-all duration-300 font-bold text-xs flex items-center justify-between border bg-gradient-to-r from-indigo-600 to-purple-650 text-white border-transparent shadow-md shadow-indigo-500/10 scale-[1.02] select-none"
             >
-              <p className="text-sm font-medium">{service}</p>
+              <p className="font-bold uppercase tracking-wider text-[10px] scale-95 truncate mr-1">{service}</p>
+              <CheckCircle className="size-4 shrink-0 animate-in zoom-in" />
             </div>
           ))}
 
-          {/* Add Other Button */}
           {!showCustomServiceInput ? (
             <div
               onClick={() => setShowCustomServiceInput(true)}
-              className="p-3 border border-dashed border-gray-400 rounded-lg cursor-pointer hover:border-purple-400 hover:bg-purple-50 transition-colors flex items-center justify-center"
+              className="p-3 border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl cursor-pointer text-slate-555 dark:text-slate-400 hover:border-indigo-500 dark:hover:border-indigo-800 hover:bg-indigo-50/20 dark:hover:bg-slate-800/20 transition-all flex items-center justify-center gap-1.5"
             >
-              <p className="text-sm font-medium text-gray-600">+ Other</p>
+              <Plus className="size-4" />
+              <p className="font-black uppercase tracking-wider text-[10px] scale-95">+ Add Custom</p>
             </div>
           ) : (
-            <div className="p-3 border border-purple-200 rounded-lg bg-white flex items-center gap-2">
+            <div className="p-3 border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-950 flex items-center gap-2">
               <Input
                 value={customService}
                 onChange={(e) => setCustomService(e.target.value)}
                 placeholder="Type service..."
-                className="h-8 text-sm"
+                className="h-8 text-sm rounded-xl"
               />
-              <Button size="sm" onClick={handleAddCustomService} className="h-8 w-8 p-0 bg-purple-600">
+              <Button size="sm" type="button" onClick={handleAddCustomService} className="h-8 w-8 p-0 bg-indigo-600">
                 <CheckCircle className="size-4" />
               </Button>
             </div>
@@ -858,103 +927,134 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
   );
 
   const renderStep5 = () => (
-    <div className="space-y-6">
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-800">
-          💰 Bank details required for receiving consultation payments
-        </p>
-      </div>
-
-      <div>
-        <Label htmlFor="accountName">Account Holder Name</Label>
-        <p className="text-xs text-gray-600 mt-1">As per bank records</p>
-        <Input
-          id="accountName"
-          placeholder="Account holder name"
-          className="mt-2"
-          value={formData.accountName}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="accountNumber">Account Number</Label>
-        <Input
-          id="accountNumber"
-          placeholder="Account number"
-          className="mt-2"
-          value={formData.accountNumber}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="ifsc">IFSC Code</Label>
-        <Input
-          id="ifsc"
-          placeholder="e.g., SBIN0001234"
-          className="mt-2"
-          value={formData.ifsc}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="pan">PAN Number</Label>
-        <Input
-          id="pan"
-          placeholder="e.g., ABCDE1234F"
-          className="mt-2 uppercase"
-          value={formData.pan}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="gstin">GSTIN (if applicable)</Label>
-        <Input
-          id="gstin"
-          placeholder="15-digit GSTIN"
-          maxLength={15}
-          className="mt-2 uppercase"
-          value={formData.gstin}
-          onChange={handleInputChange}
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="bio">Self-Introduction (Bio) *</Label>
-        <Textarea
-          id="bio"
-          placeholder="Write a brief introduction about yourself, your expertise, and approach to patient care..."
-          rows={4}
-          maxLength={200}
-          className={`mt-2 ${errors.bio ? 'border-red-500' : ''}`}
-          value={formData.bio}
-          onChange={handleInputChange}
-        />
-        <div className="flex justify-between mt-1">
-          {errors.bio ? <p className="text-xs text-red-500">{errors.bio}</p> : <div />}
-          <p className={`text-xs ${formData.bio.length >= 200 ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
-            {formData.bio.length}/200 characters
-          </p>
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="p-5 bg-gradient-to-r from-blue-500/10 to-indigo-500/5 dark:from-blue-950/20 dark:to-slate-950/30 border border-blue-150 dark:border-blue-900/30 rounded-[1.5rem] flex gap-4 items-center text-left">
+        <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 grow-0 shrink-0"><DollarSign className="w-5 h-5" /></div>
+        <div>
+          <h4 className="font-bold text-xs uppercase tracking-widest text-slate-800 dark:text-white leading-tight">Financial settlement setup</h4>
+          <p className="text-[10px] text-slate-555 dark:text-slate-400 uppercase tracking-wide mt-1">Bank credentials are required to dispatch telemedicine payouts directly to your savings/current ledger.</p>
         </div>
       </div>
 
-      <div className="border-t pt-6">
-        <h3 className="font-semibold text-gray-900 mb-4">Compliance & Declaration</h3>
+      <div className="space-y-6 bg-slate-50/50 dark:bg-slate-950/10 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-850">
+        <div className="space-y-2">
+          <Label htmlFor="accountName" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Account Holder Name *</Label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+              <User className="w-4 h-4" />
+            </div>
+            <Input
+              id="accountName"
+              placeholder="As per bank passbook"
+              className="pl-10 h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-bold"
+              value={formData.accountName}
+              onChange={handleInputChange}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="accountNumber" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Account Number *</Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+                <CreditCard className="w-4 h-4" />
+              </div>
+              <Input
+                id="accountNumber"
+                placeholder="Account number"
+                className="pl-10 h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-bold"
+                value={formData.accountNumber}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="ifsc" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">IFSC Code *</Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <Input
+                id="ifsc"
+                placeholder="e.g. SBIN0001234"
+                className="pl-10 h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-bold"
+                value={formData.ifsc}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <Label htmlFor="pan" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">PAN Number *</Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+                <FileText className="w-4 h-4" />
+              </div>
+              <Input
+                id="pan"
+                placeholder="e.g. ABCDE1234F"
+                className="pl-10 h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-bold uppercase"
+                value={formData.pan}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="gstin" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">GSTIN (if applicable)</Label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 dark:text-slate-600">
+                <FileText className="w-4 h-4" />
+              </div>
+              <Input
+                id="gstin"
+                placeholder="15-digit GSTIN"
+                maxLength={15}
+                className="pl-10 h-12 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-bold uppercase"
+                value={formData.gstin}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="bio" className="text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Self-Introduction (Bio) *</Label>
+        <Textarea
+          id="bio"
+          placeholder="Introduce yourself to your patients. Explain your medical background, treatment philosophies..."
+          rows={4}
+          maxLength={200}
+          className={`rounded-2xl border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 font-bold text-slate-800 dark:text-slate-100 focus-visible:ring-blue-500 shadow-sm p-4 resize-none ${errors.bio ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+          value={formData.bio}
+          onChange={handleInputChange}
+        />
+        <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest px-1">
+          {errors.bio ? <span className="text-red-550 font-bold normal-case">{errors.bio}</span> : <div />}
+          <span className={`${formData.bio.length >= 200 ? 'text-red-500 font-bold' : ''}`}>{formData.bio.length}/200 characters</span>
+        </div>
+      </div>
+
+      <div className="border-t dark:border-slate-800 pt-6">
+        <h3 className="text-sm font-black italic uppercase text-slate-855 dark:text-white mb-4">Compliance Declaration</h3>
         <div className="space-y-4">
           <div className="flex items-start gap-3">
             <Checkbox
               id="termsAccepted"
               checked={formData.termsAccepted}
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, termsAccepted: !!checked }))}
+              className="rounded-md h-5 w-5 border-slate-350 dark:border-slate-800 focus:ring-blue-500/20 data-[state=checked]:bg-blue-600 text-white"
             />
             <div className="grid gap-1.5 leading-none">
-              <label htmlFor="termsAccepted" className="text-sm font-medium text-gray-700 cursor-pointer">
+              <label htmlFor="termsAccepted" className="text-xs font-bold text-slate-655 dark:text-slate-400 cursor-pointer select-none leading-none uppercase tracking-wide">
                 I accept the Terms & Conditions and Privacy Policy *
               </label>
-              {errors.termsAccepted && <p className="text-xs text-red-500">{errors.termsAccepted}</p>}
+              {errors.termsAccepted && <p className="text-xs text-red-550 font-bold mt-1">{errors.termsAccepted}</p>}
             </div>
           </div>
 
@@ -963,12 +1063,13 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
               id="registeredPractitioner"
               checked={formData.registeredPractitioner}
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, registeredPractitioner: !!checked }))}
+              className="rounded-md h-5 w-5 border-slate-350 dark:border-slate-800 focus:ring-blue-500/20 data-[state=checked]:bg-blue-600 text-white"
             />
             <div className="grid gap-1.5 leading-none">
-              <label htmlFor="registeredPractitioner" className="text-sm font-medium text-gray-700 cursor-pointer">
-                ✅ I confirm that I am a registered medical practitioner authorized to provide medical consultations *
+              <label htmlFor="registeredPractitioner" className="text-xs font-bold text-slate-655 dark:text-slate-400 cursor-pointer select-none leading-tight uppercase tracking-wide">
+                I confirm that I am a registered medical practitioner authorized to provide medical consultations *
               </label>
-              {errors.registeredPractitioner && <p className="text-xs text-red-500">{errors.registeredPractitioner}</p>}
+              {errors.registeredPractitioner && <p className="text-xs text-red-555 font-bold mt-1">{errors.registeredPractitioner}</p>}
             </div>
           </div>
 
@@ -977,63 +1078,81 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
               id="verificationConsent"
               checked={formData.verificationConsent}
               onCheckedChange={(checked) => setFormData(prev => ({ ...prev, verificationConsent: !!checked }))}
+              className="rounded-md h-5 w-5 border-slate-350 dark:border-slate-800 focus:ring-blue-500/20 data-[state=checked]:bg-blue-600 text-white"
             />
             <div className="grid gap-1.5 leading-none">
-              <label htmlFor="verificationConsent" className="text-sm font-medium text-gray-700 cursor-pointer">
-                ✅ I consent to I Health Clinic verifying my uploaded documents and credentials *
+              <label htmlFor="verificationConsent" className="text-xs font-bold text-slate-655 dark:text-slate-400 cursor-pointer select-none leading-tight uppercase tracking-wide">
+                I consent to I Health Clinic verifying my uploaded documents and credentials *
               </label>
-              {errors.verificationConsent && <p className="text-xs text-red-500">{errors.verificationConsent}</p>}
+              {errors.verificationConsent && <p className="text-xs text-red-555 font-bold mt-1">{errors.verificationConsent}</p>}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-        <h4 className="font-semibold text-purple-900 mb-2">Verification Process:</h4>
-        <ul className="space-y-2 text-sm text-purple-800">
-          <li>• Documents reviewed by verification team (24-48 hours)</li>
-          <li>• Email/SMS updates on verification status</li>
-          <li>• Once verified → "✅ Verified Doctor" badge on profile</li>
-          <li>• Your profile goes live on I Health Clinic platform</li>
+      <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/5 dark:from-blue-950/20 dark:to-slate-950/30 border border-blue-150 dark:border-blue-900/30 rounded-[1.5rem] p-6 text-left">
+        <h4 className="font-black text-xs uppercase tracking-widest text-blue-600 dark:text-blue-400 mb-3 flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> Next Steps in Verification Flow</h4>
+        <ul className="space-y-2 text-[10px] text-slate-655 dark:text-slate-400 font-bold uppercase tracking-wider">
+          <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full shrink-0" /> Documents will be audited by the medical vetting board within 24-48 hours</li>
+          <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full shrink-0" /> Audit alerts will be dispatched via real-time email or SMS logs</li>
+          <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full shrink-0" /> Upon approval, a "✅ Verified Doctor" badge will be permanently linked to your profile</li>
+          <li className="flex items-center gap-2"><span className="w-1.5 h-1.5 bg-blue-600 dark:bg-blue-400 rounded-full shrink-0" /> Your scheduling and telemedicine options will immediately go live</li>
         </ul>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-pink-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-6 transition-colors duration-300">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-50/50 via-slate-50 to-slate-105 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-6 md:p-12 transition-colors duration-300 relative overflow-hidden flex items-center justify-center">
+      {/* Background ambient glows */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-400/10 dark:bg-blue-900/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-400/10 dark:bg-indigo-900/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div className="max-w-4xl w-full mx-auto relative z-10 space-y-10">
+        {/* Back Link */}
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-black uppercase text-[10px] tracking-widest transition-colors group"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Back to login portal
+        </button>
+
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="font-bold text-gray-900 mb-2">Doctor Registration</h1>
-          <p className="text-sm text-gray-600">Join I Health Clinic as a verified medical practitioner</p>
+        <div className="text-center space-y-3">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-blue-500/20 border border-blue-400/20 mx-auto transform -rotate-3 hover:rotate-0 transition-transform">
+            <User className="w-8 h-8" />
+          </div>
+          <h1 className="text-4xl font-black italic uppercase text-slate-900 dark:text-white tracking-tighter leading-none">Doctor Registration</h1>
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">Join I Health Clinic as a verified medical professional</p>
         </div>
 
-        {/* Steps */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Steps Tracker */}
+        <div className="flex items-center justify-between pb-4 overflow-x-auto custom-scrollbar gap-4 bg-white/40 dark:bg-slate-900/40 border border-slate-200/50 dark:border-slate-800/80 p-6 rounded-[2rem] backdrop-blur-md">
           {steps.map((step, index) => {
             const isActive = currentStep === step.id;
             const isCompleted = currentStep > step.id;
+            const StepIcon = step.icon;
 
             return (
-              <div key={step.id} className="flex items-center flex-1">
-                <div className="flex flex-col items-center">
+              <div key={step.id} className="flex items-center flex-1 min-w-[90px] last:flex-initial">
+                <div className="flex flex-col items-center flex-1">
                   <div
-                    className={`size-12 rounded-full flex items-center justify-center mb-2 ${isActive
-                      ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white'
+                    className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-2.5 transition-all duration-300 shadow-md ${isActive
+                      ? 'bg-gradient-to-br from-blue-600 to-indigo-650 text-white ring-4 ring-blue-500/20 scale-110 shadow-blue-500/10 font-bold border-transparent'
                       : isCompleted
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gray-200 text-gray-500'
+                        ? 'bg-emerald-500 text-white shadow-emerald-500/10'
+                        : 'bg-white dark:bg-slate-950/40 text-slate-400 dark:text-slate-600 border border-slate-200/60 dark:border-slate-850'
                       }`}
                   >
                     {isCompleted ? (
-                      <CheckCircle className="size-6" />
+                      <CheckCircle className="size-6 animate-in zoom-in duration-300" />
                     ) : (
-                      <span className="font-semibold">{step.id}</span>
+                      <StepIcon className="size-5" />
                     )}
                   </div>
                   <p
-                    className={`text-xs font-medium ${isActive ? 'text-pink-600' : isCompleted ? 'text-green-600' : 'text-gray-500'
+                    className={`text-[9px] font-black uppercase tracking-wider transition-colors duration-300 text-center select-none ${isActive ? 'text-blue-600 dark:text-blue-400' : isCompleted ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-600'
                       }`}
                   >
                     {step.title}
@@ -1041,8 +1160,7 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
                 </div>
                 {index < steps.length - 1 && (
                   <div
-                    className={`flex-1 h-1 mx-2 ${isCompleted ? 'bg-green-600' : 'bg-gray-200'
-                      }`}
+                    className={`flex-1 h-[2px] mx-2 rounded-full transition-all duration-500 ${isCompleted ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'}`}
                   />
                 )}
               </div>
@@ -1051,16 +1169,27 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
         </div>
 
         {/* Form Card */}
-        <Card className="border-pink-200 shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-pink-900">
-              {steps[currentStep - 1].title} {currentStep === 2 && 'Details'}
-              {currentStep === 3 && ''}
-              {currentStep === 4 && 'Details'}
-              {currentStep === 5 && 'Details & Compliance'}
-            </CardTitle>
+        <Card className="border-none bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-[2.5rem] shadow-2xl shadow-blue-900/5 dark:shadow-none border border-slate-100 dark:border-slate-800/80 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-slate-900/5 to-slate-900/[0.02] dark:from-slate-950/20 dark:to-slate-950/[0.01] p-8 md:p-10 border-b border-slate-150 dark:border-slate-800">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-3 py-1 rounded-full border border-blue-100 dark:border-blue-900/30">Step {currentStep} of {steps.length}</span>
+                <CardTitle className="text-2xl font-black italic uppercase text-slate-850 dark:text-white mt-3">
+                  {steps[currentStep - 1].title}
+                  {currentStep === 2 && ' Details'}
+                  {currentStep === 4 && ' Details'}
+                  {currentStep === 5 && ' Details & Compliance'}
+                </CardTitle>
+              </div>
+              <div className="w-12 h-12 bg-blue-50 dark:bg-blue-950/30 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/30 shadow-inner">
+                {(() => {
+                  const CurrentIcon = steps[currentStep - 1].icon;
+                  return <CurrentIcon className="w-5 h-5 animate-pulse" />;
+                })()}
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-8 md:p-10">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
@@ -1068,12 +1197,13 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
             {currentStep === 5 && renderStep5()}
 
             {/* Navigation */}
-            <div className="flex gap-4 mt-8 pt-6 border-t">
+            <div className="flex gap-4 mt-10 pt-8 border-t dark:border-slate-850">
               {currentStep > 1 && (
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setCurrentStep(currentStep - 1)}
-                  className="flex-1"
+                  className="flex-1 h-13 rounded-2xl font-black uppercase text-xs tracking-wider border-slate-200 dark:border-slate-855 dark:text-white dark:hover:bg-slate-850"
                 >
                   <ChevronLeft className="size-4 mr-2" />
                   Previous
@@ -1081,17 +1211,19 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
               )}
               {currentStep < 5 ? (
                 <Button
+                  type="button"
                   onClick={handleNext}
-                  className="flex-1 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700"
+                  className="flex-1 h-13 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl font-black uppercase text-xs tracking-wider border-4 border-blue-500/20 active:scale-95 shadow-lg shadow-blue-500/10"
                 >
                   Next
                   <ChevronRight className="size-4 ml-2" />
                 </Button>
               ) : (
                 <Button
+                  type="button"
                   onClick={() => { if (validateStep(5)) handleSubmit(); }}
                   disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                  className="flex-1 h-13 bg-gradient-to-r from-emerald-600 to-teal-650 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl font-black uppercase text-xs tracking-wider border-4 border-emerald-500/20 active:scale-95 shadow-lg shadow-emerald-500/10 disabled:opacity-50"
                 >
                   {loading ? (
                     'Registering...'
@@ -1105,9 +1237,10 @@ export function DoctorRegistration({ onBack, onSuccess }: DoctorRegistrationProp
               )}
               {currentStep === 1 && (
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={onBack}
-                  className="flex-1"
+                  className="flex-1 h-13 rounded-2xl font-black uppercase text-xs tracking-wider border-slate-200 dark:border-slate-855 dark:text-white dark:hover:bg-slate-850"
                 >
                   <ArrowLeft className="size-4 mr-2" />
                   Back

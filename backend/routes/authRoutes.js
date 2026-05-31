@@ -49,14 +49,19 @@ router.get('/me', protect, authController.getCurrentUser);
 // Verify OTP
 router.post('/verify-otp', authController.verifyOtp);
 
+const rateLimiter = require('../middleware/rateLimiter');
+
 // Forgot Password
-router.post('/forgot-password', authController.forgotPassword);
+router.post('/forgot-password', rateLimiter(3, 15 * 60 * 1000), authController.forgotPassword);
+
+// Validate Reset Token
+router.get('/validate-reset-token', authController.validateResetToken);
 
 // Reset Password
-router.post('/reset-password', authController.resetPassword);
+router.post('/reset-password', rateLimiter(5, 15 * 60 * 1000), authController.resetPassword);
 
-// Mobile OTP login
-router.post('/send-otp-mobile', authController.sendOtpMobile);
-router.post('/login-otp-mobile', authController.loginOtpMobile);
+// Change Password
+router.post('/change-password', protect, authController.changePassword);
 
 module.exports = router;
+

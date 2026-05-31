@@ -1,9 +1,11 @@
 const express = require('express');
 const clinicAiController = require('../controllers/clinicAiController');
+const { protect } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes are public (AI tools accessible after app-level auth)
+// Protect all Clinic AI routes
+router.use(protect);
 
 // 1. Predictive Workload Planner
 router.get('/workload', clinicAiController.predictWorkload);

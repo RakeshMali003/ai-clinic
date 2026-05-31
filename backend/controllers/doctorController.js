@@ -22,7 +22,11 @@ exports.getDoctorPatients = async (req, res, next) => {
             };
         } else {
             // Default: patients assigned to this doctor
-            whereClause.doctor_id = doctorId;
+            whereClause.appointments = {
+                some: {
+                    doctor_id: doctorId
+                }
+            };
 
             if (filter === 'Today') {
                 const today = new Date();
@@ -61,7 +65,14 @@ exports.deleteDoctorPatient = async (req, res, next) => {
         const { id } = req.params;
 
         const patient = await prisma.patients.findFirst({
-            where: { patient_id: id, doctor_id: doctorId }
+            where: {
+                patient_id: id,
+                appointments: {
+                    some: {
+                        doctor_id: doctorId
+                    }
+                }
+            }
         });
 
         if (!patient) {
@@ -404,6 +415,16 @@ exports.updateDoctorProfile = async (req, res, next) => {
         delete updates.user_id;
         delete updates.email;
 
+        // Handle single specialization mapping
+        if (updates.specialization !== undefined) {
+            const spec = updates.specialization;
+            delete updates.specialization;
+            await prisma.doctor_specializations.deleteMany({ where: { doctor_id: doctorId } });
+            if (spec) {
+                await Doctor.insertSpecializations(doctorId, [spec]);
+            }
+        }
+
         // Handle multi-value fields separately
         const { specializations, languages, consultationModes } = updates;
         delete updates.specializations;
@@ -425,6 +446,98 @@ exports.updateDoctorProfile = async (req, res, next) => {
             await Doctor.insertConsultationModes(doctorId, consultationModes);
         }
 
+        // Retrieve user_id from doctors table to update user relations
+        const doctor = await prisma.doctors.findUnique({
+            where: { id: doctorId }
+        });
+        const userId = doctor.user_id;
+
+        // Handle mobile mapping (contact_numbers table)
+        if (updates.mobile !== undefined) {
+            const mobileValue = updates.mobile;
+            delete updates.mobile;
+            const existing = await prisma.contact_numbers.findFirst({
+                where: { user_id: userId, is_primary: true }
+            });
+            if (existing) {
+                await prisma.contact_numbers.update({
+                    where: { contact_id: existing.contact_id },
+                    data: { phone_number: mobileValue }
+                });
+            } else {
+                await prisma.contact_numbers.create({
+                    data: {
+                        user_id: userId,
+                        phone_number: mobileValue,
+                        is_primary: true
+                    }
+                });
+            }
+        }
+
+        // Handle bank account mapping (bank_accounts table)
+        if (updates.bank_account_name !== undefined || updates.bank_account_number !== undefined || updates.ifsc_code !== undefined) {
+            const bankAccountName = updates.bank_account_name;
+            const bankAccountNumber = updates.bank_account_number;
+            const ifscCode = updates.ifsc_code;
+            delete updates.bank_account_name;
+            delete updates.bank_account_number;
+            delete updates.ifsc_code;
+
+            const existing = await prisma.bank_accounts.findFirst({
+                where: { user_id: userId }
+            });
+            if (existing) {
+                await prisma.bank_accounts.update({
+                    where: { bank_id: existing.bank_id },
+                    data: {
+                        account_holder_name: bankAccountName,
+                        account_number: bankAccountNumber,
+                        ifsc_code: ifscCode
+                    }
+                });
+            } else {
+                await prisma.bank_accounts.create({
+                    data: {
+                        user_id: userId,
+                        account_holder_name: bankAccountName || '',
+                        account_number: bankAccountNumber || '',
+                        ifsc_code: ifscCode || '',
+                        bank_name: ''
+                    }
+                });
+            }
+        }
+
+        // Handle tax details mapping (tax_details table)
+        if (updates.pan_number !== undefined || updates.gstin !== undefined) {
+            const panNumber = updates.pan_number;
+            const gstin = updates.gstin;
+            delete updates.pan_number;
+            delete updates.gstin;
+
+            const existing = await prisma.tax_details.findFirst({
+                where: { user_id: userId }
+            });
+            if (existing) {
+                await prisma.tax_details.update({
+                    where: { tax_id: existing.tax_id },
+                    data: {
+                        pan_number: panNumber,
+                        gstin: gstin
+                    }
+                });
+            } else {
+                await prisma.tax_details.create({
+                    data: {
+                        user_id: userId,
+                        pan_number: panNumber || '',
+                        gstin: gstin || ''
+                    }
+                });
+            }
+        }
+
         const updatedDoctor = await prisma.doctors.update({
             where: { id: doctorId },
             data: {
@@ -432,18 +545,38 @@ exports.updateDoctorProfile = async (req, res, next) => {
                 updated_at: new Date()
             },
             include: {
-                doctor_specializations: true,
+                doctor_specializations: {
+                    include: {
+                        specializations_master: true
+                    }
+                },
                 doctor_languages: true,
-                doctor_consultation_modes: true
+                doctor_consultation_modes: true,
+                users: {
+                    include: {
+                        emails: { where: { is_primary: true } },
+                        contact_numbers: { where: { is_primary: true } },
+                        bank_accounts: true,
+                        tax_details: true
+                    }
+                }
             }
         });
 
         // Map back for response
         const responseData = {
             ...updatedDoctor,
-            specializations: updatedDoctor.doctor_specializations.map(s => s.specialization),
+            specialization: updatedDoctor.doctor_specializations.length > 0 ? updatedDoctor.doctor_specializations[0].specializations_master?.specialization_name : '',
+            specializations: updatedDoctor.doctor_specializations.map(s => s.specializations_master?.specialization_name),
             languages: updatedDoctor.doctor_languages.map(l => l.language),
-            consultation_modes: updatedDoctor.doctor_consultation_modes.map(m => m.mode)
+            consultation_modes: updatedDoctor.doctor_consultation_modes.map(m => m.consultation_mode),
+            email: updatedDoctor.users?.emails?.[0]?.email || '',
+            mobile: updatedDoctor.users?.contact_numbers?.[0]?.phone_number || '',
+            bank_account_name: updatedDoctor.users?.bank_accounts?.[0]?.account_holder_name || '',
+            bank_account_number: updatedDoctor.users?.bank_accounts?.[0]?.account_number || '',
+            ifsc_code: updatedDoctor.users?.bank_accounts?.[0]?.ifsc_code || '',
+            pan_number: updatedDoctor.users?.tax_details?.[0]?.pan_number || '',
+            gstin: updatedDoctor.users?.tax_details?.[0]?.gstin || ''
         };
 
         ResponseHandler.success(res, responseData, 'Profile updated successfully');
@@ -546,7 +679,7 @@ exports.getAllDoctors = async (req, res, next) => {
                 clinic_address: clinicAddress,
                 address: address,
                 schedule: schedule,
-                fees: 500
+                fees: doctor.consultation_fee ? parseFloat(doctor.consultation_fee.toString()) : 500
             };
         });
 
@@ -656,4 +789,92 @@ exports.registerDoctor = async (req, res, next) => {
     }
 };
 
+exports.getDoctorDocuments = async (req, res, next) => {
+    try {
+        const doctorId = req.user.doctor_id;
+        if (!doctorId) {
+            return ResponseHandler.badRequest(res, 'Doctor not identified');
+        }
+
+        const documents = await prisma.doctor_documents.findMany({
+            where: { doctor_id: doctorId },
+            orderBy: { uploaded_at: 'desc' }
+        });
+
+        ResponseHandler.success(res, documents, 'Doctor documents retrieved successfully');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.uploadDoctorDocument = async (req, res, next) => {
+    try {
+        const doctorId = req.user.doctor_id;
+        if (!doctorId) {
+            return ResponseHandler.badRequest(res, 'Doctor not identified');
+        }
+
+        if (!req.file) {
+            return ResponseHandler.badRequest(res, 'No file uploaded');
+        }
+
+        const { document_type } = req.body;
+        const { uploadToSupabase } = require('../utils/supabaseStorage');
+
+        const uploadResult = await uploadToSupabase(
+            req.file.buffer,
+            req.file.originalname,
+            `doctor/${doctorId}/documents`
+        );
+
+        if (!uploadResult.success) {
+            console.error('Supabase upload failed:', uploadResult.error);
+            return ResponseHandler.serverError(res, 'Failed to upload file to storage');
+        }
+
+        const document = await prisma.doctor_documents.create({
+            data: {
+                doctor_id: doctorId,
+                document_type: document_type || 'Other',
+                file_url: uploadResult.url,
+                mime_type: req.file.mimetype,
+                file_size: req.file.size
+            }
+        });
+
+        ResponseHandler.created(res, document, 'Doctor document uploaded successfully');
+    } catch (error) {
+        next(error);
+    }
+};
+
+exports.deleteDoctorDocument = async (req, res, next) => {
+    try {
+        const doctorId = req.user.doctor_id;
+        const { id } = req.params;
+
+        const doc = await prisma.doctor_documents.findUnique({
+            where: { id: parseInt(id) }
+        });
+
+        if (!doc || doc.doctor_id !== doctorId) {
+            return ResponseHandler.notFound(res, 'Document not found or unauthorized');
+        }
+
+        const { deleteFromSupabase } = require('../utils/supabaseStorage');
+        if (doc.file_url) {
+            await deleteFromSupabase(doc.file_url);
+        }
+
+        await prisma.doctor_documents.delete({
+            where: { id: parseInt(id) }
+        });
+
+        ResponseHandler.success(res, null, 'Doctor document deleted successfully');
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = exports;
+

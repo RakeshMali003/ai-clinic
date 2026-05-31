@@ -16,8 +16,10 @@ const protect = async (req, res, next) => {
             return ResponseHandler.unauthorized(res, 'Not authorized: No nav beacon found');
         }
 
-        // Use fallback secret to match authController
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret');
+        if (!process.env.JWT_SECRET) {
+            throw new Error('JWT_SECRET environment variable is missing');
+        }
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Use prisma to find user with role relation
         const dbUser = await prisma.users.findUnique({
@@ -69,6 +71,19 @@ const protect = async (req, res, next) => {
             });
             if (doctor) {
                 user.doctor_id = doctor.id;
+                const mapping = await prisma.doctor_clinic_mapping.findFirst({
+                    where: { doctor_id: doctor.id }
+                });
+                if (mapping) {
+                    user.clinic_id = mapping.clinic_id;
+                }
+            }
+        } else if (user.role === 'receptionist' || user.role === 'nurse') {
+            const staff = await prisma.clinic_staff.findFirst({
+                where: { user_id: user.user_id }
+            });
+            if (staff) {
+                user.clinic_id = staff.clinic_id;
             }
         }
 
